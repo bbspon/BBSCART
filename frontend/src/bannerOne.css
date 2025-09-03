@@ -1,0 +1,59 @@
+/* Banner-one */
+.bg-box-color-one:before {
+    background-color: #f4dab4;
+}
+.bg-box-color-one:after {
+    background-color: #f4dab4;
+}
+.bg-box-color-two:before {
+    background-color: #ffc6ce;
+}
+.bg-box-color-two:after {
+    background-color: #ffc6ce;
+}
+.banner-box:hover:before {
+    left: -210px;
+    top: -210px;
+}
+.banner-box:hover:after {
+    right: -80px;
+    bottom: -110px;
+}
+.banner-box:before {
+    transition: all 0.3s ease-in-out;
+    content: "";
+    width: 400px;
+    height: 600px;
+    position: absolute;
+    left: -200px;
+    top: -200px;
+    bottom: 0;
+    rotate: 40deg;
+    z-index: 0;
+}
+.banner-box:after {
+    transition: all 0.3s ease-in-out;
+    content: "";
+    width: 150px;
+    height: 300px;
+    position: absolute;
+    right: -70px;
+    bottom: -100px;
+    rotate: 40deg;
+    z-index: 0;
+}
+/* Responsive footer css */
+@media only screen and (max-width: 767px) {
+    .banner-box:before {
+        left: -300px;
+   }
+    .banner-box:after {
+        right: -100px;
+   }
+    .banner-box:hover:before {
+        left: -310px;
+   }
+    .banner-box:hover:after {
+        right: -110px;
+   }
+}
