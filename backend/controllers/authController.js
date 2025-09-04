@@ -1,3 +1,5 @@
+const mongoose = require("mongoose");
+
 const User = require("../models/User");
 const UserDetails = require("../models/UserDetails");
 const Cart = require("../models/Cart");
@@ -49,12 +51,35 @@ const geocodeAddress = async (address) => {
 
 // Register user
 exports.register = async (req, res) => {
-  const { name, email, phone, password, referredBy } = req.body;
+  const { name, email, phone, password, referredBy, role, confirmPassword } =
+    req.body;
+
+  // Basic confirm check (optional but recommended)
+  if (typeof confirmPassword !== "undefined" && confirmPassword !== password) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Passwords do not match" });
+  }
+
+  // whitelist role (map 'vendor' from UI to 'seller')
+  const ALLOWED = [
+    "user",
+    "customer",
+    "seller",
+    "agent",
+    "territory_head",
+    "franchise_head",
+    "admin",
+  ];
+  const normalizedRole = role === "vendor" ? "seller" : role;
+  const finalRole = ALLOWED.includes(String(normalizedRole))
+    ? normalizedRole
+    : "user";
 
   try {
     // ✅ Check if user already exists
-    let user = await User.findOne({ email });
-    if (user) {
+    let existing = await User.findOne({ email });
+    if (existing) {
       return res.status(400).json({ msg: "User already exists" });
     }
 
@@ -70,34 +95,37 @@ exports.register = async (req, res) => {
     // ✅ Generate unique referral code
     const referralCode = generateReferralCode();
 
-    // ✅ Create new user
-    user = new User({ name, email, phone, password });
-
-    // ✅ Hash the password
+    // ✅ Hash the password first
     const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-    // ✅ Save user to the database
+    // ✅ Create and save the User FIRST
+    let user = new User({
+      name,
+      email,
+      phone,
+      password: hashedPassword,
+      role: finalRole,
+    });
     await user.save();
 
-    // ✅ Create UserDetails record
+    // ✅ Create and save UserDetails NEXT
     const userDetails = new UserDetails({
       userId: user._id,
       referralCode,
-      referredBy: referrer ? referrer.userId : null, // Save referrer if valid
+      referredBy: referrer ? referrer.userId : null,
       phone,
     });
-
     await userDetails.save();
 
-    // ✅ Link User to UserDetails
+    // ✅ Link back on the user and save
     user.userdetails = userDetails._id;
     await user.save();
 
-    // ✅ Merge guest cart with registered user cart (if applicable)
-    if (req.session.userId) {
+    // ✅ Merge guest cart if session exists (safe optional check)
+    if (req.session?.userId) {
       await mergeGuestCartWithUser(req.session.userId, user._id);
-      req.session.userId = null; // Clear session cart after merging
+      req.session.userId = null;
     }
 
     // ✅ Generate Access Token (Short Expiry)
@@ -130,7 +158,7 @@ exports.register = async (req, res) => {
     });
 
     // ✅ Send response without exposing tokens
-    res.status(200).json({
+    return res.status(201).json({
       msg: "User registered successfully",
       user,
       userDetails,
@@ -600,7 +628,6 @@ exports.verifySetPasswordToken = async (req, res) => {
       .json({ success: false, message: "Failed to verify token" });
   }
 };
-
 
 // Set password with token
 exports.setPassword = async (req, res) => {

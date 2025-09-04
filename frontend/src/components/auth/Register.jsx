@@ -7,7 +7,7 @@ import { useDispatch } from "react-redux";
 
 const Register = () => {
 
-    const [userData, setUserData] = useState({ name: '', email: '', phone: '', password: '' });
+    const [userData, setUserData] = useState({ name: '', email: '', phone: '', password: '',  confirmPassword: '', role: 'user' });
     const [errors, setErrors] = useState({});
     const navigate = useNavigate();
     const dispatch = useDispatch();
@@ -21,12 +21,17 @@ const Register = () => {
         if (!userData.phone) formErrors.phone = "Phone is required";
         if (!userData.password) formErrors.password = "Password is required";
         else if (userData.password.length < 6) formErrors.password = "Password must be at least 6 characters";
+        if (!userData.confirmPassword) formErrors.confirmPassword = "Confirm password is required";
+        else if (userData.confirmPassword !== userData.password) formErrors.confirmPassword = "Passwords do not match";
+
+        if (!userData.role) formErrors.role = "Role is required";
 
         return formErrors;
     };
 
     const handleChange = (e) => {
-        setUserData({ ...userData, [e.target.name]: e.target.value });
+        console.log(`Field: ${e.target.name}, Value: ${e.target.value}`); // Debugging
+        setUserData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
     const handleRegisterSubmit = async (e) => {
@@ -105,7 +110,8 @@ const Register = () => {
                                         <input
                                             id="password"
                                             name="password"
-                                            className={`border p-3 shadow-md dark:bg-indigo-700 dark:text-gray-300 dark:border-gray-700 placeholder:text-base focus:scale-105 ease-in-out duration-300 border-gray-300 rounded-lg w-full placeholder-gray-300 ${errors.email ? 'border-red-700' : ''}`}
+                                            className={`border p-3 shadow-md dark:bg-indigo-700 dark:text-gray-300 dark:border-gray-700 placeholder:text-base focus:scale-105 ease-in-out duration-300 border-gray-300 rounded-lg w-full placeholder-gray-300 ${errors.password ? 'border-red-700' : ''}`}
+
                                             type={showPassword ? "text" : "password"}
                                             placeholder="********"
                                             onChange={handleChange}
@@ -121,16 +127,44 @@ const Register = () => {
                                     </div>
                                     {errors.password && <div className="text-red-800">{errors.password}</div>}
                                 </div>
-                                {/* <div>
-                                    <label htmlFor="confirm-password" className="mb-2 dark:text-gray-400 text-lg">Confirm Password</label>
-                                    <input
-                                        id="password"
-                                        className="border p-3 shadow-md dark:bg-indigo-700 dark:text-gray-300  dark:border-gray-700 placeholder:text-base focus:scale-105 ease-in-out duration-300 border-gray-300 rounded-lg w-full placeholder-gray-300"
-                                        type="password"
-                                        placeholder="********"
-                                        required
-                                    />
-                                </div> */}
+                                <div>
+  <label htmlFor="confirmPassword" className="mb-2 dark:text-gray-400 text-md">Confirm Password</label>
+  <input
+    id="confirmPassword"
+    name="confirmPassword"
+    className={`border p-3 shadow-md dark:bg-indigo-700 dark:text-gray-300 dark:border-gray-700 placeholder:text-base focus:scale-105 ease-in-out duration-300 border-gray-300 rounded-lg w-full placeholder-gray-300 ${errors.confirmPassword ? 'border-red-700' : ''}`}
+    type="password"
+    placeholder="********"
+    onChange={handleChange}
+    value={userData.confirmPassword}
+  />
+  {errors.confirmPassword && <div className="text-red-800">{errors.confirmPassword}</div>}
+</div>
+
+
+<div>
+  <label htmlFor="role" className="mb-2 dark:text-gray-400 text-md">Role</label>
+  <select
+    id="role"
+    name="role"
+    // force visibility and height; prevent weird resets
+    className={`block w-full h-12 min-h-[3rem] bg-white dark:bg-indigo-700 text-gray-900 dark:text-gray-300
+                border border-gray-300 dark:border-gray-700 rounded-lg p-3 shadow-md
+                focus:outline-none focus:ring focus:ring-blue-200
+                ${errors.role ? 'border-red-700' : ''}`}
+    value={userData.role}
+    onChange={handleChange}
+  >
+    <option value="admin">Admin</option>
+    <option value="customer">Customer</option>
+    <option value="seller">Vendor</option>
+    {/* <option value="agent">Agent</option>
+    <option value="territory_head">Territory Head</option>
+    <option value="franchise_head">Franchise Head</option> */}
+  </select>
+  {errors.role && <div className="text-red-800">{errors.role}</div>}
+</div>
+
                                 <button
                                     className="bg-gradient-to-r dark:text-gray-300 from-logoSecondary to-logoPrimary shadow-lg mt-6 p-2 text-white rounded-lg w-full hover:scale-105 hover:from-logoPrimary hover:to-logoSecondary transition duration-300 ease-in-out"
                                     type="submit"
