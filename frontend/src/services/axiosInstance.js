@@ -23,18 +23,22 @@ instance.interceptors.request.use((config) => {
 
   if (pin) {
     config.headers["X-Pincode"] = pin;
-    config.params = { ...(config.params || {}), pincode: config.params?.pincode ?? pin };
+    config.params = {
+      ...(config.params || {}),
+      pincode: config.params?.pincode ?? pin,
+    };
   }
 
   let gk = localStorage.getItem("guestKey");
   if (!gk) {
-    gk = (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)) + Date.now().toString(36);
+    gk =
+      (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)) +
+      Date.now().toString(36);
     localStorage.setItem("guestKey", gk);
   }
   config.headers["X-Guest-Key"] = gk;
 
   return config;
 });
-
 
 export default instance;

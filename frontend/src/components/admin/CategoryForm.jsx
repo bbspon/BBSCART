@@ -6,6 +6,7 @@ const CategoryForm = ({ category, onSave, setIsAddEditModalOpen }) => {
     name: "",
     description: "",
   });
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (category) {
@@ -13,6 +14,8 @@ const CategoryForm = ({ category, onSave, setIsAddEditModalOpen }) => {
         name: category?.name || "",
         description: category?.description || "",
       });
+    } else {
+      setFormData({ name: "", description: "" });
     }
   }, [category]);
 
@@ -38,23 +41,35 @@ const CategoryForm = ({ category, onSave, setIsAddEditModalOpen }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     if (!validateForm()) return;
-    const submissionData = new FormData();
-    if (category?._id) {
-      submissionData.append("_id", category._id);
+
+    try {
+      setSubmitting(true);
+      // Send JSON, not FormData (backend parses req.body)
+      await onSave({
+        name: formData.name.trim(),
+        description: formData.description,
+      });
+      // Reset after successful save; parent closes modal
+      setFormData({ name: "", description: "" });
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to save the category.";
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
     }
-    submissionData.append("name", formData.name);
-    submissionData.append("description", formData.description);
-    onSave(submissionData);
-    setFormData({
-      name: "",
-      description: "",
-    });
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className="relative w-full max-w-md mx-auto bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col" style={{ maxHeight: '90vh' }}>
+      <div
+        className="relative w-full max-w-md mx-auto bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col"
+        style={{ maxHeight: "90vh" }}
+      >
         {/* Close Button */}
         <button
           className="absolute top-2 right-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 text-2xl transition z-10"
@@ -63,15 +78,24 @@ const CategoryForm = ({ category, onSave, setIsAddEditModalOpen }) => {
         >
           <i className="ri-close-circle-line"></i>
         </button>
+
         {/* Header */}
         <div className="px-4 pt-4 pb-2 border-b border-gray-100 dark:border-gray-800 rounded-t-3xl bg-gradient-to-r from-blue-50 to-blue-100 dark:from-gray-800 dark:to-gray-900">
           <h2 className="text-xl font-bold text-center text-blue-800 dark:text-blue-300 tracking-tight">
             {category ? "Edit Category" : "Add Category"}
           </h2>
         </div>
+
         {/* Scrollable Form Area */}
-        <div className="flex-1 overflow-y-auto px-4 py-4" style={{ scrollbarWidth: 'thin', msOverflowStyle: 'none' }}>
-          <form onSubmit={handleSubmit} className="space-y-4 md:space-y-5 flex flex-col min-h-0">
+        <div
+          className="flex-1 overflow-y-auto px-4 py-4"
+          style={{ scrollbarWidth: "thin", msOverflowStyle: "none" }}
+        >
+          <form
+            id="category-form"
+            onSubmit={handleSubmit}
+            className="space-y-4 md:space-y-5 flex flex-col min-h-0"
+          >
             {/* Category Name */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
@@ -86,6 +110,7 @@ const CategoryForm = ({ category, onSave, setIsAddEditModalOpen }) => {
                 onChange={handleChange}
               />
             </div>
+
             {/* Description */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
@@ -101,15 +126,21 @@ const CategoryForm = ({ category, onSave, setIsAddEditModalOpen }) => {
             </div>
           </form>
         </div>
+
         {/* Static Footer */}
         <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-800 rounded-b-3xl bg-gradient-to-r from-blue-50 to-blue-100 dark:from-gray-800 dark:to-gray-900">
           <button
-            type="submit"
-            form="category-form"
+            type="button"
+            // keep the same UI, trigger the same handler
             onClick={handleSubmit}
             className="w-full py-2 px-4 text-base font-bold rounded-xl bg-gradient-to-r from-blue-700 to-blue-500 hover:from-blue-800 hover:to-blue-600 text-white shadow-lg transition-all duration-200 border-0 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            disabled={submitting}
           >
-            {category ? "Update Category" : "Create Category"}
+            {submitting
+              ? "Saving..."
+              : category
+              ? "Update Category"
+              : "Create Category"}
           </button>
         </div>
       </div>
