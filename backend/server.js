@@ -124,6 +124,8 @@ app.use(require("./middleware/assignVendorMiddleware"));
 app.use("/api/products", productRoutes);
 app.use("/api/groceries", require("./routes/groceryRoutes"));
 app.use("/api/fruits", require("./routes/FruitsRoutes"));
+app.use("/api/categories", require("./routes/categoryRoutes"));
+app.use("/api/subcategories", require("./routes/subcategoryRoutes"));
 
 app.use("/api/cart", cartRoutes);
 app.use("/api/wishlist", wishlistRoutes);
