@@ -381,6 +381,7 @@ const ProductForm = ({ product, categories, subCategories, onSave, setIsAddEditM
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
     // Validate form
     const validationErrors = validateVendor();
     if (Object.keys(validationErrors).length > 0) {
@@ -390,36 +391,60 @@ const ProductForm = ({ product, categories, subCategories, onSave, setIsAddEditM
     }
     const submissionData = new FormData();
 
-    console.log('variantsJSON', JSON.stringify(productData.variants));
+    // NEVER send _id on create:
+    if (productData._id) submissionData.append("_id", productData._id); // only on edit
 
-    Object.keys(productData).forEach((key) => {
-      if (key === "gallery_imgs") {
-        productData.gallery_imgs.forEach((image) => submissionData.append("gallery_imgs", image));
-        galleryImageFiles.forEach((file) => {
-          submissionData.append("new_gallery_imgs", file);
+    // basic fields
+    submissionData.append("name", productData.name);
+    submissionData.append("description", productData.description || "");
+    submissionData.append("brand", productData.brand || "");
+    submissionData.append("weight", productData.weight || 0);
+    submissionData.append("category_id", productData.category_id);
+    submissionData.append("subcategory_id", productData.subcategory_id || "");
+    submissionData.append("is_variant", productData.is_variant ? "true" : "false");
+
+    // dimensions and tags as JSON strings
+    submissionData.append("dimensions", JSON.stringify(productData.dimensions || {}));
+    submissionData.append("tags", JSON.stringify(productData.tags || []));
+
+    if (productData.is_variant) {
+      // do NOT append raw "[]", send an array of variant objects (no files inside)
+      const variantsPayload = (productData.variants || []).map(v => ({
+        variant_name: v.variant_name,
+        price: Number(v.price || 0),
+        stock: Number(v.stock || 0),
+        SKU: v.SKU || "",
+        attributes: Array.isArray(v.attributes) ? v.attributes : []
+      }));
+      submissionData.append("variants", JSON.stringify(variantsPayload));
+
+      // images per-variant: variant_img_i, variant_gallery_imgs_i
+      (productData.variants || []).forEach((v, i) => {
+        if (v.variant_img instanceof File) {
+          submissionData.append(`variant_img_${i}`, v.variant_img);
+        }
+        (v.variant_gallery_imgs || []).forEach(file => {
+          if (file instanceof File) {
+            submissionData.append(`variant_gallery_imgs_${i}`, file);
+          }
         });
-        submissionData.append("existing_gallery_imgs", JSON.stringify(existingGalleryImages));
-      } else if (key === "dimensions" || key === "variants" || key === "tags") {
-        submissionData.append(key, JSON.stringify(productData[key]));
-      } else {
-        submissionData.append(key, productData[key]);
-      }
-    });
+      });
+    } else {
+      // single product fields
+      submissionData.append("price", Number(productData.price || 0));
+      submissionData.append("stock", Number(productData.stock || 0));
+      submissionData.append("SKU", productData.SKU || "");
 
-    // Append each variant separately
-    productData.variants.forEach((variant, index) => {
-
-      // Ensure variant_img is properly appended
-      if (variant.variant_img) {
-        submissionData.append("variant_img_" + index, variant.variant_img);
+      // single product images
+      if (productData.product_img instanceof File) {
+        submissionData.append("product_img", productData.product_img);
       }
+      (productData.gallery_imgs || []).forEach(file => {
+        if (file instanceof File) submissionData.append("gallery_imgs", file);
+      });
 
-      if (variant.variant_gallery_imgs && variant.variant_gallery_imgs.length > 0) {
-        variant.variant_gallery_imgs.forEach((image) => {
-          submissionData.append("variant_gallery_imgs_" + index, image);
-        });
-      }
-    });
+      // IMPORTANT: do NOT append 'variants' at all for non-variant product
+    }
 
     console.log("Submission Data:");
     for (let [key, value] of submissionData.entries()) {

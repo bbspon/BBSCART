@@ -29,6 +29,10 @@ instance.interceptors.request.use((config) => {
     };
   }
 
+  if (config.params && "pincode" in config.params) {
+    delete config.params.pincode;
+  }
+
   let gk = localStorage.getItem("guestKey");
   if (!gk) {
     gk =

@@ -83,11 +83,27 @@ exports.createProduct = async (req, res) => {
       is_variant,
     } = req.body;
 
+    // 1) Never use client _id on create
+    delete req.body._id;
+
+    // 2) Harden variants parsing
     let variantData = [];
     if (req.body.variants) {
       try {
-        variantData = JSON.parse(req.body.variants);
-      } catch (error) {
+        // Sometimes arrives as '["[]"]' or similar; normalize it
+        const raw = JSON.parse(req.body.variants);
+        if (Array.isArray(raw)) {
+          // if it looks like ["[]"] -> treat as empty
+          if (raw.length === 1 && typeof raw[0] === "string" && raw[0].trim() === "[]") {
+            variantData = [];
+          } else {
+            // keep only proper objects
+            variantData = raw.filter(v => v && typeof v === "object");
+          }
+        } else {
+          variantData = [];
+        }
+      } catch (err) {
         return res.status(400).json({ message: "Invalid variants format" });
       }
     }
@@ -113,21 +129,29 @@ exports.createProduct = async (req, res) => {
       parsedTags = [];
     }
 
-    const productImage = req.files.find(
-      (file) => file.fieldname === "product_img"
-    )
-      ? `/uploads/${req.files.find((file) => file.fieldname === "product_img").filename}`
+    // Guard file handling in the controller
+    // Prevents crashes → no more connection reset
+    const files = Array.isArray(req.files) ? req.files : [];
+    const pick = (field) => files.find(f => f.fieldname === field);
+    const pickAll = (field) => files.filter(f => f.fieldname === field);
+
+    const productImage = pick("product_img")
+      ? `/uploads/${pick("product_img").filename}`
       : "";
 
-    const galleryImages = req.files
-      .filter((file) => file.fieldname === "gallery_imgs")
-      .map((file) => `/uploads/${file.filename}`);
+    const galleryImages = pickAll("gallery_imgs").map(f => `/uploads/${f.filename}`);
 
-    const seller_id = req.user ? req.user.userId : null;
-    if (!seller_id) {
-      return res
-        .status(401)
-        .json({ message: "Unauthorized: User ID not found" });
+    // 3) Resolve seller_id
+    let seller_id = null;
+    // prefer authenticated user
+    if (req.user?.userId) seller_id = req.user.userId;
+    else if (req.user?._id) seller_id = req.user._id;
+    // allow admin to create for a seller by passing seller_id
+    if (!seller_id && req.body.seller_id) seller_id = req.body.seller_id;
+
+    // validate seller_id
+    if (!seller_id || !mongoose.Types.ObjectId.isValid(String(seller_id))) {
+      return res.status(401).json({ message: "Unauthorized: User ID not found" });
     }
 
     let newProduct;
@@ -154,17 +178,12 @@ exports.createProduct = async (req, res) => {
 
       const variants = await Variant.insertMany(
         variantData.map((variant, index) => {
-          const variantImg = req.files.find(
-            (file) => file.fieldname === `variant_img_${index}`
-          )
-            ? `/uploads/${req.files.find((file) => file.fieldname === `variant_img_${index}`).filename}`
+          const variantImg = pick(`variant_img_${index}`)
+            ? `/uploads/${pick(`variant_img_${index}`).filename}`
             : "";
 
-          const variantGalleryImgs = req.files
-            .filter(
-              (file) => file.fieldname === `variant_gallery_imgs_${index}`
-            )
-            .map((file) => `/uploads/${file.filename}`);
+          const variantGalleryImgs = pickAll(`variant_gallery_imgs_${index}`)
+            .map(f => `/uploads/${f.filename}`);
 
           console.log(`Variant ${index} Image Path:`, variantImg);
           console.log(`Variant ${index} Gallery Paths:`, variantGalleryImgs);

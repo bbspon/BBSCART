@@ -10,7 +10,7 @@ import ImportProduct from "../layout/ImportProduct";
 import toast from "react-hot-toast";
 
 // Use the admin axios that does NOT add pincode, and adds Authorization if admin_token exists
-import instance  from "../../services/axiosInstance";
+import instance from "../../services/axiosInstance";
 
 const Products = () => {
   const {
@@ -144,10 +144,12 @@ const Products = () => {
         );
         toast.success("Product updated successfully!");
       } else {
+        // Products.jsx
+        // create branch
         const { data } = await instance.post("/api/products", payload, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        setProducts((prev) => [...prev, data]);
+        setProducts(prev => [...prev, data]);  // ok if controller returns the product doc
         toast.success("Product created successfully!");
       }
       setIsAddEditModalOpen(false);
@@ -157,8 +159,8 @@ const Products = () => {
       console.error("Error saving product:", err);
       setErrorMessage(
         err?.response?.data?.message ||
-          err.message ||
-          "Failed to save the product."
+        err.message ||
+        "Failed to save the product."
       );
       toast.error("Failed to save the product.");
     }
@@ -176,8 +178,8 @@ const Products = () => {
       console.error("Error deleting product:", err);
       setErrorMessage(
         err?.response?.data?.message ||
-          err.message ||
-          "Failed to delete the product."
+        err.message ||
+        "Failed to delete the product."
       );
     }
   };
@@ -500,11 +502,10 @@ const Products = () => {
                       <button
                         key={idx}
                         onClick={() => setCurrentPage(idx + 1)}
-                        className={`w-9 h-9 rounded-full font-semibold transition border-2 ${
-                          currentPage === idx + 1
+                        className={`w-9 h-9 rounded-full font-semibold transition border-2 ${currentPage === idx + 1
                             ? "bg-blue-500 border-blue-500 text-white"
                             : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-blue-100 dark:hover:bg-gray-700"
-                        }`}
+                          }`}
                       >
                         {idx + 1}
                       </button>
