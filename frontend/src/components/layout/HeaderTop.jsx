@@ -225,16 +225,7 @@ function HeaderTop({ toggleMenu }) {
             </div>
             <NavbarCart />
 
-            {/* Wishlist */}
-            <Link to="/wishlist" className="relative">
-              <FaHeart className="text-red-600 w-5 h-5" />
-              {wishCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs px-1 rounded-full">
-                  {wishCount}
-                </span>
-              )}
-            </Link>
-
+  
           
           </div>
         </div>
