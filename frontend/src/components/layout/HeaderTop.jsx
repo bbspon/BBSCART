@@ -3,11 +3,10 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { loadUser, logout } from "../../services/authService";
-import { fetchCartItems } from "../../slice/cartSlice";
-import CartPopup from "./CartPopup";
-import { FaHeart, FaCartArrowDown } from "react-icons/fa6";
+import { FaHeart } from "react-icons/fa6";
 import { RiUserShared2Fill } from "react-icons/ri";
 import DeliverTo from "../../components/DeliverTo";
+import NavbarCart from "../../components/NavbarCart";
 function HeaderTop({ toggleMenu }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -16,10 +15,8 @@ function HeaderTop({ toggleMenu }) {
   const cartItems = useSelector((state) => state.cart.items);
   const wishItems = useSelector((state) => state.wishlist.items);
 
-  const cartCount = Object.values(cartItems).length;
   const wishCount = Object.values(wishItems).length;
 
-  const [cartPopup, setCartPopup] = useState(false);
   const [showHealthcareFrame, setShowHealthcareFrame] = useState(false);
   const handleAssigned = (data) => {
     // optional UI actions after assignment
@@ -226,6 +223,7 @@ function HeaderTop({ toggleMenu }) {
                 )}
               </ul>
             </div>
+            <NavbarCart />
 
             {/* Wishlist */}
             <Link to="/wishlist" className="relative">
@@ -237,27 +235,11 @@ function HeaderTop({ toggleMenu }) {
               )}
             </Link>
 
-            {/* Cart */}
-            <button
-              onClick={() => {
-                setCartPopup(true);
-                dispatch(fetchCartItems());
-              }}
-              className="relative"
-            >
-              <FaCartArrowDown className="text-red-600 w-5 h-5" />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs px-1 rounded-full">
-                  {cartCount}
-                </span>
-              )}
-            </button>
+          
           </div>
         </div>
       </header>
 
-      {/* Cart Popup */}
-      <CartPopup cartPopup={cartPopup} setCartPopup={setCartPopup} />
       <DeliverTo onAssigned={(data) => console.log("Vendor set:", data)} />
     </>
   );

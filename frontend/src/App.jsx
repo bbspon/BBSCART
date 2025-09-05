@@ -74,7 +74,6 @@ import TerritoryHeadSuccess from './components/TerritoryHeadSuccess';
 import TerritoryHeadForm from './components/admin/TerritoryHeadForm';
 import CustomerBecomeVendorForm from './components/admin/CustomerBecomeVendorForm';
 import CustomerBecomeVendorSuccess from './components/CustomerBecomeVendorSuccess';
-// import CheckoutPage from './components/home/CheckoutPage';
 
 // Products App Component
 import CategoryPage from "./storefront/pages/CategoryPage";
@@ -254,9 +253,7 @@ function App() {
         <Route path="/grocery" element={<GroceryDetails />} />
         {/* ✅ Home>PricingPage */}
         <Route path="/pricing" element={<PricingPage />} />
-        {/* ✅ Checkout */}
-        {/* <Route path="/checkout" element={<CheckoutPage />} /> */}
-        {/* ✅ Admin Routes */}
+      
         <Route path="/admin" element={<AdminRoutes />}>
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="products" element={<Products />} />
