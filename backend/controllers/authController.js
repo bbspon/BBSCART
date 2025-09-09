@@ -12,6 +12,8 @@ const crypto = require("crypto");
 const path = require("path");
 const fs = require("fs");
 const axios = require("axios");
+const AdminInvite = require("../models/AdminInvite");
+const { sendAdminInviteEmail } = require("../utils/mailer");
 
 const client = redis.createClient();
 client.connect().catch(console.error);
@@ -62,19 +64,8 @@ exports.register = async (req, res) => {
   }
 
   // whitelist role (map 'vendor' from UI to 'seller')
-  const ALLOWED = [
-    "user",
-    "customer",
-    "seller",
-    "agent",
-    "territory_head",
-    "franchise_head",
-    "admin",
-  ];
-  const normalizedRole = role === "vendor" ? "seller" : role;
-  const finalRole = ALLOWED.includes(String(normalizedRole))
-    ? normalizedRole
-    : "user";
+  const ALLOWED = ["user", "customer"];
+  const safeRole = ALLOWED.includes(String(req.body.role)) ? req.body.role : "customer";
 
   try {
     // ✅ Check if user already exists
@@ -105,7 +96,7 @@ exports.register = async (req, res) => {
       email,
       phone,
       password: hashedPassword,
-      role: finalRole,
+      role: safeRole,
     });
     await user.save();
 
@@ -667,5 +658,109 @@ exports.setPassword = async (req, res) => {
     return res
       .status(500)
       .json({ success: false, message: "Failed to set password" });
+  }
+};
+
+// POST /api/auth/admin-invites  (SuperAdmin only)
+exports.createAdminInvite = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email)
+      return res
+        .status(400)
+        .json({ success: false, message: "Email is required" });
+
+    // prevent duplicate active invite
+    const now = new Date();
+    await AdminInvite.deleteMany({
+      email,
+      usedAt: null,
+      expiresAt: { $lt: now },
+    }); // clean old
+    const exists = await User.findOne({ email });
+    if (exists && exists.role === "admin") {
+      return res
+        .status(409)
+        .json({ success: false, message: "User is already an Admin" });
+    }
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = await bcrypt.hash(rawToken, 10);
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 72); // 72h
+
+    const invite = await AdminInvite.create({
+      email,
+      tokenHash,
+      expiresAt,
+      createdBy: req.user?._id,
+    });
+
+    const inviteUrl = `${process.env.FRONTEND_URL}/accept-invite?token=${rawToken}&email=${encodeURIComponent(
+      email
+    )}`;
+
+    await sendAdminInviteEmail({ to: email, inviteUrl });
+
+    return res
+      .status(201)
+      .json({ success: true, message: "Invite sent", id: invite._id });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/auth/admin-invites/accept
+// body: { email, token, name, phone, password }
+exports.acceptAdminInvite = async (req, res, next) => {
+  try {
+    const { email, token, name, phone, password } = req.body;
+    if (!email || !token || !password) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Missing required fields" });
+    }
+
+    const invite = await AdminInvite.findOne({ email, usedAt: null });
+    if (!invite)
+      return res.status(400).json({ success: false, message: "Invalid invite" });
+    if (new Date() > invite.expiresAt) {
+      return res.status(400).json({ success: false, message: "Invite expired" });
+    }
+
+    const ok = await bcrypt.compare(token, invite.tokenHash);
+    if (!ok) return res.status(400).json({ success: false, message: "Invalid token" });
+
+    // Create or elevate the user to admin
+    let user = await User.findOne({ email });
+    if (!user) {
+      const hashed = await User.hashPassword(password);
+      user = await User.create({
+        name: name || email.split("@")[0],
+        email,
+        password: hashed,
+        confirmPassword: hashed, // your schema currently keeps it; ideally remove later
+        phone: phone || "",
+        role: "admin",
+        mustChangePassword: false,
+        status: "active",
+      });
+    } else {
+      // elevate to admin if not already
+      if (user.role !== "admin") {
+        user.role = "admin";
+        if (password) user.password = await User.hashPassword(password);
+        user.mustChangePassword = false;
+        await user.save();
+      }
+    }
+
+    invite.usedAt = new Date();
+    await invite.save();
+
+    return res
+      .status(200)
+      .json({ success: true, message: "Admin account activated. You can log in now." });
+  } catch (err) {
+    next(err);
   }
 };

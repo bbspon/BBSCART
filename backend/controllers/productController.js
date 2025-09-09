@@ -14,6 +14,13 @@ const archiver = require("archiver");
 const unzipper = require("unzipper");
 const ProductGroup = require("../models/ProductGroup");
 
+const toArrayFiles = (files) => {
+  if (!files) return [];
+  if (Array.isArray(files)) return files;
+  // multer.fields -> object of arrays
+  return Object.values(files).flat();
+};
+
 const toRegex = (s) =>
   new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
 
@@ -54,21 +61,274 @@ const haversineDistance = (lat1, lon1, lat2, lon2) => {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(1 - a), Math.sqrt(1 - a));
   return R * c; // Distance in km
 };
+// --------- NEW: admin vendors list for the dropdown ----------
+exports.listSellersForAdmin = async (req, res) => {
+  try {
+    const role = req.user?.role;
+    if (role !== "admin" && role !== "super_admin") {
+      return res.status(403).json({ success: false, message: "Forbidden" });
+    }
+    const sellers = await User.find({ role: "seller", status: "active" })
+      .select("_id name")
+      .lean();
 
+    const vendors = sellers.map((u) => ({ value: String(u._id), label: u.name || String(u._id) }));
+    return res.json({ success: true, vendors });
+  } catch (e) {
+    console.error("listSellersForAdmin error", e);
+    return res.status(500).json({ success: false, message: "Failed to load sellers" });
+  }
+};
+// exports.createProduct = async (req, res) => {
+//   try {
+//     console.log("createProduct", req.body);
+//     console.log("createProductFiles", req.files);
+
+//     const {
+//       _id,
+//       name,
+//       description,
+//       price,
+//       stock,
+//       SKU,
+//       brand,
+//       weight,
+//       dimensions,
+//       tags,
+//       category_id,
+//       subcategory_id,
+//       is_variant,
+//     } = req.body;
+
+//     // 1) Never use client _id on create
+//     delete req.body._id;
+
+//     // 2) Harden variants parsing
+//     let variantData = [];
+//     if (req.body.variants) {
+//       try {
+//         // Sometimes arrives as '["[]"]' or similar; normalize it
+//         const raw = JSON.parse(req.body.variants);
+//         if (Array.isArray(raw)) {
+//           // if it looks like ["[]"] -> treat as empty
+//           if (raw.length === 1 && typeof raw[0] === "string" && raw[0].trim() === "[]") {
+//             variantData = [];
+//           } else {
+//             // keep only proper objects
+//             variantData = raw.filter(v => v && typeof v === "object");
+//           }
+//         } else {
+//           variantData = [];
+//         }
+//       } catch (err) {
+//         return res.status(400).json({ message: "Invalid variants format" });
+//       }
+//     }
+
+//     let parsedDimensions = {};
+//     if (dimensions) {
+//       try {
+//         parsedDimensions = JSON.parse(dimensions);
+//       } catch (error) {
+//         return res.status(400).json({ message: "Invalid dimensions format" });
+//       }
+//     }
+
+//     let parsedTags = [];
+//     if (typeof tags === "string") {
+//       try {
+//         parsedTags = JSON.parse(tags);
+//       } catch (error) {
+//         console.error("❌ Error parsing tags:", error);
+//         parsedTags = [];
+//       }
+//     } else if (!Array.isArray(tags)) {
+//       parsedTags = [];
+//     }
+
+//     // Guard file handling in the controller
+//     // Prevents crashes → no more connection reset
+//     const files = Array.isArray(req.files) ? req.files : [];
+//     const pick = (field) => files.find(f => f.fieldname === field);
+//     const pickAll = (field) => files.filter(f => f.fieldname === field);
+
+//     const productImage = pick("product_img")
+//       ? `/uploads/${pick("product_img").filename}`
+//       : "";
+
+//     const galleryImages = pickAll("gallery_imgs").map(f => `/uploads/${f.filename}`);
+
+//     // 3) Resolve seller_id
+//     const role = req.user?.role;
+
+//     // If a storefront vendor flow is creating products (seller role),
+//     // require assignment from pincode rotation.
+//     const assignedVendorId = req.assignedVendorId;
+
+//     let sellerId;
+//     let isGlobal = false;
+//     if (role === "admin" || role === "super_admin") {
+//       // NEW: seller_id is optional for admin
+//       const rawSeller = req.body.seller_id;
+//       sellerId = Array.isArray(rawSeller) ? rawSeller.find(Boolean) : rawSeller;
+//       if (!sellerId) {
+//         // admin did not choose a vendor → create as global product
+//         isGlobal = true;
+//       }
+//     }
+//     else {
+//       // Vendor/staff path: enforce assignment
+//       if (!assignedVendorId) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Assigned vendor is missing for this request."
+//         });
+//       }
+//       sellerId = assignedVendorId;
+//     }
+
+//     let newProduct;
+//     let variantIds = [];
+
+//     if (is_variant === "true" && variantData.length > 0) {
+//       newProduct = new Product({
+//         name,
+//         description,
+//         SKU,
+//         brand,
+//         weight,
+//         dimensions: parsedDimensions,
+//         tags: parsedTags,
+//         category_id,
+//         subcategory_id,
+//         product_img: productImage,
+//         gallery_imgs: galleryImages,
+//         // seller_id: sellerId,
+//         seller_id: sellerId || null,
+//         is_global: Boolean(isGlobal),
+//         is_variant: true,
+//       });
+
+//       await newProduct.save();
+
+//       const variants = await Variant.insertMany(
+//         variantData.map((variant, index) => {
+//           const variantImg = pick(`variant_img_${index}`)
+//             ? `/uploads/${pick(`variant_img_${index}`).filename}`
+//             : "";
+
+//           const variantGalleryImgs = pickAll(`variant_gallery_imgs_${index}`)
+//             .map(f => `/uploads/${f.filename}`);
+
+//           console.log(`Variant ${index} Image Path:`, variantImg);
+//           console.log(`Variant ${index} Gallery Paths:`, variantGalleryImgs);
+
+//           return {
+//             product_id: newProduct._id,
+//             variant_name: variant.variant_name,
+//             price: variant.price,
+//             stock: variant.stock,
+//             SKU: variant.SKU,
+//             attributes: variant.attributes,
+//             variant_img: variantImg,
+//             variant_gallery_imgs: variantGalleryImgs,
+//           };
+//         })
+//       );
+
+//       variantIds = variants.map((variant) => variant._id);
+//       newProduct.variants = variantIds;
+//       await newProduct.save();
+//     } else {
+//       newProduct = new Product({
+//         name,
+//         description,
+//         price,
+//         stock,
+//         SKU,
+//         brand,
+//         weight,
+//         dimensions: parsedDimensions,
+//         tags: parsedTags,
+//         category_id,
+//         subcategory_id,
+//         product_img: productImage,
+//         gallery_imgs: galleryImages,
+//         // seller_id: sellerId,
+//         seller_id: sellerId || null,
+//         is_global: Boolean(isGlobal),
+//         is_variant: false,
+//         variants: [],
+//       });
+
+//       await newProduct.save();
+//     }
+
+//     res.status(201).json(newProduct);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
+
+// exports.getAllProducts = async (req, res) => {
+
+//   try {
+//     const { q: text = "" } = req.query || {};
+
+//     const role = req.user?.role;
+//     const query = {};
+//     const orVendor = [];
+
+//     if (role !== "admin" && role !== "super_admin") {
+//       if (req.assignedVendorUserId) {
+//         const s = String(req.assignedVendorUserId);
+//         orVendor.push({ seller_id: s });
+//         try { orVendor.push({ seller_id: new mongoose.Types.ObjectId(s) }); } catch { }
+//       }
+//       if (req.assignedVendorId) {
+//         try {
+//           orVendor.push({ vendor_id: new mongoose.Types.ObjectId(String(req.assignedVendorId)) });
+//         } catch { }
+//       }
+//       if (orVendor.length) query.$or = orVendor;
+//       if (!query.$or) query.$or = [];
+//       query.$or.push({ seller_id: { $ne: null } });
+//     }
+
+//     // Optional text search (very light; adjust if you have an index)
+//     if (text && String(text).trim()) {
+//       query.$text = { $search: String(text).trim() };
+//     }
+
+//     const products = await Product.find(query).lean();
+
+//     return res.status(200).json({
+//       products,
+//       filteredByVendor: !!orVendor.length,
+//     });
+//   } catch (e) {
+//     console.error("getAllProducts error", e);
+//     return res.status(200).json({ products: [], filteredByVendor: false }); // never 400 here
+//   }
+// };
+// --------- CREATE ----------
 exports.createProduct = async (req, res) => {
   try {
-    console.log("createProduct", req.body);
-    console.log("createProductFiles", req.files);
+    // normalize files for both .single/.array and .fields
+    const files = toArrayFiles(req.files).concat(req.file ? [req.file] : []);
+    const pick = (field) => files.find((f) => f.fieldname === field);
+    const pickAll = (field) => files.filter((f) => f.fieldname === field);
 
     const {
-      _id,
       name,
       description,
       price,
@@ -83,81 +343,43 @@ exports.createProduct = async (req, res) => {
       is_variant,
     } = req.body;
 
-    // 1) Never use client _id on create
-    delete req.body._id;
-
-    // 2) Harden variants parsing
-    let variantData = [];
-    if (req.body.variants) {
-      try {
-        // Sometimes arrives as '["[]"]' or similar; normalize it
-        const raw = JSON.parse(req.body.variants);
-        if (Array.isArray(raw)) {
-          // if it looks like ["[]"] -> treat as empty
-          if (raw.length === 1 && typeof raw[0] === "string" && raw[0].trim() === "[]") {
-            variantData = [];
-          } else {
-            // keep only proper objects
-            variantData = raw.filter(v => v && typeof v === "object");
-          }
-        } else {
-          variantData = [];
-        }
-      } catch (err) {
-        return res.status(400).json({ message: "Invalid variants format" });
-      }
-    }
-
+    // parse structured fields safely
     let parsedDimensions = {};
     if (dimensions) {
-      try {
-        parsedDimensions = JSON.parse(dimensions);
-      } catch (error) {
-        return res.status(400).json({ message: "Invalid dimensions format" });
-      }
+      try { parsedDimensions = JSON.parse(dimensions); } catch { return res.status(400).json({ message: "Invalid dimensions" }); }
     }
-
     let parsedTags = [];
     if (typeof tags === "string") {
-      try {
-        parsedTags = JSON.parse(tags);
-      } catch (error) {
-        console.error("❌ Error parsing tags:", error);
-        parsedTags = [];
-      }
-    } else if (!Array.isArray(tags)) {
-      parsedTags = [];
+      try { parsedTags = JSON.parse(tags); } catch { parsedTags = []; }
+    } else if (Array.isArray(tags)) {
+      parsedTags = tags;
     }
 
-    // Guard file handling in the controller
-    // Prevents crashes → no more connection reset
-    const files = Array.isArray(req.files) ? req.files : [];
-    const pick = (field) => files.find(f => f.fieldname === field);
-    const pickAll = (field) => files.filter(f => f.fieldname === field);
+    // images
+    const productImage = pick("product_img") ? `/uploads/${pick("product_img").filename}` : "";
+    const galleryImages = pickAll("gallery_imgs").map((f) => `/uploads/${f.filename}`);
 
-    const productImage = pick("product_img")
-      ? `/uploads/${pick("product_img").filename}`
-      : "";
+    // seller logic
+    const role = req.user?.role;
+    const assignedVendorId = req.assignedVendorId;
+    let sellerId = null;
+    let isGlobal = false;
 
-    const galleryImages = pickAll("gallery_imgs").map(f => `/uploads/${f.filename}`);
-
-    // 3) Resolve seller_id
-    let seller_id = null;
-    // prefer authenticated user
-    if (req.user?.userId) seller_id = req.user.userId;
-    else if (req.user?._id) seller_id = req.user._id;
-    // allow admin to create for a seller by passing seller_id
-    if (!seller_id && req.body.seller_id) seller_id = req.body.seller_id;
-
-    // validate seller_id
-    if (!seller_id || !mongoose.Types.ObjectId.isValid(String(seller_id))) {
-      return res.status(401).json({ message: "Unauthorized: User ID not found" });
+    if (role === "admin" || role === "super_admin") {
+      const rawSeller = req.body.seller_id;
+      sellerId = Array.isArray(rawSeller) ? rawSeller.find(Boolean) : rawSeller;
+      if (!sellerId) isGlobal = true; // admin left it blank -> global product
+    } else {
+      if (!assignedVendorId) {
+        return res.status(400).json({ success: false, message: "Assigned vendor is missing for this request." });
+      }
+      sellerId = assignedVendorId;
     }
 
     let newProduct;
-    let variantIds = [];
 
-    if (is_variant === "true" && variantData.length > 0) {
+    if (String(is_variant) === "true") {
+      // keep variants skeleton support (you can expand later)
       newProduct = new Product({
         name,
         description,
@@ -170,39 +392,10 @@ exports.createProduct = async (req, res) => {
         subcategory_id,
         product_img: productImage,
         gallery_imgs: galleryImages,
-        seller_id,
+        seller_id: sellerId || null,
+        is_global: Boolean(isGlobal),
         is_variant: true,
       });
-
-      await newProduct.save();
-
-      const variants = await Variant.insertMany(
-        variantData.map((variant, index) => {
-          const variantImg = pick(`variant_img_${index}`)
-            ? `/uploads/${pick(`variant_img_${index}`).filename}`
-            : "";
-
-          const variantGalleryImgs = pickAll(`variant_gallery_imgs_${index}`)
-            .map(f => `/uploads/${f.filename}`);
-
-          console.log(`Variant ${index} Image Path:`, variantImg);
-          console.log(`Variant ${index} Gallery Paths:`, variantGalleryImgs);
-
-          return {
-            product_id: newProduct._id,
-            variant_name: variant.variant_name,
-            price: variant.price,
-            stock: variant.stock,
-            SKU: variant.SKU,
-            attributes: variant.attributes,
-            variant_img: variantImg,
-            variant_gallery_imgs: variantGalleryImgs,
-          };
-        })
-      );
-
-      variantIds = variants.map((variant) => variant._id);
-      newProduct.variants = variantIds;
       await newProduct.save();
     } else {
       newProduct = new Product({
@@ -219,62 +412,73 @@ exports.createProduct = async (req, res) => {
         subcategory_id,
         product_img: productImage,
         gallery_imgs: galleryImages,
-        seller_id,
+        seller_id: sellerId || null,
+        is_global: Boolean(isGlobal),
         is_variant: false,
         variants: [],
       });
-
       await newProduct.save();
     }
 
-    res.status(201).json(newProduct);
+    return res.status(201).json(newProduct);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
+    console.error("createProduct error", err);
+    return res.status(500).json({ message: err.message });
   }
 };
 
 
+// exports.getAllProducts = async (req, res) => {
+//   try {
+//     const role = req.user?.role;
+//     const q = {};
+
+//     if (role === 'admin' || role === 'super_admin') {
+//       const scope = String(req.query.scope || 'all').toLowerCase();
+//       if (scope === 'global') q.is_global = true;
+//       if (scope === 'vendor') q.is_global = false;
+//     } else {
+//       const vendorId = req.assignedVendorId;
+//       if (!vendorId) {
+//         return res.status(400).json({ success: false, message: 'Assigned vendor missing' });
+//       }
+//       q.seller_id = vendorId;
+//       q.is_global = false; // vendors never see global items
+//     }
+
+//     if (req.query.q) q.$text = { $search: String(req.query.q) };
+
+//     const products = await Product.find(q).sort({ createdAt: -1 }).lean();
+//     return res.status(200).json({ products });
+//   } catch (e) {
+//     console.error('getAllProducts error', e);
+//     return res.status(200).json({ products: [] });
+//   }
+// };
+
+// --------- LIST (admin sees all; vendors see theirs only; global hidden from vendors) ----------
 exports.getAllProducts = async (req, res) => {
   try {
-    const { q: text = "" } = req.query || {};
-
-    const query = {};
-    const orVendor = [];
-
-    // Inject vendor filter from middleware
-    if (req.assignedVendorUserId) {
-      const s = String(req.assignedVendorUserId);
-      orVendor.push({ seller_id: s });
-      try {
-        orVendor.push({ seller_id: new mongoose.Types.ObjectId(s) });
-      } catch {}
+    const role = req.user?.role;
+    const q = {};
+    if (role === "admin" || role === "super_admin") {
+      const scope = String(req.query.scope || "all").toLowerCase();
+      if (scope === "global") q.is_global = true;
+      if (scope === "vendor") q.is_global = false;
+    } else {
+      if (!req.assignedVendorId) return res.status(400).json({ success: false, message: "Assigned vendor missing" });
+      q.seller_id = req.assignedVendorId;
+      q.is_global = false;
     }
-    if (req.assignedVendorId) {
-      try {
-        orVendor.push({
-          vendor_id: new mongoose.Types.ObjectId(String(req.assignedVendorId)),
-        });
-      } catch {}
-    }
-    if (orVendor.length) query.$or = orVendor;
-
-    // Optional text search (very light; adjust if you have an index)
-    if (text && String(text).trim()) {
-      query.$text = { $search: String(text).trim() };
-    }
-
-    const products = await Product.find(query).lean();
-
-    return res.status(200).json({
-      products,
-      filteredByVendor: !!orVendor.length,
-    });
+    const products = await Product.find(q).sort({ created_at: -1 }).lean();
+    return res.status(200).json({ products });
   } catch (e) {
     console.error("getAllProducts error", e);
-    return res.status(200).json({ products: [], filteredByVendor: false }); // never 400 here
+    return res.status(200).json({ products: [] });
   }
 };
+
+
 exports.getAllProductTags = async (req, res) => {
   try {
     const products = await Product.find({}, "tags"); // Get only the tags field
@@ -655,6 +859,31 @@ exports.updateProduct = async (req, res) => {
           });
         }
       }
+// inside updateProduct before saving
+if ('seller_id' in updates) delete updates.seller_id;
+if ('is_global' in updates) delete updates.is_global;
+
+const existing = await Product.findById(req.params.id);
+if (!existing) return res.status(404).json({ success: false, message: 'Product not found' });
+
+if (role !== 'admin' && role !== 'super_admin') {
+  if (existing.is_global) return res.status(403).json({ success: false, message: 'Vendors cannot edit global products' });
+  if (String(existing.seller_id || '') !== String(req.assignedVendorId || '')) {
+    return res.status(403).json({ success: false, message: 'Not allowed' });
+  }
+} else {
+  const pickedSeller = req.body.seller_id || null;
+  const makeGlobal = req.body.is_global === true || String(req.body.is_global) === 'true';
+  if (makeGlobal) {
+    existing.seller_id = null;
+    existing.is_global = true;
+  } else if (pickedSeller) {
+    existing.seller_id = pickedSeller;
+    existing.is_global = false;
+  }
+}
+
+Object.assign(existing, updates);
 
       if (bulkOperations.length > 0) {
         const bulkResult = await Variant.bulkWrite(bulkOperations);
@@ -907,8 +1136,8 @@ exports.exportProducts = async (req, res) => {
       res.download(zipPath, "products_export.zip", (err) => {
         if (err) console.error("Download error:", err);
         // Clean up files
-        fs.unlink(csvPath, () => {});
-        fs.unlink(zipPath, () => {});
+        fs.unlink(csvPath, () => { });
+        fs.unlink(zipPath, () => { });
       });
     });
 
@@ -1605,111 +1834,6 @@ exports.importProductsCSV = async (req, res) => {
   }
 };
 
-// PUBLIC product list with filters (categoryId, subcategoryId, q, product, group, brand, organic, price, sort, page, limit)
-// ENFORCED: lock results to today's assigned seller (req.assignedVendorId) via seller_id
-// exports.listProducts = async (req, res) => {
-//   try {
-//     const {
-//       categoryId,
-//       subcategoryId,
-//       q,
-//       search,
-//       product,
-//       group,
-//       groupId,
-//       brand,
-//       organic,
-//       minPrice,
-//       maxPrice,
-//       sort = "popularity",
-//       page = 1,
-//       limit = 24,
-//     } = req.query;
-
-//     const find = {};
-//     if (categoryId) find.category_id = categoryId;
-//     if (subcategoryId) find.subcategory_id = subcategoryId;
-//     if (brand) find.brand = brand;
-//     if (organic === "true") find["groceries.organic"] = true;
-//     if (organic === "false") find["groceries.organic"] = false;
-
-//     if (groupId) {
-//       const g = await ProductGroup.findById(groupId).lean();
-//       if (g) {
-//         if (g.product_ids?.length) {
-//           find._id = { $in: g.product_ids };
-//         } else if (g.query) {
-//           find.name = new RegExp(g.query, "i");
-//         }
-//         if (!subcategoryId && g.subcategory_id)
-//           find.subcategory_id = g.subcategory_id;
-//       }
-//     } else if (product) {
-//       find.name = new RegExp(
-//         `^${product.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}$`,
-//         "i"
-//       );
-//     } else if (group) {
-//       find.name = new RegExp(group, "i");
-//     } else if (q || search) {
-//       find.$text = { $search: q || search };
-//     }
-
-//     if (minPrice || maxPrice) {
-//       const lo = minPrice ? Number(minPrice) : undefined;
-//       const hi = maxPrice ? Number(maxPrice) : undefined;
-//       find.$or = [
-//         {
-//           "priceInfo.sale": {
-//             ...(lo !== undefined ? { $gte: lo } : {}),
-//             ...(hi !== undefined ? { $lte: hi } : {}),
-//           },
-//         },
-//         {
-//           price: {
-//             ...(lo !== undefined ? { $gte: lo } : {}),
-//             ...(hi !== undefined ? { $lte: hi } : {}),
-//           },
-//         },
-//       ];
-//     }
-
-//     // ✅ ENFORCE: only the assigned seller for today (assignment middleware must be mounted on this route)
-//     if (!req.assignedVendorId) {
-//       return res.status(400).json({ message: "Assigned seller missing" });
-//     }
-//     find.seller_id = req.assignedVendorId;
-
-//     const sortMap = {
-//       popularity: { rating_count: -1 },
-//       price_asc: { "priceInfo.sale": 1, price: 1 },
-//       price_desc: { "priceInfo.sale": -1, price: -1 },
-//       new: { created_at: -1 },
-//       rating: { rating_avg: -1 },
-//     };
-//     const sortSpec = sortMap[sort] || sortMap.popularity;
-
-//     const skip = (Number(page) - 1) * Number(limit);
-
-//     const [items, total] = await Promise.all([
-//       Product.find(find)
-//         .select(
-//           "name brand SKU price priceInfo product_img category_id subcategory_id rating_avg rating_count seller_id"
-//         )
-//         .populate("category_id", "name")
-//         .populate("subcategory_id", "name")
-//         .sort(sortSpec)
-//         .skip(skip)
-//         .limit(Number(limit))
-//         .lean(),
-//       Product.countDocuments(find),
-//     ]);
-
-//     res.json({ items, total, page: Number(page), limit: Number(limit) });
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };
 exports.listProducts = async (req, res) => {
   try {
     const { subcategoryId, groupId, limit = 24, page = 1 } = req.query;
@@ -1956,14 +2080,14 @@ exports.searchProducts = async (req, res) => {
       orVendor.push({ seller_id: s });
       try {
         orVendor.push({ seller_id: new mongoose.Types.ObjectId(s) });
-      } catch {}
+      } catch { }
     }
     if (req.assignedVendorId) {
       try {
         orVendor.push({
           vendor_id: new mongoose.Types.ObjectId(String(req.assignedVendorId)),
         });
-      } catch {}
+      } catch { }
     }
     if (orVendor.length) and.push({ $or: orVendor });
 

@@ -61,9 +61,25 @@ If you didn’t request this, ignore this email.`;
   return { subject, text, html };
 }
 
+// New admin invite template
+async function sendAdminInviteEmail({ to, inviteUrl }) {
+  const html = `
+    <p>You’ve been invited to join BBSCART as an Admin.</p>
+    <p>Click the link to accept your invite and set your password:</p>
+    <p><a href="${inviteUrl}">${inviteUrl}</a></p>
+    <p>This link will expire soon. If you didn’t expect this, ignore it.</p>
+  `;
+  return transporter.sendMail({
+    from: `${process.env.FROM_NAME || 'BBSCART'} <${process.env.FROM_EMAIL || process.env.SMTP_USER}>`,
+    to,
+    subject: "Admin Invite",
+    html
+  });
+}
+
 transporter
   .verify()
   .then(() => console.log("SMTP ready"))
   .catch((err) => console.error("SMTP verify failed:", err));
 
-module.exports = { sendMail, vendorWelcomeEmail, vendorSetPasswordEmail };
+module.exports = { sendMail, vendorWelcomeEmail, vendorSetPasswordEmail, sendAdminInviteEmail };

@@ -93,6 +93,7 @@ import AdminCustomerVendorRequestsPage from './components/pages/admin/AdminCusto
 // 30/09/25 - AdminVendorCredentials
 import AdminVendorCredentials from "./components/admin/AdminVendorCredentials";
 import VendorSetPassword from "./components/pages/VendorSetPassword";
+import AcceptInvite from './components/pages/admin/AcceptInvite';
 function App() {
   const dispatch = useDispatch();
   const location = useLocation(); // Get the current route
@@ -242,6 +243,7 @@ function App() {
           path="/admin/vendor-credentials"
           element={<AdminVendorCredentials />}
         />
+          <Route path="/accept-invite" element={<AcceptInvite/>} />
 
         <Route
           path="/vendor/set-password/:token"
@@ -264,6 +266,7 @@ function App() {
           <Route path="customers" element={<Customers />} />
           <Route path="other-users" element={<OtherUser />} />
           <Route path="users-request" element={<UserRequest />} />
+
         </Route> 
         {/* Made by medun */}
         {/* GLOBAL CMS CORE MODULES (Shared Across All 3) */}
