@@ -1,8 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import instance from "../../services/axiosInstance";
 
-const API = axios.create({ baseURL: import.meta.env.VITE_API_URL || "" });
 
 export default function CategoryMegaMenu() {
   const [open, setOpen] = useState(false);
@@ -18,9 +17,9 @@ export default function CategoryMegaMenu() {
 
   useEffect(() => {
     if (!open || cats.length) return;
-    API.get("/api/products/catalog/categories").then(({ data }) =>
-      setCats(data.items || [])
-    );
+    instance
+      .get("/api/products/catalog/categories")
+      .then(({ data }) => setCats(data.items || []));
   }, [open, cats.length]);
 
   useEffect(() => {
@@ -30,9 +29,11 @@ export default function CategoryMegaMenu() {
       setGroups([]);
       return;
     }
-    API.get("/api/products/catalog/subcategories", {
-      params: { category_id: catId },
-    }).then(({ data }) => setSubs(data.items || []));
+    instance
+      .get("/api/products/catalog/subcategories", {
+        params: { category_id: catId },
+      })
+      .then(({ data }) => setSubs(data.items || []));
   }, [catId]);
 
   useEffect(() => {
@@ -41,9 +42,10 @@ export default function CategoryMegaMenu() {
       return;
     }
     // Load dynamic product groups for selected sub-category
-    API.get("/api/products/catalog/groups", {
-      params: { subcategory_id: sub._id },
-    })
+    instance
+      .get("/api/products/catalog/groups", {
+        params: { subcategory_id: sub._id },
+      })
       .then(({ data }) => setGroups(data.items || []))
       .catch(() => setGroups([]));
   }, [sub]);
