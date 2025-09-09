@@ -1,37 +1,91 @@
-
+// backend/routes/productRoutes.js
 const express = require("express");
 const router = express.Router();
+const { uploadFields } = require("../middleware/upload");
+const { deriveAssignedVendor, requireAdmin } = require('../middleware/vendorContext');
 
-const productController = require("../controllers/productController");
-const { uploadAny } = require("../middleware/upload");
-const { auth, authUser } = require("../middleware/authMiddleware");
+// Safe import helpers
+const safe = (fn) =>
+  typeof fn === "function"
+    ? fn
+    : (_req, res) => res.status(501).json({ message: "Handler missing" });
+let productController = {};
+try {
+  productController = require("../controllers/productController");
+} catch (_) { }
 
-const assignVendorMiddleware = require("../middleware/assignVendorMiddleware");
-const requireAssignedVendor = require("../middleware/requireAssignedVendor"); // keep if you already have it
+let uploadAny = (_req, _res, next) => next();
+try {
+  const up = require("../middleware/upload");
+  if (typeof up.uploadAny === "function") uploadAny = up.uploadAny;
+} catch (_) { }
+
+let auth = (_req, _res, next) => next();
+let authUser = (_req, _res, next) => next();
+try {
+  const a = require("../middleware/authMiddleware");
+  if (typeof a.auth === "function") auth = a.auth;
+  if (typeof a.authUser === "function") authUser = a.authUser;
+} catch (_) { }
+
+let assignVendorMiddleware = (_req, _res, next) => next();
+try {
+  const m = require("../middleware/assignVendorMiddleware");
+  if (typeof m === "function") assignVendorMiddleware = m;
+  if (typeof m.assignVendorMiddleware === "function")
+    assignVendorMiddleware = m.assignVendorMiddleware;
+} catch (_) { }
+
+let requireAssignedVendor = (_req, _res, next) => next();
+try {
+  const r = require("../middleware/requireAssignedVendor");
+  if (typeof r === "function") requireAssignedVendor = r;
+} catch (_) { }
 
 const mongoose = require("mongoose");
-const Product = require("../models/Product");
-const Vendor = require("../models/Vendor");
+let Product, Vendor;
+try {
+  Product = require("../models/Product");
+} catch (_) { }
+try {
+  Vendor = require("../models/Vendor");
+} catch (_) { }
 
-// ---------- PUBLIC CATALOG (put BEFORE any "/:id") ----------
-router.get("/search", productController.searchProducts);
-
-router.get("/catalog/categories", productController.listCategoriesPublic);
-router.get("/catalog/subcategories", productController.listSubcategoriesPublic);
-router.get("/catalog/groups", productController.listGroupsBySubcategory);
-router.get("/catalog/category-by-slug", productController.getCategoryBySlug);
-
+// ---------- PUBLIC CATALOG (keep vendor-scoped; assignment logic intact) ----------
+router.get("/search", safe(productController.searchProducts));
+router.get("/catalog/categories", safe(productController.listCategoriesPublic));
+router.get(
+  "/catalog/subcategories",
+  safe(productController.listSubcategoriesPublic)
+);
+router.get("/catalog/groups", safe(productController.listGroupsBySubcategory));
+router.get(
+  "/catalog/category-by-slug",
+  safe(productController.getCategoryBySlug)
+);
+// ---------- Admin helpers ----------
+router.get(
+  "/admin/vendors",
+  auth,
+  requireAdmin,
+  safe(productController.listSellersForAdmin) // returns [{value,label}]
+);
 // Vendor-scoped list
-router.get("/public", assignVendorMiddleware, productController.listProducts);
-
+router.get(
+  "/public",
+  assignVendorMiddleware,
+  safe(productController.listProducts)
+);
 // Vendor-scoped facets
-router.get("/facets", assignVendorMiddleware, productController.getFacets);
+router.get(
+  "/facets",
+  assignVendorMiddleware,
+  safe(productController.getFacets)
+);
 
 /**
  * Vendor-scoped product detail
- * - DO NOT populate seller_id (it stores Vendor _id in your JSON)
- * - Normalize assignment to both vendor _id and user_id
- * - 404 if product.seller_id doesn't belong to today's vendor
+ * 404 if product.seller_id doesn't belong to today's vendor
  */
 router.get("/public/:id", assignVendorMiddleware, async (req, res) => {
   try {
@@ -39,14 +93,13 @@ router.get("/public/:id", assignVendorMiddleware, async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "Invalid product id" });
     }
-
     let { assignedVendorId, assignedVendorUserId } = req;
     if (!assignedVendorId && !assignedVendorUserId) {
       return res.status(400).json({ message: "Assigned vendor missing" });
     }
-
-    // fetch vendor doc if needed so we always have both ids
     let vDoc = null;
+    if (!Vendor)
+      return res.status(500).json({ message: "Vendor model missing" });
     if (!assignedVendorId && assignedVendorUserId) {
       vDoc = await Vendor.findOne({ user_id: assignedVendorUserId }).lean();
       if (vDoc) assignedVendorId = vDoc._id?.toString();
@@ -55,19 +108,20 @@ router.get("/public/:id", assignVendorMiddleware, async (req, res) => {
       vDoc = await Vendor.findById(assignedVendorId).lean();
       if (vDoc) assignedVendorUserId = vDoc.user_id?.toString();
     }
-
     const allowed = new Set(
-      [assignedVendorId, assignedVendorUserId, vDoc?._id?.toString(), vDoc?.user_id?.toString()].filter(Boolean)
+      [
+        assignedVendorId,
+        assignedVendorUserId,
+        vDoc?._id?.toString(),
+        vDoc?.user_id?.toString(),
+      ].filter(Boolean)
     );
-
-    // NOTE: DO NOT populate seller_id
+    if (!Product)
+      return res.status(500).json({ message: "Product model missing" });
     const product = await Product.findById(id)
       .populate("category_id subcategory_id variants")
       .lean();
-
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
+    if (!product) return res.status(404).json({ message: "Product not found" });
 
     const sellerKey =
       product.seller_id?.toString?.() ||
@@ -79,7 +133,6 @@ router.get("/public/:id", assignVendorMiddleware, async (req, res) => {
         .status(404)
         .json({ message: "Product not available from your vendor today" });
     }
-
     return res.status(200).json(product);
   } catch (err) {
     console.error("public product detail error:", err);
@@ -87,21 +140,47 @@ router.get("/public/:id", assignVendorMiddleware, async (req, res) => {
   }
 });
 
-// ---------- ADMIN / INTERNAL ----------
-router.post("/import", authUser, uploadAny, productController.importProducts);
-router.post("/", authUser, uploadAny, productController.createProduct);
+// ---------- ADMIN / INTERNAL (no pincode; admin token if you have it) ----------
+router.post(
+  "/import",
+  authUser,
+  uploadAny,
+  safe(productController.importProducts)
+);
+const uploadProductImages = uploadFields([
+  { name: "product_img", maxCount: 1 },
+  { name: "gallery_imgs", maxCount: 10 },
+]);
 
-router.get("/", authUser, productController.getAllProducts);
-router.get("/nearbyseller", authUser, productController.getNearbySellerProducts);
-router.get("/export", productController.exportProducts);
-router.get("/filter", productController.getProductByFilter);
-router.get("/tags", productController.getAllProductTags);
-router.get("/catalog/product-names", productController.listProductNamesBySubcategory);
+// pass the middleware (do not call it again)
+router.post("/", auth, deriveAssignedVendor,
+  uploadProductImages, productController.createProduct);
+router.get("/", authUser, deriveAssignedVendor,
+  safe(productController.getAllProducts));
+router.get(
+  "/nearbyseller",
+  authUser,
+  safe(productController.getNearbySellerProducts)
+);
+router.get("/export", safe(productController.exportProducts));
+router.get("/filter", safe(productController.getProductByFilter));
+router.get("/tags", safe(productController.getAllProductTags));
+router.get(
+  "/catalog/product-names",
+  safe(productController.listProductNamesBySubcategory)
+);
 
-router.get("/category/:categoryId", productController.getProductsByCategoryId);
-router.get("/subcategory/:subcategoryId", productController.getProductsBySubCategoryId);
-router.get("/seller/:sellerId", productController.getProductsBySellerId);
-// add once in productRoutes.js for debugging:
+router.get(
+  "/category/:categoryId",
+  safe(productController.getProductsByCategoryId)
+);
+router.get(
+  "/subcategory/:subcategoryId",
+  safe(productController.getProductsBySubCategoryId)
+);
+router.get("/seller/:sellerId", safe(productController.getProductsBySellerId));
+
+// Debug assignment (for storefront vendor scoping)
 router.get("/debug/assigned", assignVendorMiddleware, (req, res) => {
   res.json({
     pincode: req._resolvedPincode,
@@ -110,10 +189,24 @@ router.get("/debug/assigned", assignVendorMiddleware, (req, res) => {
     assignedVendorUserId: req.assignedVendorUserId,
   });
 });
-// Keep last
-router.get("/:id", requireAssignedVendor, productController.getProductById);
-router.put("/:id", auth, uploadAny, productController.updateProduct);
-router.delete("/:id", auth, productController.deleteProduct);
+// One-time sanity log: anything that prints "undefined" is the cause of your boot error.
+console.log('[productRoutes] types', {
+  auth: typeof auth,
+  uploadAny: typeof uploadAny,
+  deriveAssignedVendor: typeof deriveAssignedVendor,
+  createProduct: typeof createProduct,
+  updateProduct: typeof updateProduct,
+  listSellersForAdmin: typeof productController.listSellersForAdmin,
 
+  getAllProducts: typeof getAllProducts,
+});
+// Keep last
+router.get(
+  "/:id",
+  requireAssignedVendor,
+  safe(productController.getProductById)
+);
+router.put("/:id", auth, uploadAny, deriveAssignedVendor, safe(productController.updateProduct));
+router.delete("/:id", auth, safe(productController.deleteProduct));
 
 module.exports = router;

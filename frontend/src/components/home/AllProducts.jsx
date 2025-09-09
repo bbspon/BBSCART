@@ -4,10 +4,28 @@ import instance from "../../services/axiosInstance"; // adjust path as needed
 
 // Helpers
 const inr = (n) => new Intl.NumberFormat("en-IN").format(n);
+const getPincode = () => localStorage.getItem("deliveryPincode") || "";
 
-// API endpoints Need to Update
-const API_LIST = `${import.meta.env.VITE_API_URL}/api/products/public`;
-const API_FACETS = `${import.meta.env.VITE_API_URL}/api/products/facets`;
+// // API endpoints Need to Update
+// const API_LIST = `${import.meta.env.VITE_API_URL}/api/products`;
+// const API_FACETS = `${import.meta.env.VITE_API_URL}/api/products`;
+// choose endpoints based on pincode
+const getApiBase = (pin) => {
+  if (pin) {
+    // vendor-scoped endpoints (respect assigned vendor for this pincode)
+    return {
+      list: `${import.meta.env.VITE_API_URL}/api/products/public`,
+      facets: `${import.meta.env.VITE_API_URL}/api/products/facets`,
+      extraParams: {}, // public endpoints don't use scope
+    };
+  }
+  // admin list (show all: global + vendor)
+  return {
+    list: `${import.meta.env.VITE_API_URL}/api/products`,
+    facets: `${import.meta.env.VITE_API_URL}/api/products/facets`,
+    extraParams: { scope: "all" },
+  };
+};
 
 export default function ProductListingFull() {
   const [search, setSearch] = useState("");
@@ -36,6 +54,8 @@ export default function ProductListingFull() {
   const [err, setErr] = useState("");
 
   const [page, setPage] = useState(1);
+  const [pincode, setPincode] = useState(getPincode());
+
   const limit = 20;
 
   function toggleSetItem(setState, value) {
@@ -46,7 +66,20 @@ export default function ProductListingFull() {
       return copy;
     });
   }
+useEffect(() => {
+  if (pincode) {
+    instance.defaults.headers.common["X-Pincode"] = pincode;
+  } else {
+    delete instance.defaults.headers.common["X-Pincode"];
+  }
+}, [pincode]);
 
+// optional: listen to a custom event if your app updates pincode elsewhere
+useEffect(() => {
+  const onPinChange = () => setPincode(getPincode());
+  window.addEventListener("pincode:changed", onPinChange);
+  return () => window.removeEventListener("pincode:changed", onPinChange);
+}, []);
   function resetFilters() {
     setSearch("");
     setMinPrice(priceRange.min);
@@ -73,7 +106,8 @@ export default function ProductListingFull() {
     let alive = true;
     (async () => {
       try {
-        const { data } = await instance.get(API_FACETS);
+        const { facets } = getApiBase(pincode);
+        const { data } = await instance.get(facets);
         if (!alive) return;
         const brands = (data.brands || []).map((b) => b.name).filter(Boolean);
         const rams = (data.ram || [])
@@ -95,7 +129,7 @@ export default function ProductListingFull() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [pincode]);
 
   // Fetch products
   useEffect(() => {
@@ -125,8 +159,9 @@ export default function ProductListingFull() {
 
     (async () => {
       try {
-        const { data } = await instance.get(API_LIST, {
-          params,
+        const { list, extraParams } = getApiBase(pincode);
+        const { data } = await instance.get(list, {
+          params: { ...params, ...extraParams },
           signal: controller.signal,
         });
         console.log(data, "API Data LIST");
@@ -156,6 +191,7 @@ export default function ProductListingFull() {
     delivery1DayOnly,
     sortBy,
     page,
+    pincode,
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -385,18 +421,16 @@ export default function ProductListingFull() {
                 <button
                   aria-label="Grid view"
                   onClick={() => setView("grid")}
-                  className={`px-2 py-1 text-sm ${
-                    view === "grid" ? "font-semibold" : ""
-                  }`}
+                  className={`px-2 py-1 text-sm ${view === "grid" ? "font-semibold" : ""
+                    }`}
                 >
                   Grid
                 </button>
                 <button
                   aria-label="Table / row view"
                   onClick={() => setView("table")}
-                  className={`px-2 py-1 text-sm ${
-                    view === "table" ? "font-semibold" : ""
-                  }`}
+                  className={`px-2 py-1 text-sm ${view === "table" ? "font-semibold" : ""
+                    }`}
                 >
                   Rows
                 </button>
@@ -549,18 +583,16 @@ export default function ProductListingFull() {
             <button
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className={`px-3 py-1 border rounded text-sm ${
-                page <= 1 ? "opacity-50 cursor-not-allowed" : ""
-              }`}
+              className={`px-3 py-1 border rounded text-sm ${page <= 1 ? "opacity-50 cursor-not-allowed" : ""
+                }`}
             >
               Prev
             </button>
             <button
               disabled={page >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className={`px-3 py-1 border rounded text-sm ${
-                page >= totalPages ? "opacity-50 cursor-not-allowed" : ""
-              }`}
+              className={`px-3 py-1 border rounded text-sm ${page >= totalPages ? "opacity-50 cursor-not-allowed" : ""
+                }`}
             >
               Next
             </button>

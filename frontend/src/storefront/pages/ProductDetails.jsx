@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import instance from "../../services/axiosInstance";
+import { useCart } from "../../../context/CartContext";
+import { addToCart } from "../../slice/cartSlice"; // <- your existing slice action
+import { useDispatch } from "react-redux";
+
 import {
   Star,
   Heart,
@@ -14,13 +18,17 @@ import {
 } from "lucide-react";
 export default function ProductDetails() {
   const { id } = useParams();
+  const nav = useNavigate();
+  const cart = useCart();
+  const dispatch = useDispatch();
+
   const [p, setP] = useState(null);
   const [loading, setLoading] = useState(true);
   const [img, setImg] = useState("");
-    const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(1);
 
-    const [selected, setSelected] = useState(false); // wishlist toggle
-      const [showOffers, setShowOffers] = useState(false);
+  const [selected, setSelected] = useState(false); // wishlist toggle
+  const [showOffers, setShowOffers] = useState(false);
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
 
@@ -49,43 +57,60 @@ export default function ProductDetails() {
     })();
   }, [id]);
 
-   const price = p?.priceInfo?.sale ?? p?.price ?? 0;
-   const mrp = p?.priceInfo?.mrp ?? p?.price ?? 0;
-   const discountText =
-     p?.priceInfo?.discountText ||
-     (mrp > price ? `${Math.round(100 - (price / mrp) * 100)}% off` : "");
+  const price = p?.priceInfo?.sale ?? p?.price ?? 0;
+  const mrp = p?.priceInfo?.mrp ?? p?.price ?? 0;
+  const discountText =
+    p?.priceInfo?.discountText ||
+    (mrp > price ? `${Math.round(100 - (price / mrp) * 100)}% off` : "");
 
-   const gallery = useMemo(() => {
-     const g = Array.isArray(p?.gallery_imgs) ? p.gallery_imgs : [];
-     const imgs = [p?.product_img, ...g].filter(Boolean);
-     return imgs.length ? imgs : ["/img/placeholder.png"];
-   }, [p]);
+  const gallery = useMemo(() => {
+    const g = Array.isArray(p?.gallery_imgs) ? p.gallery_imgs : [];
+    const imgs = [p?.product_img, ...g].filter(Boolean);
+    return imgs.length ? imgs : ["/img/placeholder.png"];
+  }, [p]);
 
-   const dims = p?.dimensions || {};
-   const specs = Array.isArray(p?.specs) ? p.specs : [];
-   const tags = Array.isArray(p?.tags) ? p.tags : [];
-   const variants = Array.isArray(p?.variants) ? p.variants : [];
+  const dims = p?.dimensions || {};
+  const specs = Array.isArray(p?.specs) ? p.specs : [];
+  const tags = Array.isArray(p?.tags) ? p.tags : [];
+  const variants = Array.isArray(p?.variants) ? p.variants : [];
 
-   // UI-driven optional fields (PricingPage design)
-   const ui = p?.ui || {};
-   const seller = ui.seller || {
-     name: "",
-     rating: p?.rating_avg || 0,
-     reviewsCount: p?.rating_count || 0,
-   };
-   const offers = Array.isArray(ui.offers) ? ui.offers : [];
-   const highlights = Array.isArray(ui.highlights) ? ui.highlights : [];
-   const colorOptions = Array.isArray(ui.colorOptions) ? ui.colorOptions : [];
-   const sizes = Array.isArray(ui.sizes) ? ui.sizes : [];
-   const reviews = Array.isArray(ui.reviews) ? ui.reviews : [];
-   const ratingSummary = ui.ratingSummary || {
-     counts: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
-     total: p?.rating_count || 0,
-     avg: p?.rating_avg || 0,
-   };
+  // UI-driven optional fields (PricingPage design)
+  const ui = p?.ui || {};
+  const seller = ui.seller || {
+    name: "",
+    rating: p?.rating_avg || 0,
+    reviewsCount: p?.rating_count || 0,
+  };
+  const offers = Array.isArray(ui.offers) ? ui.offers : [];
+  const highlights = Array.isArray(ui.highlights) ? ui.highlights : [];
+  const colorOptions = Array.isArray(ui.colorOptions) ? ui.colorOptions : [];
+  const sizes = Array.isArray(ui.sizes) ? ui.sizes : [];
+  const reviews = Array.isArray(ui.reviews) ? ui.reviews : [];
+  const ratingSummary = ui.ratingSummary || {
+    counts: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+    total: p?.rating_count || 0,
+    avg: p?.rating_avg || 0,
+  };
 
-   if (loading) return <div className="container py-4">Loading…</div>;
-   if (!p) return <div className="container py-4">Not found.</div>;
+  if (loading) return <div className="container py-4">Loading…</div>;
+  if (!p) return <div className="container py-4">Not found.</div>;
+
+  const onAddToCart = () => {
+    cart.addItem({
+      productId: p._id,
+      name: p.name,
+      image: img, // <-- add image
+      price: price, // <-- add price
+      qty: quantity, // <-- add quantity
+      variantId: null,
+    });
+  };
+
+  const onBuyNow = () => {
+    onAddToCart();
+    nav("/checkout");
+  };
+
   return (
     <div className="container py-4">
       <h1 className="mb-3">{p?.name}</h1>
@@ -309,10 +334,16 @@ export default function ProductDetails() {
 
           {/* CTAs */}
           <div className="flex gap-4">
-            <button className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2">
+            <button
+              onClick={onAddToCart}
+              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2"
+            >
               <ShoppingCart size={20} /> Add to Cart
             </button>
-            <button className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2">
+            <button
+              onClick={onBuyNow}
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2"
+            >
               <PackageCheck size={20} /> Buy Now
             </button>
           </div>

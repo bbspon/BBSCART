@@ -9,7 +9,8 @@ export const register = async (userData, dispatch, navigate) => {
           `${import.meta.env.VITE_API_URL}/api/auth/register`,
           userData
         );
-        if (response.status === 200 && response.data?.user) {
+ if (response.status >= 200 && response.status < 300 && response.data?.user) {
+
             const user = response.data.user;
 
             dispatch(setUser(user)); // ✅ Store user in Redux

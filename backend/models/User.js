@@ -22,7 +22,9 @@ const UserSchema = new mongoose.Schema(
     name: String,
     email: { type: String, unique: true }, // User's email (unique)
     password: String, // Encrypted user password
+    confirmPassword: String, // Encrypted user password
     refreshToken: String,
+
     userdetails: { type: ObjectId, ref: "UserDetails" },
     created_at: { type: Date, default: Date.now }, // Account creation date
     updated_at: { type: Date, default: Date.now }, // Last updated date

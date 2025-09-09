@@ -49,19 +49,13 @@ import BuybackPolicy from './components/pages/BuybackPolicy';
 import BankCashbackPolicy from './components/pages/BankCashbackPolicy';
 import ContactUs from './components/pages/ContactUs';
 import ThiaPage from './components/pages/ThiaPage';
-
-import SellerDashboard from './components/seller/Dashboard';
-import SellerProducts from './components/seller/Products';
-import SellerCategories from './components/seller/Categories';
-import SellerSubCategories from './components/seller/SubCategories';
-import SellerOrders from './components/seller/Orders';
 import { useDispatch, useSelector } from 'react-redux';
 import { loadUser } from './services/authService';
 import { fetchCartItems } from './slice/cartSlice';
 import { fetchWishlistItems } from './slice/wishlistSlice';
 
 import ScrollToTopOnRouteChange from "./components/ScrollToTopOnRouteChange";
-import CustomerBecomeVendor from './components/auth/CustomerBecomeVendor';
+// import CustomerBecomeVendor from './components/auth/CustomerBecomeVendor';
 import GalleryMediaTestimonials from './components/pages/GalleryMediaTestimonials';
 import LegalAndBlogPage from './components/pages/LegalAndBlogPage';
 import BBSCARTCMSPage from './components/pages/admin/cms/BBSCARTCMSPage';
@@ -80,7 +74,6 @@ import TerritoryHeadSuccess from './components/TerritoryHeadSuccess';
 import TerritoryHeadForm from './components/admin/TerritoryHeadForm';
 import CustomerBecomeVendorForm from './components/admin/CustomerBecomeVendorForm';
 import CustomerBecomeVendorSuccess from './components/CustomerBecomeVendorSuccess';
-// import CheckoutPage from './components/home/CheckoutPage';
 
 // Products App Component
 import CategoryPage from "./storefront/pages/CategoryPage";
@@ -100,6 +93,7 @@ import AdminCustomerVendorRequestsPage from './components/pages/admin/AdminCusto
 // 30/09/25 - AdminVendorCredentials
 import AdminVendorCredentials from "./components/admin/AdminVendorCredentials";
 import VendorSetPassword from "./components/pages/VendorSetPassword";
+import AcceptInvite from './components/pages/admin/AcceptInvite';
 function App() {
   const dispatch = useDispatch();
   const location = useLocation(); // Get the current route
@@ -249,6 +243,7 @@ function App() {
           path="/admin/vendor-credentials"
           element={<AdminVendorCredentials />}
         />
+          <Route path="/accept-invite" element={<AcceptInvite/>} />
 
         <Route
           path="/vendor/set-password/:token"
@@ -260,9 +255,7 @@ function App() {
         <Route path="/grocery" element={<GroceryDetails />} />
         {/* ✅ Home>PricingPage */}
         <Route path="/pricing" element={<PricingPage />} />
-        {/* ✅ Checkout */}
-        {/* <Route path="/checkout" element={<CheckoutPage />} /> */}
-        {/* ✅ Admin Routes */}
+      
         <Route path="/admin" element={<AdminRoutes />}>
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="products" element={<Products />} />
@@ -273,20 +266,8 @@ function App() {
           <Route path="customers" element={<Customers />} />
           <Route path="other-users" element={<OtherUser />} />
           <Route path="users-request" element={<UserRequest />} />
-        </Route>
-        {/* ✅ Seller Routes */}
-        <Route path="/seller" element={<SellerRoutes />}>
-          <Route path="dashboard" element={<SellerDashboard />} />
-          <Route path="products" element={<SellerProducts />} />
-          <Route path="products/categories" element={<SellerCategories />} />
-          <Route
-            path="products/subcategories"
-            element={<SellerSubCategories />}
-          />
-          <Route path="orders" element={<SellerOrders />} />
 
-          {/* <Route path="products" element={<ProductsPage />} /> */}
-        </Route>
+        </Route> 
         {/* Made by medun */}
         {/* GLOBAL CMS CORE MODULES (Shared Across All 3) */}
         <Route path="/admin-cms" element={<BBSCARTCMSPage />}>

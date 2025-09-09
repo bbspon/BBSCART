@@ -11,8 +11,10 @@ const {
   getUser,
   authRefershToken,
   verifySetPasswordToken,
+  createAdminInvite,
+  acceptAdminInvite,
 } = require("../controllers/authController");
-const { auth } = require("../middleware/authMiddleware");
+const { auth, superAdminOnly } = require("../middleware/authMiddleware");
 const { uploadAny } = require("../middleware/upload");
 
 const router = express.Router();
@@ -31,6 +33,10 @@ router.post("/refresh-token", authRefershToken);
 
 // PUBLIC vendor set-password flow (fixes 401)
 router.get("/vendors/verify-token/:token", verifySetPasswordToken);
-router.post("/vendors/set-password",setPassword);
+router.post("/vendors/set-password", setPassword);
+
+// --- new invite routes --- //
+router.post("/admin-invites", auth, superAdminOnly, createAdminInvite);
+router.post("/admin-invites/accept", acceptAdminInvite);
 
 module.exports = router;

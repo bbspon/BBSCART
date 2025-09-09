@@ -1,14 +1,13 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../utils/api';
-
-const BASE_URL = "/orders"; 
+import instance from "../services/axiosInstance"
+const BASE_URL = `${import.meta.env.VITE_API_URL}/orders`; 
 
 // ✅ Place Order
 export const placeOrder = createAsyncThunk(
   "order/placeOrder",
   async (orderData, { rejectWithValue }) => {
     try {
-      const response = await api.post(BASE_URL, orderData);
+      const response = await instance.post(BASE_URL, orderData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error?.response?.data?.message || error.message || "Failed to place order.");
@@ -21,7 +20,7 @@ export const getAllOrders = createAsyncThunk(
   "order/getAllOrders",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get(BASE_URL);
+      const response = await instance.get(BASE_URL);
       return response.data.orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     } catch (error) {
       return rejectWithValue(error?.response?.data?.message || error.message || "Failed to fetch orders.");
@@ -34,7 +33,7 @@ export const getOrderById = createAsyncThunk(
   "order/getOrderById",
   async (orderId, { rejectWithValue }) => {
     try {
-      const response = await api.get(`${BASE_URL}/${orderId}`);
+      const response = await instance.get(`${BASE_URL}/${orderId}`);
       return response.data;
     } catch (error) {
       return rejectWithValue(error?.response?.data?.message || error.message || "Failed to fetch order.");
@@ -47,7 +46,7 @@ export const getOrderBySellerId = createAsyncThunk(
   "order/getOrderBySellerId",
   async (sellerId, { rejectWithValue }) => {
     try {
-      const response = await api.get(`${BASE_URL}/seller/${sellerId}`);
+      const response = await instance.get(`${BASE_URL}/seller/${sellerId}`);
       return response.data;
     } catch (error) {
       return rejectWithValue(error?.response?.data?.message || error.message || "Failed to fetch order.");
@@ -60,7 +59,7 @@ export const getOrdersByUserId = createAsyncThunk(
   "order/getOrdersByUserId",
   async (userId, { rejectWithValue }) => {
     try {
-      const response = await api.get(`${BASE_URL}/user/${userId}`);
+      const response = await instance.get(`${BASE_URL}/user/${userId}`);
       return response.data;
     } catch (error) {
       return rejectWithValue(error?.response?.data?.message || error.message || "Failed to fetch order.");
@@ -73,7 +72,7 @@ export const getOrdersByStatus = createAsyncThunk(
   "order/getOrdersByStatus",
   async (status, { rejectWithValue }) => {
     try {
-      const response = await api.get(`${BASE_URL}/status/${status}`);
+      const response = await instance.get(`${BASE_URL}/status/${status}`);
       return response.data.orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     } catch (error) {
       return rejectWithValue(error?.response?.data?.message || error.message || "Failed to fetch orders by status.");
@@ -86,7 +85,7 @@ export const updateOrder = createAsyncThunk(
   "order/updateOrder",
   async ({ orderId, orderData }, { rejectWithValue }) => {
     try {
-      const response = await api.put(`${BASE_URL}/${orderId}`, orderData);
+      const response = await instance.put(`${BASE_URL}/${orderId}`, orderData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error?.response?.data?.message || error.message || "Failed to update order.");
@@ -99,7 +98,7 @@ export const deleteOrder = createAsyncThunk(
   "order/deleteOrder",
   async (orderId, { rejectWithValue }) => {
     try {
-      const response = await api.delete(`${BASE_URL}/${orderId}`);
+      const response = await instance.delete(`${BASE_URL}/${orderId}`);
       return response.data;
     } catch (error) {
       return rejectWithValue(error?.response?.data?.message || error.message || "Failed to delete order.");

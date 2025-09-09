@@ -45,6 +45,14 @@ const adminOnly = (req, res, next) => {
     next();
 };
 
+// SuperAdmin-Only Middleware
+const superAdminOnly = (req, res, next) => {
+    if (!req.user || req.user.role !== "superadmin") {
+        return res.status(403).json({ success: false, message: "SuperAdmin access required" });
+    }
+    next();
+};
+
 // Logout Function (Blacklist Token)
 const logout = async (req, res) => {
     try {
@@ -102,4 +110,4 @@ const authUser = async (req, res, next) => {
 };
 
 
-module.exports = { auth, adminOnly, logout, authUser };
+module.exports = { auth, adminOnly, logout, authUser, superAdminOnly };

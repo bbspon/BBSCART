@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 
 const Checkout = () => {
   // Addresses with edit mode flag
@@ -293,13 +294,17 @@ const Checkout = () => {
                     <input
                       type="text"
                       value={name}
-                      onChange={(e) => handleAddressChange(id, "name", e.target.value)}
+                      onChange={(e) =>
+                        handleAddressChange(id, "name", e.target.value)
+                      }
                       className="w-full border rounded px-2 py-1"
                     />
                     <input
                       type="text"
                       value={phone}
-                      onChange={(e) => handleAddressChange(id, "phone", e.target.value)}
+                      onChange={(e) =>
+                        handleAddressChange(id, "phone", e.target.value)
+                      }
                       className="w-full border rounded px-2 py-1"
                     />
                     <input
@@ -321,7 +326,9 @@ const Checkout = () => {
                     <input
                       type="text"
                       value={pincode}
-                      onChange={(e) => handleAddressChange(id, "pincode", e.target.value)}
+                      onChange={(e) =>
+                        handleAddressChange(id, "pincode", e.target.value)
+                      }
                       className="w-full border rounded px-2 py-1"
                     />
                     <button
@@ -368,35 +375,45 @@ const Checkout = () => {
                   type="text"
                   placeholder="Name *"
                   value={newAddress.name}
-                  onChange={(e) => handleAddAddressChange("name", e.target.value)}
+                  onChange={(e) =>
+                    handleAddAddressChange("name", e.target.value)
+                  }
                   className="w-full border rounded px-2 py-1"
                 />
                 <input
                   type="text"
                   placeholder="Phone *"
                   value={newAddress.phone}
-                  onChange={(e) => handleAddAddressChange("phone", e.target.value)}
+                  onChange={(e) =>
+                    handleAddAddressChange("phone", e.target.value)
+                  }
                   className="w-full border rounded px-2 py-1"
                 />
                 <input
                   type="text"
                   placeholder="Address Line 1 *"
                   value={newAddress.addressLine1}
-                  onChange={(e) => handleAddAddressChange("addressLine1", e.target.value)}
+                  onChange={(e) =>
+                    handleAddAddressChange("addressLine1", e.target.value)
+                  }
                   className="w-full border rounded px-2 py-1"
                 />
                 <input
                   type="text"
                   placeholder="Address Line 2"
                   value={newAddress.addressLine2}
-                  onChange={(e) => handleAddAddressChange("addressLine2", e.target.value)}
+                  onChange={(e) =>
+                    handleAddAddressChange("addressLine2", e.target.value)
+                  }
                   className="w-full border rounded px-2 py-1"
                 />
                 <input
                   type="text"
                   placeholder="Pincode *"
                   value={newAddress.pincode}
-                  onChange={(e) => handleAddAddressChange("pincode", e.target.value)}
+                  onChange={(e) =>
+                    handleAddAddressChange("pincode", e.target.value)
+                  }
                   className="w-full border rounded px-2 py-1"
                 />
 
@@ -567,10 +584,8 @@ const Checkout = () => {
                     {
                       {
                         cod: "Pay with cash upon delivery at your doorstep.",
-                        card:
-                          "Enter your credit or debit card details securely during the next step.",
-                        upi:
-                          "Pay instantly using UPI apps like Google Pay, PhonePe, Paytm.",
+                        card: "Enter your credit or debit card details securely during the next step.",
+                        upi: "Pay instantly using UPI apps like Google Pay, PhonePe, Paytm.",
                         netbanking:
                           "Make payment using your bank's net banking portal.",
                       }[method]
@@ -616,7 +631,9 @@ const Checkout = () => {
                           placeholder="CVV"
                           maxLength={4}
                           value={cvv}
-                          onChange={(e) => setCvv(e.target.value.replace(/\D/g, ""))}
+                          onChange={(e) =>
+                            setCvv(e.target.value.replace(/\D/g, ""))
+                          }
                           className="w-1/2 border rounded px-3 py-2"
                         />
                       </div>
@@ -633,6 +650,51 @@ const Checkout = () => {
             Place Order
           </button>
         </div>
+      </div>
+
+      {/* Cart Items Section - Suggested Code Change Integrated */}
+      <div className="bb-checkout-pro mb-[-24px]">
+        {products.length > 0 ? (
+          products.map((item, idx) => (
+            <div
+              key={idx}
+              className="pro-items p-[15px] bg-[#f8f8fb] border border-[#eee] rounded-[20px] flex mb-[24px] max-[420px]:flex-col"
+            >
+              <div className="image mr-[15px] max-[420px]:mr-[0] max-[420px]:mb-[15px]">
+                <img
+                  src={item.image || ""}
+                  alt={item.name || ""}
+                  className="w-[100px] h-[100px] object-cover border rounded-[20px]"
+                />
+              </div>
+              <div className="items-contact">
+                <h4 className="text-[16px]">
+                  <Link
+                    to={`/product/${item.productId}`}
+                    className="font-Poppins text-[15px] font-medium text-secondary"
+                  >
+                    {item.name}
+                  </Link>
+                </h4>
+                <div className="inner-price flex items-center justify-left mb-[4px]">
+                  <span className="new-price font-Poppins text-secondary font-semibold text-[15px]">
+                    ₹{Number(item.price).toFixed(2)}
+                  </span>
+                  <span className="old-price ml-[10px] font-Poppins text-[#777] font-semibold text-[15px]">
+                    {" "}
+                    × {item.qty}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="w-full text-center">
+            <h3 className="font-Poppins mt-5 text-[16px] text-secondary">
+              Your cart is empty.
+            </h3>
+          </div>
+        )}
       </div>
     </div>
   );

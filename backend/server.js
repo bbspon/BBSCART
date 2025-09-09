@@ -31,6 +31,7 @@ const customerBecomeVendorRoutes = require("./routes/customerVendorRoutes");
 const geoRoutes = require("./routes/geoRoutes");
 const adminPincodeVendorsRoutes = require("./routes/adminPincodeVendorsRoutes");
 const adminVendorRoutes = require("./routes/adminVendorRoutes");
+const orderRoutes = require("./routes/orderRoutes");
 
 const app = express();
 
@@ -106,6 +107,10 @@ app.use(cookieParser());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+// Add body-parsing middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 // ✅ Static File Serving
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
@@ -124,6 +129,8 @@ app.use(require("./middleware/assignVendorMiddleware"));
 app.use("/api/products", productRoutes);
 app.use("/api/groceries", require("./routes/groceryRoutes"));
 app.use("/api/fruits", require("./routes/FruitsRoutes"));
+app.use("/api/categories", require("./routes/categoryRoutes"));
+app.use("/api/subcategories", require("./routes/subcategoryRoutes"));
 
 app.use("/api/cart", cartRoutes);
 app.use("/api/wishlist", wishlistRoutes);
@@ -132,6 +139,7 @@ app.get("/api/health", (req, res) => res.json({ ok: true }));
 app.use("/api/geo", geoRoutes);
 app.use("/api/admin/pincode-vendors", adminPincodeVendorsRoutes);
 app.use("/api/admin/vendors", adminVendorRoutes);
+app.use("/orders", orderRoutes);
 
 // ✅ Global Error Handler
 app.use((err, req, res, next) => {

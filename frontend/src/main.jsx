@@ -6,15 +6,17 @@ import { Provider } from "react-redux";
 import store from './store/store.js';
 import { AuthProvider } from "../context/AuthContext"; // ✅ import
 import { VendorAssignmentProvider } from "../context/VendorAssignmentContext";
+import { CartProvider } from '../context/CartContext.jsx';
 
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <AuthProvider>
-      ,
       <Provider store={store}>
         <VendorAssignmentProvider>
-          <App />
+          <CartProvider>
+            <App />
+          </CartProvider>
         </VendorAssignmentProvider>
       </Provider>
     </AuthProvider>

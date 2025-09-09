@@ -5,7 +5,7 @@ const { ObjectId } = mongoose.Schema.Types;
 
 const OrderSchema = new mongoose.Schema({
   order_id: { type: String, required: true, unique: true }, // Unique identifier for the order
-  user_id: { type: ObjectId, ref: 'User', required: true }, // Reference to Users collection
+  user_id: { type: ObjectId, ref: 'User', required: false }, // Reference to Users collection
   orderItems: [
     {
       product: { type: ObjectId, ref: 'Product', required: true }, // Reference to Products collection
