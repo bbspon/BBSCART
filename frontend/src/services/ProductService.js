@@ -1,5 +1,5 @@
 // import api from "../utils/api";
-import instance from "../services/axiosInstance";
+import instance from "../services/axiosInstance"
 const BASE_PRODUCTS_URL = `${import.meta.env.VITE_API_URL}/products`;
 const BASE_CATEGORIES_URL = `${import.meta.env.VITE_API_URL}/categories`;
 const BASE_SUBCATEGORIES_URL = `${import.meta.env.VITE_API_URL}/subcategories`;
@@ -15,9 +15,7 @@ export const ProductService = {
       return response.data;
     } catch (error) {
       console.error("Error in getProducts:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to fetch products."
-      );
+      throw new Error(error.response?.data?.message || "Failed to fetch products.");
     }
   },
 
@@ -28,23 +26,19 @@ export const ProductService = {
       return response.data;
     } catch (error) {
       console.error("Error in getProductsNearbySeller:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to fetch products."
-      );
+      throw new Error(error.response?.data?.message || "Failed to fetch products.");
     }
   },
 
   async getProductID(id) {
-    try {
-      const response = await instance.get(`${BASE_PRODUCTS_URL}/${id}`);
-      console.log("Fetched Product:", response.data);
-      return response.data;
-    } catch (error) {
-      console.error("Error in getProductID:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to fetch product."
-      );
-    }
+      try {
+        const response = await instance.get(`${BASE_PRODUCTS_URL}/${id}`);
+        console.log("Fetched Product:", response.data);
+        return response.data;
+      } catch (error) {
+        console.error("Error in getProductID:", error);
+        throw new Error(error.response?.data?.message || "Failed to fetch product.");
+      }
   },
 
   async getProductsSellerID(id) {
@@ -54,39 +48,29 @@ export const ProductService = {
       return response.data;
     } catch (error) {
       console.error("Error in getProductID:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to fetch product."
-      );
+      throw new Error(error.response?.data?.message || "Failed to fetch product.");
     }
   },
 
   async getProductCategoryID(id) {
     try {
-      const response = await instance.get(
-        `${BASE_PRODUCTS_URL}/category/${id}`
-      );
+      const response = await instance.get(`${BASE_PRODUCTS_URL}/category/${id}`);
       console.log("Fetched Product:", response.data);
       return response.data;
     } catch (error) {
       console.error("Error in getProductID:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to fetch product."
-      );
+      throw new Error(error.response?.data?.message || "Failed to fetch product.");
     }
   },
 
   async getProductSubCategoryID(id) {
     try {
-      const response = await instance.get(
-        `${BASE_PRODUCTS_URL}/subcategory/${id}`
-      );
+      const response = await instance.get(`${BASE_PRODUCTS_URL}/subcategory/${id}`);
       console.log("Fetched SubCategory Product:", response.data);
       return response.data;
     } catch (error) {
       console.error("Error in getProductSubCategoryID:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to fetch product."
-      );
+      throw new Error(error.response?.data?.message || "Failed to fetch product.");
     }
   },
 
@@ -97,9 +81,7 @@ export const ProductService = {
       return response.data;
     } catch (error) {
       console.error("Error in getProductID:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to fetch product."
-      );
+      throw new Error(error.response?.data?.message || "Failed to fetch product.");
     }
   },
 
@@ -123,17 +105,13 @@ export const ProductService = {
         queryParams.append("minPrice", filters.priceRange.min);
         queryParams.append("maxPrice", filters.priceRange.max);
       }
-
-      const response = await instance.get(
-        `${BASE_PRODUCTS_URL}/filter?${queryParams.toString()}`
-      );
+  
+      const response = await instance.get(`${BASE_PRODUCTS_URL}/filter?${queryParams.toString()}`);
       console.log("Filtered Products:", response.data);
       return response.data;
     } catch (error) {
       console.error("Error fetching products:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to fetch products."
-      );
+      throw new Error(error.response?.data?.message || "Failed to fetch products.");
     }
   },
 
@@ -149,46 +127,34 @@ export const ProductService = {
       return response.data;
     } catch (error) {
       console.error("Error in createProduct:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to create product."
-      );
+      throw new Error(error.response?.data?.message || "Failed to create product.");
     }
   },
 
   async updateProduct(productId, productData) {
     try {
-      const response = await instance.put(
-        `${BASE_PRODUCTS_URL}/${productId}`,
-        productData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
+      const response = await instance.put(`${BASE_PRODUCTS_URL}/${productId}`, productData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
 
       console.log("Updated Product:", response.data);
       return response.data;
     } catch (error) {
       console.error("Error in updateProduct:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to update product."
-      );
+      throw new Error(error.response?.data?.message || "Failed to update product.");
     }
   },
 
   async deleteProduct(productId) {
     try {
-      const response = await instance.delete(
-        `${BASE_PRODUCTS_URL}/${productId}`
-      );
+      const response = await instance.delete(`${BASE_PRODUCTS_URL}/${productId}`);
       console.log("Deleted Product:", response.data);
       return response.data;
     } catch (error) {
       console.error("Error in deleteProduct:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to delete product."
-      );
+      throw new Error(error.response?.data?.message || "Failed to delete product.");
     }
   },
 
@@ -197,7 +163,7 @@ export const ProductService = {
       const response = await instance.get(`${BASE_PRODUCTS_URL}/export`, {
         responseType: "blob",
       });
-
+  
       const blob = new Blob([response.data], { type: "application/zip" });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -206,25 +172,21 @@ export const ProductService = {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
+  
       // Optional: Revoke the object URL to free up memory
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Export failed:", error);
     }
-  },
+  },  
 
   async importProducts(formData) {
     try {
-      const response = await instance.post(
-        `${BASE_PRODUCTS_URL}/import`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data", // Required for file uploads
-          },
-        }
-      );
+      const response = await instance.post(`${BASE_PRODUCTS_URL}/import`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data", // Required for file uploads
+        },
+      });
       console.log("importProducts", response);
       return response;
     } catch (error) {
@@ -240,52 +202,40 @@ export const ProductService = {
       return response.data;
     } catch (error) {
       console.error("Error in getCategorys:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to fetch Categorys."
-      );
+      throw new Error(error.response?.data?.message || "Failed to fetch Categorys.");
     }
   },
 
   async getCategoriesNearbySeller() {
     try {
-      const response = await instance.get(
-        `${BASE_CATEGORIES_URL}/nearbyseller`
-      );
+      const response = await instance.get(`${BASE_CATEGORIES_URL}/nearbyseller`);
       console.log("Fetched Categories:", response.data);
       return response.data;
     } catch (error) {
       console.error("Error in getCategoriesNearbySeller:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to fetch Categorys."
-      );
+      throw new Error(error.response?.data?.message || "Failed to fetch Categorys.");
     }
   },
 
   async getCategoryID(id) {
-    try {
-      const response = await instance.get(`${BASE_CATEGORIES_URL}/${id}`);
-      console.log("Fetched category:", response.data);
-      return response.data;
-    } catch (error) {
-      console.error("Error in getCategoryID:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to fetch category."
-      );
-    }
+      try {
+        const response = await instance.get(`${BASE_CATEGORIES_URL}/${id}`);
+        console.log("Fetched category:", response.data);
+        return response.data;
+      } catch (error) {
+        console.error("Error in getCategoryID:", error);
+        throw new Error(error.response?.data?.message || "Failed to fetch category.");
+      }
   },
 
   async getCategorySellerID(id) {
     try {
-      const response = await instance.get(
-        `${BASE_CATEGORIES_URL}/seller/${id}`
-      );
+      const response = await instance.get(`${BASE_CATEGORIES_URL}/seller/${id}`);
       console.log("Fetched Product:", response.data);
       return response.data;
     } catch (error) {
       console.error("Error in getProductID:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to fetch product."
-      );
+      throw new Error(error.response?.data?.message || "Failed to fetch product.");
     }
   },
 
@@ -301,46 +251,34 @@ export const ProductService = {
       return response.data;
     } catch (error) {
       console.error("Error in createCategory:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to create category."
-      );
+      throw new Error(error.response?.data?.message || "Failed to create category.");
     }
   },
 
   async updateCategory(categoryId, categoryData) {
     try {
-      const response = await instance.put(
-        `${BASE_CATEGORIES_URL}/${categoryId}`,
-        categoryData,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const response = await instance.put(`${BASE_CATEGORIES_URL}/${categoryId}`, categoryData, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
       console.log("Updated category:", response.data);
       return response.data;
     } catch (error) {
       console.error("Error in updateCategory:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to update category."
-      );
+      throw new Error(error.response?.data?.message || "Failed to update category.");
     }
   },
 
   async deleteCategory(categoryId) {
     try {
-      const response = await instance.delete(
-        `${BASE_CATEGORIES_URL}/${categoryId}`
-      );
+      const response = await instance.delete(`${BASE_CATEGORIES_URL}/${categoryId}`);
       console.log("Deleted category:", response.data);
       return response.data;
     } catch (error) {
       console.error("Error in deleteCategory:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to delete category."
-      );
+      throw new Error(error.response?.data?.message || "Failed to delete category.");
     }
   },
   // SubCategories
@@ -351,97 +289,72 @@ export const ProductService = {
       return response.data;
     } catch (error) {
       console.error("Error in getCategorys:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to fetch Categorys."
-      );
+      throw new Error(error.response?.data?.message || "Failed to fetch Categorys.");
     }
   },
 
   async getSubCategoryID(id) {
-    try {
-      const response = await instance.get(`${BASE_SUBCATEGORIES_URL}/${id}`);
-      console.log("Fetched SubCategory:", response.data);
-      return response.data;
-    } catch (error) {
-      console.error("Error in getSubCategoryID:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to fetch SubCategory."
-      );
-    }
-  },
+      try {
+        const response = await instance.get(`${BASE_SUBCATEGORIES_URL}/${id}`);
+        console.log("Fetched SubCategory:", response.data);
+        return response.data;
+      } catch (error) {
+        console.error("Error in getSubCategoryID:", error);
+        throw new Error(error.response?.data?.message || "Failed to fetch SubCategory.");
+      }
+  },  
 
   async getSubCategorySellerID(id) {
     try {
-      const response = await instance.get(
-        `${BASE_SUBCATEGORIES_URL}/seller/${id}`
-      );
+      const response = await instance.get(`${BASE_SUBCATEGORIES_URL}/seller/${id}`);
       console.log("Fetched SubCategory By SellerId:", response.data);
       return response.data;
     } catch (error) {
       console.error("Error in getSubCategorySellerID:", error);
-      throw new Error(
-        error.response?.data?.message ||
-          "Failed to fetch getSubCategorySellerID."
-      );
+      throw new Error(error.response?.data?.message || "Failed to fetch getSubCategorySellerID.");
     }
   },
 
   async createSubCategory(subcategory) {
     try {
-      const response = await instance.post(
-        BASE_SUBCATEGORIES_URL,
-        subcategory,
-        {
-          headers: {
-            "Content-Type": "application/json", // Required for file uploads
-          },
-        }
-      );
+      const response = await instance.post(BASE_SUBCATEGORIES_URL, subcategory, {
+        headers: {
+          "Content-Type": "application/json", // Required for file uploads
+        },
+      });
 
       console.log("Created SubCategory:", response.data);
       return response.data;
     } catch (error) {
       console.error("Error in createSubCategory:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to create subcategory."
-      );
+      throw new Error(error.response?.data?.message || "Failed to create subcategory.");
     }
   },
 
   async updateSubCategory(subcategoryId, subcategoryData) {
     try {
-      const response = await instance.put(
-        `${BASE_SUBCATEGORIES_URL}/${subcategoryId}`,
-        subcategoryData,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const response = await instance.put(`${BASE_SUBCATEGORIES_URL}/${subcategoryId}`, subcategoryData, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
       console.log("Updated SubCategory:", response.data);
       return response.data;
     } catch (error) {
       console.error("Error in updateSubCategory:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to update SubCategory."
-      );
+      throw new Error(error.response?.data?.message || "Failed to update SubCategory.");
     }
   },
 
   async deleteSubCategory(subcategoryId) {
     try {
-      const response = await instance.delete(
-        `${BASE_SUBCATEGORIES_URL}/${subcategoryId}`
-      );
+      const response = await instance.delete(`${BASE_SUBCATEGORIES_URL}/${subcategoryId}`);
       console.log("Deleted SubCategory:", response.data);
       return response.data;
     } catch (error) {
       console.error("Error in deleteSubCategory:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to delete SubCategory."
-      );
+      throw new Error(error.response?.data?.message || "Failed to delete SubCategory.");
     }
   },
   // Variants
@@ -453,23 +366,19 @@ export const ProductService = {
       return response.data;
     } catch (error) {
       console.error("Error in getVariants:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to fetch Variant."
-      );
+      throw new Error(error.response?.data?.message || "Failed to fetch Variant.");
     }
   },
 
   async getVariantID(id) {
-    try {
-      const response = await instance.get(`${BASE_VARIANTS_URL}/${id}`);
-      console.log("Fetched Variant:", response.data);
-      return response.data;
-    } catch (error) {
-      console.error("Error in getVariantID:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to fetch Variant."
-      );
-    }
+      try {
+        const response = await instance.get(`${BASE_VARIANTS_URL}/${id}`);
+        console.log("Fetched Variant:", response.data);
+        return response.data;
+      } catch (error) {
+        console.error("Error in getVariantID:", error);
+        throw new Error(error.response?.data?.message || "Failed to fetch Variant.");
+      }
   },
 
   async getVariantByProductID(id) {
@@ -479,9 +388,7 @@ export const ProductService = {
       return response.data;
     } catch (error) {
       console.error("Error in VariantByProductID:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to fetch SubCategory."
-      );
+      throw new Error(error.response?.data?.message || "Failed to fetch SubCategory.");
     }
   },
   // Verify Payment
@@ -496,9 +403,7 @@ export const ProductService = {
       return response.data;
     } catch (error) {
       console.error("Error in createProduct:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to create product."
-      );
+      throw new Error(error.response?.data?.message || "Failed to create product.");
     }
   },
 };
