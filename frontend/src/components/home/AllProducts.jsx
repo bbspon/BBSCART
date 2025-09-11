@@ -16,8 +16,8 @@ const getApiBase = (pin) => {
   if (pin) {
     // Vendor flow (respect assign-vendor): keep your existing endpoints
     return {
-      list: `${base}/api/products/public`,
-      facets: `${base}/api/products/facets`,
+      list: `${base}/products/public`,
+      facets: `${base}/products/facets`,
       extraParams: {}, // public list doesn't need scope
     };
   }
