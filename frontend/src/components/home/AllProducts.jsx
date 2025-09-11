@@ -24,8 +24,8 @@ const getApiBase = (pin) => {
 
   // No pincode → always show FULL catalog (new endpoints)
   return {
-    list: `${base}/api/products/all`,
-    facets: `${base}/api/products/facets/all`,
+    list: `${base}/products/all`,
+    facets: `${base}/products/facets/all`,
     extraParams: {}, // no scope param needed
   };
 };
