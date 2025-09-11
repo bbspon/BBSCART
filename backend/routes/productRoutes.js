@@ -82,6 +82,8 @@ router.get(
   assignVendorMiddleware,
   safe(productController.getFacets)
 );
+router.get("/all", productController.getAllProductsGlobal);
+router.get("/facets/all", productController.getFacetsGlobal);
 
 /**
  * Vendor-scoped product detail

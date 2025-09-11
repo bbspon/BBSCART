@@ -50,6 +50,73 @@ function getVal(row, ...names) {
   }
   return "";
 }
+const toInt = (v, d) => {
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? n : d;
+};
+const toFloat = (v, d) => {
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : d;
+};
+
+// Build a basic filter from querystring (adjust field names if needed)
+function buildGlobalFilter(q = {}) {
+  const filter = {};
+
+  // search across a few text-ish fields (adjust to your schema)
+  if (q.search) {
+    const rx = new RegExp(String(q.search).trim(), "i");
+    filter.$or = [{ name: rx }, { title: rx }, { description: rx }];
+  }
+
+  // price range
+  const minPrice = toFloat(q.minPrice, null);
+  const maxPrice = toFloat(q.maxPrice, null);
+  if (minPrice !== null || maxPrice !== null) {
+    filter.price = {};
+    if (minPrice !== null) filter.price.$gte = minPrice;
+    if (maxPrice !== null) filter.price.$lte = maxPrice;
+  }
+
+  // brands (CSV)
+  if (q.brands) {
+    const arr = String(q.brands)
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (arr.length) filter.brand = { $in: arr };
+  }
+
+  // rating >= (if you store average rating)
+  if (q.rating_gte) {
+    const r = toFloat(q.rating_gte, null);
+    if (r !== null) filter.rating = { $gte: r };
+  }
+
+  // RAM >= (adjust to your schema if needed)
+  if (q.ram_gte) {
+    const ram = toInt(q.ram_gte, null);
+    if (ram !== null) filter.ram = { $gte: ram };
+  }
+
+  return filter;
+}
+
+function sortStage(sort) {
+  switch (sort) {
+    case "price-asc":
+    case "price_asc":
+      return { price: 1 };
+    case "price-desc":
+    case "price_desc":
+      return { price: -1 };
+    case "newest":
+      return { createdAt: -1 };
+    case "popularity":
+    default:
+      return { popularity: -1, createdAt: -1 }; // adjust if you have a popularity field
+  }
+}
 
 const haversineDistance = (lat1, lon1, lat2, lon2) => {
   const toRad = (value) => (value * Math.PI) / 180;
@@ -2178,5 +2245,75 @@ exports.searchProducts = async (req, res) => {
       pagination: { page: 1, limit: 24, total: 0, pages: 1 },
       message: "Unable to load products",
     });
+  }
+};
+exports.getAllProductsGlobal = async (req, res) => {
+  try {
+    const page = Math.max(1, toInt(req.query.page, 1));
+    const limit = Math.min(100, Math.max(1, toInt(req.query.limit, 20)));
+    const skip = (page - 1) * limit;
+
+    const filter = buildGlobalFilter(req.query);
+    const sort = sortStage(req.query.sort);
+
+    const [items, total] = await Promise.all([
+      Product.find(filter).sort(sort).skip(skip).limit(limit).lean(),
+      Product.countDocuments(filter),
+    ]);
+
+    res.json({ success: true, products: items, total, page, limit });
+  } catch (err) {
+    console.error("getAllProductsGlobal error:", err);
+    res.status(500).json({ success: false, error: "Failed to load products" });
+  }
+};
+
+// GET /api/products/facets/all
+exports.getFacetsGlobal = async (req, res) => {
+  try {
+    const filter = buildGlobalFilter(req.query);
+
+    const pipeline = [
+      { $match: filter },
+      {
+        $facet: {
+          brands: [
+            { $match: { brand: { $ne: null } } },
+            { $group: { _id: "$brand", count: { $sum: 1 } } },
+            { $project: { name: "$_id", count: 1, _id: 0 } },
+            { $sort: { count: -1, name: 1 } },
+          ],
+          ram: [
+            { $match: { ram: { $ne: null } } }, // adjust to your schema
+            { $group: { _id: "$ram", count: { $sum: 1 } } },
+            { $project: { value: "$_id", count: 1, _id: 0 } },
+            { $sort: { value: 1 } },
+          ],
+          price: [
+            {
+              $group: {
+                _id: null,
+                min: { $min: "$price" },
+                max: { $max: "$price" },
+              },
+            },
+            { $project: { _id: 0, min: 1, max: 1 } },
+          ],
+        },
+      },
+    ];
+
+    const [agg] = await Product.aggregate(pipeline);
+    const price = (agg?.price && agg.price[0]) || { min: 0, max: 0 };
+
+    res.json({
+      success: true,
+      brands: agg?.brands || [],
+      ram: agg?.ram || [],
+      price,
+    });
+  } catch (err) {
+    console.error("getFacetsGlobal error:", err);
+    res.status(500).json({ success: false, error: "Failed to load facets" });
   }
 };
