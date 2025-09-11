@@ -50,73 +50,6 @@ function getVal(row, ...names) {
   }
   return "";
 }
-const toInt = (v, d) => {
-  const n = parseInt(v, 10);
-  return Number.isFinite(n) ? n : d;
-};
-const toFloat = (v, d) => {
-  const n = parseFloat(v);
-  return Number.isFinite(n) ? n : d;
-};
-
-// Build a basic filter from querystring (adjust field names if needed)
-function buildGlobalFilter(q = {}) {
-  const filter = {};
-
-  // search across a few text-ish fields (adjust to your schema)
-  if (q.search) {
-    const rx = new RegExp(String(q.search).trim(), "i");
-    filter.$or = [{ name: rx }, { title: rx }, { description: rx }];
-  }
-
-  // price range
-  const minPrice = toFloat(q.minPrice, null);
-  const maxPrice = toFloat(q.maxPrice, null);
-  if (minPrice !== null || maxPrice !== null) {
-    filter.price = {};
-    if (minPrice !== null) filter.price.$gte = minPrice;
-    if (maxPrice !== null) filter.price.$lte = maxPrice;
-  }
-
-  // brands (CSV)
-  if (q.brands) {
-    const arr = String(q.brands)
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (arr.length) filter.brand = { $in: arr };
-  }
-
-  // rating >= (if you store average rating)
-  if (q.rating_gte) {
-    const r = toFloat(q.rating_gte, null);
-    if (r !== null) filter.rating = { $gte: r };
-  }
-
-  // RAM >= (adjust to your schema if needed)
-  if (q.ram_gte) {
-    const ram = toInt(q.ram_gte, null);
-    if (ram !== null) filter.ram = { $gte: ram };
-  }
-
-  return filter;
-}
-
-function sortStage(sort) {
-  switch (sort) {
-    case "price-asc":
-    case "price_asc":
-      return { price: 1 };
-    case "price-desc":
-    case "price_desc":
-      return { price: -1 };
-    case "newest":
-      return { createdAt: -1 };
-    case "popularity":
-    default:
-      return { popularity: -1, createdAt: -1 }; // adjust if you have a popularity field
-  }
-}
 
 const haversineDistance = (lat1, lon1, lat2, lon2) => {
   const toRad = (value) => (value * Math.PI) / 180;
@@ -128,9 +61,9 @@ const haversineDistance = (lat1, lon1, lat2, lon2) => {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRad(lat1)) *
-    Math.cos(toRad(lat2)) *
-    Math.sin(dLon / 2) *
-    Math.sin(dLon / 2);
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(1 - a), Math.sqrt(1 - a));
   return R * c; // Distance in km
@@ -146,11 +79,16 @@ exports.listSellersForAdmin = async (req, res) => {
       .select("_id name")
       .lean();
 
-    const vendors = sellers.map((u) => ({ value: String(u._id), label: u.name || String(u._id) }));
+    const vendors = sellers.map((u) => ({
+      value: String(u._id),
+      label: u.name || String(u._id),
+    }));
     return res.json({ success: true, vendors });
   } catch (e) {
     console.error("listSellersForAdmin error", e);
-    return res.status(500).json({ success: false, message: "Failed to load sellers" });
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to load sellers" });
   }
 };
 // exports.createProduct = async (req, res) => {
@@ -345,7 +283,6 @@ exports.listSellersForAdmin = async (req, res) => {
 //   }
 // };
 
-
 // exports.getAllProducts = async (req, res) => {
 
 //   try {
@@ -413,18 +350,30 @@ exports.createProduct = async (req, res) => {
     // parse structured fields safely
     let parsedDimensions = {};
     if (dimensions) {
-      try { parsedDimensions = JSON.parse(dimensions); } catch { return res.status(400).json({ message: "Invalid dimensions" }); }
+      try {
+        parsedDimensions = JSON.parse(dimensions);
+      } catch {
+        return res.status(400).json({ message: "Invalid dimensions" });
+      }
     }
     let parsedTags = [];
     if (typeof tags === "string") {
-      try { parsedTags = JSON.parse(tags); } catch { parsedTags = []; }
+      try {
+        parsedTags = JSON.parse(tags);
+      } catch {
+        parsedTags = [];
+      }
     } else if (Array.isArray(tags)) {
       parsedTags = tags;
     }
 
     // images
-    const productImage = pick("product_img") ? `/uploads/${pick("product_img").filename}` : "";
-    const galleryImages = pickAll("gallery_imgs").map((f) => `/uploads/${f.filename}`);
+    const productImage = pick("product_img")
+      ? `/uploads/${pick("product_img").filename}`
+      : "";
+    const galleryImages = pickAll("gallery_imgs").map(
+      (f) => `/uploads/${f.filename}`
+    );
 
     // seller logic
     const role = req.user?.role;
@@ -438,7 +387,12 @@ exports.createProduct = async (req, res) => {
       if (!sellerId) isGlobal = true; // admin left it blank -> global product
     } else {
       if (!assignedVendorId) {
-        return res.status(400).json({ success: false, message: "Assigned vendor is missing for this request." });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message: "Assigned vendor is missing for this request.",
+          });
       }
       sellerId = assignedVendorId;
     }
@@ -494,7 +448,6 @@ exports.createProduct = async (req, res) => {
   }
 };
 
-
 // exports.getAllProducts = async (req, res) => {
 //   try {
 //     const role = req.user?.role;
@@ -533,7 +486,10 @@ exports.getAllProducts = async (req, res) => {
       if (scope === "global") q.is_global = true;
       if (scope === "vendor") q.is_global = false;
     } else {
-      if (!req.assignedVendorId) return res.status(400).json({ success: false, message: "Assigned vendor missing" });
+      if (!req.assignedVendorId)
+        return res
+          .status(400)
+          .json({ success: false, message: "Assigned vendor missing" });
       q.seller_id = req.assignedVendorId;
       q.is_global = false;
     }
@@ -544,7 +500,6 @@ exports.getAllProducts = async (req, res) => {
     return res.status(200).json({ products: [] });
   }
 };
-
 
 exports.getAllProductTags = async (req, res) => {
   try {
@@ -590,7 +545,6 @@ exports.getProductById = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
-
 
 // READ: Get a single product by seller_id
 exports.getProductsBySellerId = async (req, res) => {
@@ -926,31 +880,46 @@ exports.updateProduct = async (req, res) => {
           });
         }
       }
-// inside updateProduct before saving
-if ('seller_id' in updates) delete updates.seller_id;
-if ('is_global' in updates) delete updates.is_global;
+      // inside updateProduct before saving
+      if ("seller_id" in updates) delete updates.seller_id;
+      if ("is_global" in updates) delete updates.is_global;
 
-const existing = await Product.findById(req.params.id);
-if (!existing) return res.status(404).json({ success: false, message: 'Product not found' });
+      const existing = await Product.findById(req.params.id);
+      if (!existing)
+        return res
+          .status(404)
+          .json({ success: false, message: "Product not found" });
 
-if (role !== 'admin' && role !== 'super_admin') {
-  if (existing.is_global) return res.status(403).json({ success: false, message: 'Vendors cannot edit global products' });
-  if (String(existing.seller_id || '') !== String(req.assignedVendorId || '')) {
-    return res.status(403).json({ success: false, message: 'Not allowed' });
-  }
-} else {
-  const pickedSeller = req.body.seller_id || null;
-  const makeGlobal = req.body.is_global === true || String(req.body.is_global) === 'true';
-  if (makeGlobal) {
-    existing.seller_id = null;
-    existing.is_global = true;
-  } else if (pickedSeller) {
-    existing.seller_id = pickedSeller;
-    existing.is_global = false;
-  }
-}
+      if (role !== "admin" && role !== "super_admin") {
+        if (existing.is_global)
+          return res
+            .status(403)
+            .json({
+              success: false,
+              message: "Vendors cannot edit global products",
+            });
+        if (
+          String(existing.seller_id || "") !==
+          String(req.assignedVendorId || "")
+        ) {
+          return res
+            .status(403)
+            .json({ success: false, message: "Not allowed" });
+        }
+      } else {
+        const pickedSeller = req.body.seller_id || null;
+        const makeGlobal =
+          req.body.is_global === true || String(req.body.is_global) === "true";
+        if (makeGlobal) {
+          existing.seller_id = null;
+          existing.is_global = true;
+        } else if (pickedSeller) {
+          existing.seller_id = pickedSeller;
+          existing.is_global = false;
+        }
+      }
 
-Object.assign(existing, updates);
+      Object.assign(existing, updates);
 
       if (bulkOperations.length > 0) {
         const bulkResult = await Variant.bulkWrite(bulkOperations);
@@ -1203,8 +1172,8 @@ exports.exportProducts = async (req, res) => {
       res.download(zipPath, "products_export.zip", (err) => {
         if (err) console.error("Download error:", err);
         // Clean up files
-        fs.unlink(csvPath, () => { });
-        fs.unlink(zipPath, () => { });
+        fs.unlink(csvPath, () => {});
+        fs.unlink(zipPath, () => {});
       });
     });
 
@@ -2147,14 +2116,14 @@ exports.searchProducts = async (req, res) => {
       orVendor.push({ seller_id: s });
       try {
         orVendor.push({ seller_id: new mongoose.Types.ObjectId(s) });
-      } catch { }
+      } catch {}
     }
     if (req.assignedVendorId) {
       try {
         orVendor.push({
           vendor_id: new mongoose.Types.ObjectId(String(req.assignedVendorId)),
         });
-      } catch { }
+      } catch {}
     }
     if (orVendor.length) and.push({ $or: orVendor });
 
@@ -2245,75 +2214,5 @@ exports.searchProducts = async (req, res) => {
       pagination: { page: 1, limit: 24, total: 0, pages: 1 },
       message: "Unable to load products",
     });
-  }
-};
-exports.getAllProductsGlobal = async (req, res) => {
-  try {
-    const page = Math.max(1, toInt(req.query.page, 1));
-    const limit = Math.min(100, Math.max(1, toInt(req.query.limit, 20)));
-    const skip = (page - 1) * limit;
-
-    const filter = buildGlobalFilter(req.query);
-    const sort = sortStage(req.query.sort);
-
-    const [items, total] = await Promise.all([
-      Product.find(filter).sort(sort).skip(skip).limit(limit).lean(),
-      Product.countDocuments(filter),
-    ]);
-
-    res.json({ success: true, products: items, total, page, limit });
-  } catch (err) {
-    console.error("getAllProductsGlobal error:", err);
-    res.status(500).json({ success: false, error: "Failed to load products" });
-  }
-};
-
-// GET /api/products/facets/all
-exports.getFacetsGlobal = async (req, res) => {
-  try {
-    const filter = buildGlobalFilter(req.query);
-
-    const pipeline = [
-      { $match: filter },
-      {
-        $facet: {
-          brands: [
-            { $match: { brand: { $ne: null } } },
-            { $group: { _id: "$brand", count: { $sum: 1 } } },
-            { $project: { name: "$_id", count: 1, _id: 0 } },
-            { $sort: { count: -1, name: 1 } },
-          ],
-          ram: [
-            { $match: { ram: { $ne: null } } }, // adjust to your schema
-            { $group: { _id: "$ram", count: { $sum: 1 } } },
-            { $project: { value: "$_id", count: 1, _id: 0 } },
-            { $sort: { value: 1 } },
-          ],
-          price: [
-            {
-              $group: {
-                _id: null,
-                min: { $min: "$price" },
-                max: { $max: "$price" },
-              },
-            },
-            { $project: { _id: 0, min: 1, max: 1 } },
-          ],
-        },
-      },
-    ];
-
-    const [agg] = await Product.aggregate(pipeline);
-    const price = (agg?.price && agg.price[0]) || { min: 0, max: 0 };
-
-    res.json({
-      success: true,
-      brands: agg?.brands || [],
-      ram: agg?.ram || [],
-      price,
-    });
-  } catch (err) {
-    console.error("getFacetsGlobal error:", err);
-    res.status(500).json({ success: false, error: "Failed to load facets" });
   }
 };

@@ -2,7 +2,10 @@
 const express = require("express");
 const router = express.Router();
 const { uploadFields } = require("../middleware/upload");
-const { deriveAssignedVendor, requireAdmin } = require('../middleware/vendorContext');
+const {
+  deriveAssignedVendor,
+  requireAdmin,
+} = require("../middleware/vendorContext");
 
 // Safe import helpers
 const safe = (fn) =>
@@ -12,13 +15,13 @@ const safe = (fn) =>
 let productController = {};
 try {
   productController = require("../controllers/productController");
-} catch (_) { }
+} catch (_) {}
 
 let uploadAny = (_req, _res, next) => next();
 try {
   const up = require("../middleware/upload");
   if (typeof up.uploadAny === "function") uploadAny = up.uploadAny;
-} catch (_) { }
+} catch (_) {}
 
 let auth = (_req, _res, next) => next();
 let authUser = (_req, _res, next) => next();
@@ -26,7 +29,7 @@ try {
   const a = require("../middleware/authMiddleware");
   if (typeof a.auth === "function") auth = a.auth;
   if (typeof a.authUser === "function") authUser = a.authUser;
-} catch (_) { }
+} catch (_) {}
 
 let assignVendorMiddleware = (_req, _res, next) => next();
 try {
@@ -34,22 +37,22 @@ try {
   if (typeof m === "function") assignVendorMiddleware = m;
   if (typeof m.assignVendorMiddleware === "function")
     assignVendorMiddleware = m.assignVendorMiddleware;
-} catch (_) { }
+} catch (_) {}
 
 let requireAssignedVendor = (_req, _res, next) => next();
 try {
   const r = require("../middleware/requireAssignedVendor");
   if (typeof r === "function") requireAssignedVendor = r;
-} catch (_) { }
+} catch (_) {}
 
 const mongoose = require("mongoose");
 let Product, Vendor;
 try {
   Product = require("../models/Product");
-} catch (_) { }
+} catch (_) {}
 try {
   Vendor = require("../models/Vendor");
-} catch (_) { }
+} catch (_) {}
 
 // ---------- PUBLIC CATALOG (keep vendor-scoped; assignment logic intact) ----------
 router.get("/search", safe(productController.searchProducts));
@@ -82,8 +85,6 @@ router.get(
   assignVendorMiddleware,
   safe(productController.getFacets)
 );
-router.get("/all", productController.getAllProductsGlobal);
-router.get("/facets/all", productController.getFacetsGlobal);
 
 /**
  * Vendor-scoped product detail
@@ -155,10 +156,19 @@ const uploadProductImages = uploadFields([
 ]);
 
 // pass the middleware (do not call it again)
-router.post("/", auth, deriveAssignedVendor,
-  uploadProductImages, productController.createProduct);
-router.get("/", authUser, deriveAssignedVendor,
-  safe(productController.getAllProducts));
+router.post(
+  "/",
+  auth,
+  deriveAssignedVendor,
+  uploadProductImages,
+  productController.createProduct
+);
+router.get(
+  "/",
+  authUser,
+  deriveAssignedVendor,
+  safe(productController.getAllProducts)
+);
 router.get(
   "/nearbyseller",
   authUser,
@@ -192,7 +202,7 @@ router.get("/debug/assigned", assignVendorMiddleware, (req, res) => {
   });
 });
 // One-time sanity log: anything that prints "undefined" is the cause of your boot error.
-console.log('[productRoutes] types', {
+console.log("[productRoutes] types", {
   auth: typeof auth,
   uploadAny: typeof uploadAny,
   deriveAssignedVendor: typeof deriveAssignedVendor,
@@ -208,7 +218,13 @@ router.get(
   requireAssignedVendor,
   safe(productController.getProductById)
 );
-router.put("/:id", auth, uploadAny, deriveAssignedVendor, safe(productController.updateProduct));
+router.put(
+  "/:id",
+  auth,
+  uploadAny,
+  deriveAssignedVendor,
+  safe(productController.updateProduct)
+);
 router.delete("/:id", auth, safe(productController.deleteProduct));
 
 module.exports = router;
