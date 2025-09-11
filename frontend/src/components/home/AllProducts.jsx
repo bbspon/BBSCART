@@ -11,22 +11,24 @@ const getPincode = () => localStorage.getItem("deliveryPincode") || "";
 // const API_FACETS = `${import.meta.env.VITE_API_URL}/api/products`;
 // choose endpoints based on pincode
 const getApiBase = (pin) => {
+  const base = import.meta.env.VITE_API_URL || "";
+
   if (pin) {
-    // vendor-scoped endpoints (respect assigned vendor for this pincode)
+    // Vendor flow (respect assign-vendor): keep your existing endpoints
     return {
-      list: `${import.meta.env.VITE_API_URL}/api/products/public`,
-      facets: `${import.meta.env.VITE_API_URL}/api/products/facets`,
-      extraParams: {}, // public endpoints don't use scope
+      list: `${base}/api/products/public`,
+      facets: `${base}/api/products/facets`,
+      extraParams: {}, // public list doesn't need scope
     };
   }
-  // admin list (show all: global + vendor)
+
+  // No pincode → always show FULL catalog (new endpoints)
   return {
-    list: `${import.meta.env.VITE_API_URL}/api/products`,
-    facets: `${import.meta.env.VITE_API_URL}/api/products/facets`,
-    extraParams: { scope: "all" },
+    list: `${base}/api/products/all`,
+    facets: `${base}/api/products/facets/all`,
+    extraParams: {}, // no scope param needed
   };
 };
-
 export default function ProductListingFull() {
   const [search, setSearch] = useState("");
   const [minPrice, setMinPrice] = useState(0);

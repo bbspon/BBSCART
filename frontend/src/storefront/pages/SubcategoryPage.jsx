@@ -18,9 +18,13 @@ export default function SubcategoryPage() {
   const product = params.get("product") || "";
   const label = params.get("label") || "";
 
-  // Correct localStorage key
+  // keep your original key and add safe fallbacks (no removals)
   const [pincode, setPincode] = useState(
-    localStorage.getItem("deliveryPincode") || ""
+    localStorage.getItem("deliveryPincode") ||
+      localStorage.getItem("bb_pincode") ||
+      localStorage.getItem("user_pincode") ||
+      localStorage.getItem("pincode") ||
+      ""
   );
 
   useEffect(() => {
@@ -39,31 +43,30 @@ export default function SubcategoryPage() {
   ]);
 
   function load() {
-    if (!pincode) {
-      console.warn("Pincode not set. Cannot fetch products.");
-      setItems([]);
-      return;
+    // Build params once. Only add pincode when it exists.
+    const query = {
+      subcategoryId,
+      groupId: groupId || undefined,
+      product: groupId ? undefined : product || undefined,
+      group: groupId || product ? undefined : group || undefined,
+      q: groupId || product || group ? undefined : q || undefined,
+      brand: brand || undefined,
+      organic: organic !== "" ? organic : undefined,
+      minPrice: minPrice || undefined,
+      maxPrice: maxPrice || undefined,
+      limit: 24,
+      t: Date.now(), // cache buster
+    };
+
+    if (pincode && String(pincode).trim().length >= 3) {
+      query.pincode = pincode; // assignVendor path
     }
+    // else: no pincode -> fetch all products
 
     instance
-      .get("/api/products/public", {
-        params: {
-          subcategoryId,
-          groupId: groupId || undefined,
-          product: groupId ? undefined : product || undefined,
-          group: groupId || product ? undefined : group || undefined,
-          q: groupId || product || group ? undefined : q || undefined,
-          brand: brand || undefined,
-          organic: organic !== "" ? organic : undefined,
-          minPrice: minPrice || undefined,
-          maxPrice: maxPrice || undefined,
-          pincode,
-          limit: 24,
-          t: Date.now(), // bypass cache
-        },
-      })
+      .get("/api/products/public", { params: query })
       .then(({ data }) => {
-        setItems(data.products || []); // <-- important: read data.products
+        setItems(data.products || data.items || []); // supports both shapes
       })
       .catch((err) => {
         console.error("Error fetching products:", err);
