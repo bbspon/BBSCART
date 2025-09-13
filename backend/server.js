@@ -32,6 +32,7 @@ const geoRoutes = require("./routes/geoRoutes");
 const adminPincodeVendorsRoutes = require("./routes/adminPincodeVendorsRoutes");
 const adminVendorRoutes = require("./routes/adminVendorRoutes");
 const orderRoutes = require("./routes/orderRoutes");
+const assignVendorMiddleware = require("./middleware/assignVendorMiddleware");
 
 const app = express();
 
@@ -132,8 +133,8 @@ app.use("/api/fruits", require("./routes/FruitsRoutes"));
 app.use("/api/categories", require("./routes/categoryRoutes"));
 app.use("/api/subcategories", require("./routes/subcategoryRoutes"));
 
-app.use("/api/cart", cartRoutes);
-app.use("/api/wishlist", wishlistRoutes);
+app.use("/api/cart",assignVendorMiddleware, cartRoutes);
+app.use("/api/wishlist",assignVendorMiddleware, wishlistRoutes);
 app.use("/api/users", userRoutes);
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 app.use("/api/geo", geoRoutes);
