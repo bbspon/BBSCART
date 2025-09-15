@@ -117,6 +117,63 @@ function sortStage(sort) {
       return { popularity: -1, createdAt: -1 }; // adjust if you have a popularity field
   }
 }
+const PRODUCT_COLUMNS = [
+  "productId", // your external id (optional)
+  "mongoId", // Product._id (for round-trip)
+  "name",
+  "description",
+  "sku",
+  "brand",
+  "price",
+  "stock",
+  "isVariant",
+  "isReview",
+  "categoryId",
+  "categorySlug",
+  "categoryMongoId",
+  "categoryName",
+  "subcategoryId",
+  "subcategorySlug",
+  "subcategoryMongoId",
+  "subcategoryName",
+  "tags", // pipe-delimited or JSON
+  "weight",
+  "dimLength", // numeric columns for dimensions
+  "dimWidth",
+  "dimHeight",
+  "productImage",
+  "productGallery", // pipe-delimited paths
+  "sellerId",
+];
+
+// resolve category/subcategory by multiple identifiers
+async function resolveCategoryForRow(row) {
+  const id = getVal(row, "categoryId");
+  const slug = getVal(row, "categorySlug");
+  const mid = getVal(row, "categoryMongoId", "category_id");
+  const name = getVal(row, "categoryName");
+  let c = null;
+  if (id) c = await Category.findOne({ categoryId: id });
+  if (!c && slug) c = await Category.findOne({ slug });
+  if (!c && mid && mongoose.Types.ObjectId.isValid(mid))
+    c = await Category.findById(mid);
+  if (!c && name) c = await Category.findOne({ name });
+  return c;
+}
+async function resolveSubcategoryForRow(row, categoryDoc) {
+  const id = getVal(row, "subcategoryId");
+  const slug = getVal(row, "subcategorySlug");
+  const mid = getVal(row, "subcategoryMongoId", "subcategory_id");
+  const name = getVal(row, "subcategoryName");
+  let s = null;
+  if (id) s = await Subcategory.findOne({ subcategoryId: id });
+  if (!s && slug) s = await Subcategory.findOne({ slug });
+  if (!s && mid && mongoose.Types.ObjectId.isValid(mid))
+    s = await Subcategory.findById(mid);
+  if (!s && name && categoryDoc)
+    s = await Subcategory.findOne({ name, category_id: categoryDoc._id });
+  return s;
+}
 
 const haversineDistance = (lat1, lon1, lat2, lon2) => {
   const toRad = (value) => (value * Math.PI) / 180;
@@ -128,9 +185,9 @@ const haversineDistance = (lat1, lon1, lat2, lon2) => {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRad(lat1)) *
-    Math.cos(toRad(lat2)) *
-    Math.sin(dLon / 2) *
-    Math.sin(dLon / 2);
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(1 - a), Math.sqrt(1 - a));
   return R * c; // Distance in km
@@ -146,11 +203,16 @@ exports.listSellersForAdmin = async (req, res) => {
       .select("_id name")
       .lean();
 
-    const vendors = sellers.map((u) => ({ value: String(u._id), label: u.name || String(u._id) }));
+    const vendors = sellers.map((u) => ({
+      value: String(u._id),
+      label: u.name || String(u._id),
+    }));
     return res.json({ success: true, vendors });
   } catch (e) {
     console.error("listSellersForAdmin error", e);
-    return res.status(500).json({ success: false, message: "Failed to load sellers" });
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to load sellers" });
   }
 };
 // exports.createProduct = async (req, res) => {
@@ -345,7 +407,6 @@ exports.listSellersForAdmin = async (req, res) => {
 //   }
 // };
 
-
 // exports.getAllProducts = async (req, res) => {
 
 //   try {
@@ -413,18 +474,30 @@ exports.createProduct = async (req, res) => {
     // parse structured fields safely
     let parsedDimensions = {};
     if (dimensions) {
-      try { parsedDimensions = JSON.parse(dimensions); } catch { return res.status(400).json({ message: "Invalid dimensions" }); }
+      try {
+        parsedDimensions = JSON.parse(dimensions);
+      } catch {
+        return res.status(400).json({ message: "Invalid dimensions" });
+      }
     }
     let parsedTags = [];
     if (typeof tags === "string") {
-      try { parsedTags = JSON.parse(tags); } catch { parsedTags = []; }
+      try {
+        parsedTags = JSON.parse(tags);
+      } catch {
+        parsedTags = [];
+      }
     } else if (Array.isArray(tags)) {
       parsedTags = tags;
     }
 
     // images
-    const productImage = pick("product_img") ? `/uploads/${pick("product_img").filename}` : "";
-    const galleryImages = pickAll("gallery_imgs").map((f) => `/uploads/${f.filename}`);
+    const productImage = pick("product_img")
+      ? `/uploads/${pick("product_img").filename}`
+      : "";
+    const galleryImages = pickAll("gallery_imgs").map(
+      (f) => `/uploads/${f.filename}`
+    );
 
     // seller logic
     const role = req.user?.role;
@@ -438,7 +511,12 @@ exports.createProduct = async (req, res) => {
       if (!sellerId) isGlobal = true; // admin left it blank -> global product
     } else {
       if (!assignedVendorId) {
-        return res.status(400).json({ success: false, message: "Assigned vendor is missing for this request." });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message: "Assigned vendor is missing for this request.",
+          });
       }
       sellerId = assignedVendorId;
     }
@@ -494,7 +572,6 @@ exports.createProduct = async (req, res) => {
   }
 };
 
-
 // exports.getAllProducts = async (req, res) => {
 //   try {
 //     const role = req.user?.role;
@@ -533,7 +610,10 @@ exports.getAllProducts = async (req, res) => {
       if (scope === "global") q.is_global = true;
       if (scope === "vendor") q.is_global = false;
     } else {
-      if (!req.assignedVendorId) return res.status(400).json({ success: false, message: "Assigned vendor missing" });
+      if (!req.assignedVendorId)
+        return res
+          .status(400)
+          .json({ success: false, message: "Assigned vendor missing" });
       q.seller_id = req.assignedVendorId;
       q.is_global = false;
     }
@@ -544,7 +624,6 @@ exports.getAllProducts = async (req, res) => {
     return res.status(200).json({ products: [] });
   }
 };
-
 
 exports.getAllProductTags = async (req, res) => {
   try {
@@ -590,7 +669,6 @@ exports.getProductById = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
-
 
 // READ: Get a single product by seller_id
 exports.getProductsBySellerId = async (req, res) => {
@@ -926,31 +1004,46 @@ exports.updateProduct = async (req, res) => {
           });
         }
       }
-// inside updateProduct before saving
-if ('seller_id' in updates) delete updates.seller_id;
-if ('is_global' in updates) delete updates.is_global;
+      // inside updateProduct before saving
+      if ("seller_id" in updates) delete updates.seller_id;
+      if ("is_global" in updates) delete updates.is_global;
 
-const existing = await Product.findById(req.params.id);
-if (!existing) return res.status(404).json({ success: false, message: 'Product not found' });
+      const existing = await Product.findById(req.params.id);
+      if (!existing)
+        return res
+          .status(404)
+          .json({ success: false, message: "Product not found" });
 
-if (role !== 'admin' && role !== 'super_admin') {
-  if (existing.is_global) return res.status(403).json({ success: false, message: 'Vendors cannot edit global products' });
-  if (String(existing.seller_id || '') !== String(req.assignedVendorId || '')) {
-    return res.status(403).json({ success: false, message: 'Not allowed' });
-  }
-} else {
-  const pickedSeller = req.body.seller_id || null;
-  const makeGlobal = req.body.is_global === true || String(req.body.is_global) === 'true';
-  if (makeGlobal) {
-    existing.seller_id = null;
-    existing.is_global = true;
-  } else if (pickedSeller) {
-    existing.seller_id = pickedSeller;
-    existing.is_global = false;
-  }
-}
+      if (role !== "admin" && role !== "super_admin") {
+        if (existing.is_global)
+          return res
+            .status(403)
+            .json({
+              success: false,
+              message: "Vendors cannot edit global products",
+            });
+        if (
+          String(existing.seller_id || "") !==
+          String(req.assignedVendorId || "")
+        ) {
+          return res
+            .status(403)
+            .json({ success: false, message: "Not allowed" });
+        }
+      } else {
+        const pickedSeller = req.body.seller_id || null;
+        const makeGlobal =
+          req.body.is_global === true || String(req.body.is_global) === "true";
+        if (makeGlobal) {
+          existing.seller_id = null;
+          existing.is_global = true;
+        } else if (pickedSeller) {
+          existing.seller_id = pickedSeller;
+          existing.is_global = false;
+        }
+      }
 
-Object.assign(existing, updates);
+      Object.assign(existing, updates);
 
       if (bulkOperations.length > 0) {
         const bulkResult = await Variant.bulkWrite(bulkOperations);
@@ -1203,8 +1296,8 @@ exports.exportProducts = async (req, res) => {
       res.download(zipPath, "products_export.zip", (err) => {
         if (err) console.error("Download error:", err);
         // Clean up files
-        fs.unlink(csvPath, () => { });
-        fs.unlink(zipPath, () => { });
+        fs.unlink(csvPath, () => {});
+        fs.unlink(zipPath, () => {});
       });
     });
 
@@ -2147,14 +2240,14 @@ exports.searchProducts = async (req, res) => {
       orVendor.push({ seller_id: s });
       try {
         orVendor.push({ seller_id: new mongoose.Types.ObjectId(s) });
-      } catch { }
+      } catch {}
     }
     if (req.assignedVendorId) {
       try {
         orVendor.push({
           vendor_id: new mongoose.Types.ObjectId(String(req.assignedVendorId)),
         });
-      } catch { }
+      } catch {}
     }
     if (orVendor.length) and.push({ $or: orVendor });
 
@@ -2315,5 +2408,288 @@ exports.getFacetsGlobal = async (req, res) => {
   } catch (err) {
     console.error("getFacetsGlobal error:", err);
     res.status(500).json({ success: false, error: "Failed to load facets" });
+  }
+};
+
+exports.exportProductsCSV = async (req, res) => {
+  try {
+    const list = await Product.find({})
+      .populate("category_id subcategory_id seller_id")
+      .lean();
+
+    const rows = list.map((p) => {
+      const cat = p.category_id || {};
+      const sub = p.subcategory_id || {};
+      const seller = p.seller_id || {};
+      const dims = p.dimensions || {};
+      const tags = Array.isArray(p.tags)
+        ? p.tags.join("|")
+        : typeof p.tags === "string"
+          ? p.tags
+          : "";
+
+      return {
+        productId: p._id || "", // keep if you use one
+        mongoId: String(p._id || ""),
+        name: p.name || "",
+        description: p.description || "",
+        sku: p.SKU || "",
+        brand: p.brand || "",
+        price: p.price ?? "",
+        stock: p.stock ?? "",
+        isVariant: !!p.is_variant,
+        isReview: !!p.is_review,
+        categoryId: cat.categoryId || "",
+        categorySlug: cat.slug || "",
+        categoryMongoId: cat._id ? String(cat._id) : "",
+        categoryName: cat.name || "",
+        subcategoryId: sub.subcategoryId || "",
+        subcategorySlug: sub.slug || "",
+        subcategoryMongoId: sub._id ? String(sub._id) : "",
+        subcategoryName: sub.name || "",
+        tags,
+        weight: p.weight || "",
+        dimLength: dims.length ?? "",
+        dimWidth: dims.width ?? "",
+        dimHeight: dims.height ?? "",
+        productImage: p.product_img || "",
+        productGallery: Array.isArray(p.gallery_imgs)
+          ? p.gallery_imgs.join("|")
+          : "",
+        sellerId: seller._id ? String(seller._id) : p.seller_id || "",
+      };
+    });
+
+    const parser = new Parser({ fields: PRODUCT_COLUMNS });
+    const csv = parser.parse(rows);
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", 'attachment; filename="products.csv"');
+    return res.send(csv);
+  } catch (e) {
+    console.error("exportProductsCSV error", e);
+    return res.status(500).json({ message: e.message || "Export failed" });
+  }
+};
+
+// ---------- DOWNLOAD ONE ROW (by _id or SKU) ----------
+exports.downloadProductRow = async (req, res) => {
+  try {
+    const { idOrSku } = req.params;
+    let p = null;
+    if (mongoose.Types.ObjectId.isValid(idOrSku)) {
+      p = await Product.findById(idOrSku)
+        .populate("category_id subcategory_id seller_id")
+        .lean();
+    } else {
+      p = await Product.findOne({ SKU: idOrSku })
+        .populate("category_id subcategory_id seller_id")
+        .lean();
+    }
+    if (!p) return res.status(404).json({ message: "Product not found" });
+
+    const cat = p.category_id || {};
+    const sub = p.subcategory_id || {};
+    const seller = p.seller_id || {};
+    const dims = p.dimensions || {};
+    const tags = Array.isArray(p.tags)
+      ? p.tags.join("|")
+      : typeof p.tags === "string"
+        ? p.tags
+        : "";
+
+    const row = [
+      {
+        productId: p.productId || "",
+        mongoId: String(p._id || ""),
+        name: p.name || "",
+        description: p.description || "",
+        sku: p.SKU || "",
+        brand: p.brand || "",
+        price: p.price ?? "",
+        stock: p.stock ?? "",
+        isVariant: !!p.is_variant,
+        isReview: !!p.is_review,
+        categoryId: cat.categoryId || "",
+        categorySlug: cat.slug || "",
+        categoryMongoId: cat._id ? String(cat._id) : "",
+        categoryName: cat.name || "",
+        subcategoryId: sub.subcategoryId || "",
+        subcategorySlug: sub.slug || "",
+        subcategoryMongoId: sub._id ? String(sub._id) : "",
+        subcategoryName: sub.name || "",
+        tags,
+        weight: p.weight || "",
+        dimLength: dims.length ?? "",
+        dimWidth: dims.width ?? "",
+        dimHeight: dims.height ?? "",
+        productImage: p.product_img || "",
+        productGallery: Array.isArray(p.gallery_imgs)
+          ? p.gallery_imgs.join("|")
+          : "",
+        sellerId: seller._id ? String(seller._id) : p.seller_id || "",
+      },
+    ];
+
+    const parser = new Parser({ fields: PRODUCT_COLUMNS });
+    const csv = parser.parse(row);
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="product-${p.SKU || p._id}.csv"`
+    );
+    return res.send(csv);
+  } catch (e) {
+    console.error("downloadProductRow error", e);
+    return res.status(500).json({ message: e.message || "Download failed" });
+  }
+};
+
+// ---------- CSV IMPORT (no images; idempotent upsert) ----------
+exports.importProductsCSV = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+    const csvText = fs.readFileSync(req.file.path, "utf8");
+    const rows = parseCsvSync(csvText, {
+      columns: true,
+      skip_empty_lines: true,
+    });
+
+    let created = 0,
+      updated = 0,
+      skipped = 0;
+    const upserted = [],
+      errors = [];
+
+    for (const raw of rows) {
+      // tolerant getters (aliases + BOM-safe)
+      const name = getVal(raw, "name", "productname");
+      const description = getVal(raw, "description");
+      const sku = getVal(raw, "sku", "SKU");
+      const brand = getVal(raw, "brand");
+      const price = asNum(getVal(raw, "price"));
+      const stock = asNum(getVal(raw, "stock"));
+      const isVariant = asBool(getVal(raw, "isVariant", "is_variant"));
+      const isReview = asBool(getVal(raw, "isReview", "is_review"));
+      const productId = getVal(raw, "productId");
+      const mongoId = getVal(raw, "mongoId", "_id");
+      const productImage = getVal(raw, "productImage");
+      const productGallery = getVal(raw, "productGallery", "galleryImages");
+      const weight = getVal(raw, "weight");
+      const dimLength = asNum(getVal(raw, "dimLength"));
+      const dimWidth = asNum(getVal(raw, "dimWidth"));
+      const dimHeight = asNum(getVal(raw, "dimHeight"));
+      const sellerIdRaw = getVal(raw, "sellerId");
+
+      const tagsRaw = getVal(raw, "tags");
+      let tags = [];
+      if (tagsRaw) {
+        try {
+          tags = tagsRaw.includes("|")
+            ? tagsRaw
+                .split("|")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : JSON.parse(tagsRaw);
+        } catch {
+          tags = [tagsRaw];
+        }
+      }
+
+      // resolve category/subcategory
+      const category = await resolveCategoryForRow(raw);
+      if (!category) {
+        skipped++;
+        errors.push({ row: raw, reason: "Category not found" });
+        continue;
+      }
+      const subcat = await resolveSubcategoryForRow(raw, category);
+      if (!subcat) {
+        skipped++;
+        errors.push({ row: raw, reason: "Subcategory not found" });
+        continue;
+      }
+
+      // seller
+      const sellerId =
+        (sellerIdRaw &&
+          mongoose.Types.ObjectId.isValid(sellerIdRaw) &&
+          sellerIdRaw) ||
+        (req.user?.userId &&
+          mongoose.Types.ObjectId.isValid(req.user.userId) &&
+          req.user.userId) ||
+        null;
+      if (!sellerId) {
+        skipped++;
+        errors.push({ row: raw, reason: "Missing sellerId" });
+        continue;
+      }
+
+      // build doc
+      const doc = {
+        name,
+        description,
+        SKU: sku,
+        brand,
+        price,
+        stock,
+        product_img: productImage || "",
+        gallery_imgs: productGallery
+          ? productGallery
+              .split("|")
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : [],
+        dimensions: {
+          length: dimLength ?? undefined,
+          width: dimWidth ?? undefined,
+          height: dimHeight ?? undefined,
+        },
+        tags,
+        category_id: category._id,
+        subcategory_id: subcat._id,
+        is_variant: Boolean(isVariant),
+        is_review: Boolean(isReview),
+        seller_id: sellerId,
+      };
+
+      // match: productId -> SKU+seller -> _id
+      let query = null;
+      if (productId) query = { productId };
+      if (!query && sku && sellerId) query = { SKU: sku, seller_id: sellerId };
+      if (!query && mongoId && mongoose.Types.ObjectId.isValid(mongoId))
+        query = { _id: mongoId };
+
+      const existing = query ? await Product.findOne(query) : null;
+
+      if (existing) {
+        Object.assign(existing, doc);
+        await existing.save();
+        updated++;
+        upserted.push(String(existing._id));
+      } else {
+        const payload = { ...doc };
+        if (mongoId && mongoose.Types.ObjectId.isValid(mongoId))
+          payload._id = new mongoose.Types.ObjectId(mongoId);
+        const createdDoc = await Product.create(payload);
+        created++;
+        upserted.push(String(createdDoc._id));
+      }
+    }
+
+    fs.unlink(req.file.path, () => {});
+    return res.json({
+      ok: true,
+      created,
+      updated,
+      skipped,
+      count: created + updated,
+      upserted,
+      errors,
+    });
+  } catch (e) {
+    console.error("importProductsCSV error", e);
+    return res.status(500).json({ message: e.message || "Import failed" });
   }
 };

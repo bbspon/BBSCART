@@ -24,7 +24,8 @@
     "razorpay": "^2.9.6",
     "redis": "^4.7.0",
     "resend": "^4.6.0",
-    "unzipper": "^0.12.3"
+    "unzipper": "^0.12.3",
+    "xlsx": "^0.18.5"
   },
   "scripts": {
     "start": "nodemon server.js"

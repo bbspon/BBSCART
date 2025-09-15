@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 const { uploadFields } = require("../middleware/upload");
 const { deriveAssignedVendor, requireAdmin } = require('../middleware/vendorContext');
+const { uploadImport } = require("../middleware/upload");
 
 // Safe import helpers
 const safe = (fn) =>
@@ -52,6 +53,22 @@ try {
 } catch (_) { }
 
 // ---------- PUBLIC CATALOG (keep vendor-scoped; assignment logic intact) ----------
+
+router.post(
+  "/import-csv",
+  authUser,
+  uploadImport.single("file"),
+  safe(productController.importProductsCSV)
+);
+
+router.get("/export-csv", authUser, safe(productController.exportProductsCSV));
+
+// one-row download by Mongo _id or SKU
+router.get(
+  "/download-row/:idOrSku",
+  authUser,
+  safe(productController.downloadProductRow)
+);
 router.get("/search", safe(productController.searchProducts));
 router.get("/catalog/categories", safe(productController.listCategoriesPublic));
 router.get(

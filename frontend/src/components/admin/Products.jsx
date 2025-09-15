@@ -126,13 +126,55 @@ const Products = () => {
   }, [searchQuery, sortConfig, products]);
 
   const handleSearchChange = (e) => setSearchQuery(e.target.value);
+  // real CSV export (text/csv)
+  const handleExportCsv = async () => {
+    try {
+      const res = await instance.get(
+        `${import.meta.env.VITE_API_URL}/api/products/export-csv`,
+        {
+          responseType: "blob",
+        }
+      );
+      const blob = new Blob([res.data], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "products.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("CSV export failed");
+    }
+  };
+
+  // CSV import (no images)
+  const handleImportCsv = async (file) => {
+    if (!file) {
+      toast.error("Pick a CSV file");
+      return;
+    }
+    const form = new FormData();
+    form.append("file", file);
+    try {
+      const res = await instance.post(`${import.meta.env.VITE_API_URL}/api/products/import-csv`, form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success(
+        `Import done. Created: ${res.data.created}, Updated: ${res.data.updated}, Skipped: ${res.data.skipped}`
+      );
+      fetchProducts();
+    } catch (e) {
+      console.error(e);
+      toast.error(e?.response?.data?.message || "CSV import failed");
+    }
+  };
 
   // ------------ CRUD ------------
   const handleAddProduct = async (payload /* FormData from ProductForm */) => {
     try {
       if (editProduct) {
         const { data } = await instance.put(
-          `/api/products/${editProduct._id}`,
+          `${import.meta.env.VITE_API_URL}/api/products/${editProduct._id}`,
           payload,
           {
             headers: { "Content-Type": "multipart/form-data" },
@@ -149,7 +191,7 @@ const Products = () => {
         const { data } = await instance.post("/api/products", payload, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        setProducts(prev => [...prev, data]);  // ok if controller returns the product doc
+        setProducts((prev) => [...prev, data]); // ok if controller returns the product doc
         toast.success("Product created successfully!");
       }
       setIsAddEditModalOpen(false);
@@ -159,8 +201,8 @@ const Products = () => {
       console.error("Error saving product:", err);
       setErrorMessage(
         err?.response?.data?.message ||
-        err.message ||
-        "Failed to save the product."
+          err.message ||
+          "Failed to save the product."
       );
       toast.error("Failed to save the product.");
     }
@@ -178,8 +220,8 @@ const Products = () => {
       console.error("Error deleting product:", err);
       setErrorMessage(
         err?.response?.data?.message ||
-        err.message ||
-        "Failed to delete the product."
+          err.message ||
+          "Failed to delete the product."
       );
     }
   };
@@ -296,14 +338,26 @@ const Products = () => {
                   </li>
                 </ul>
               </div>
-              <div onClick={handleExport} className="btn-download">
+              {/* next to existing Export/Import UI */}
+              <button onClick={handleExportCsv} className="btn-download">
                 <i className="bx bxs-cloud-download bx-fade-down-hover" />
-                <span className="text">Export CSV</span>
-              </div>
-              <div onClick={openImportProductModal} className="btn-import">
-                <i className="bx bxs-cloud-download bx-fade-down-hover" />
+                <span className="text">Export CSV (no images)</span>
+              </button>
+
+              <label className="btn-import" style={{ cursor: "pointer" }}>
+                <i className="bx bxs-cloud-upload bx-fade-down-hover" />
                 <span className="text">Import CSV</span>
-              </div>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleImportCsv(f);
+                    e.target.value = "";
+                  }}
+                  style={{ display: "none" }}
+                />
+              </label>
             </div>
 
             <div className="container mx-auto p-4">
@@ -502,10 +556,11 @@ const Products = () => {
                       <button
                         key={idx}
                         onClick={() => setCurrentPage(idx + 1)}
-                        className={`w-9 h-9 rounded-full font-semibold transition border-2 ${currentPage === idx + 1
+                        className={`w-9 h-9 rounded-full font-semibold transition border-2 ${
+                          currentPage === idx + 1
                             ? "bg-blue-500 border-blue-500 text-white"
                             : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-blue-100 dark:hover:bg-gray-700"
-                          }`}
+                        }`}
                       >
                         {idx + 1}
                       </button>

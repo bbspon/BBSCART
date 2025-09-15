@@ -1,6 +1,10 @@
 const Category = require('../models/Category');
 const Subcategory = require('../models/Subcategory');
 const User = require("../models/User");
+const XLSX = require('xlsx');
+const path = require('path');
+const fs = require('fs');
+const createError = require("http-errors");
 
 const haversineDistance = (lat1, lon1, lat2, lon2) => {
     const toRad = (value) => (value * Math.PI) / 180;
@@ -18,6 +22,32 @@ const haversineDistance = (lat1, lon1, lat2, lon2) => {
     return R * c; // Distance in km
 };
 
+// Define the canonical export/import columns
+const CATEGORY_COLUMNS = [
+  'categoryId',      // stable external id or slug; if not present, use slug or name
+  'name',
+  'slug',
+  'parentSlug',      // optional, for hierarchy
+  'description',
+  'isActive',
+  'sortOrder',
+  'imageUrl'
+];
+
+// Helper: ensure boolean/number coercion
+const parseBool = v => (String(v).toLowerCase() === 'true' || v === true);
+const parseNum = v => (v === '' || v === null || v === undefined ? undefined : Number(v));
+
+const rowToDoc = (row) => ({
+  categoryId: row.categoryId?.toString().trim() || undefined,
+  name: row.name?.toString().trim(),
+  slug: row.slug?.toString().trim(),
+  parentSlug: row.parentSlug?.toString().trim() || undefined,
+  description: row.description?.toString().trim() || '',
+  isActive: row.isActive !== undefined ? parseBool(row.isActive) : true,
+  sortOrder: row.sortOrder !== undefined ? parseNum(row.sortOrder) : undefined,
+  imageUrl: row.imageUrl?.toString().trim() || ''
+});
 // CREATE: Add a new category
 exports.createCategory = async (req, res) => {
   try {
@@ -241,3 +271,163 @@ exports.listCategories = async (_req, res) => {
   }
 };
 
+// Import CSV/XLSX (add or update by slug or categoryId)
+exports.importCategories = async (req, res, next) => {
+  try {
+    if (!req.file) throw createError(400, "No file uploaded");
+    const filePath = req.file.path;
+
+    const wb = XLSX.readFile(filePath);
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+
+    let created = 0;
+    let updated = 0;
+    const upserted = [];
+
+    for (const raw of rows) {
+      // Normalize keys to match CATEGORY_COLUMNS (case-insensitive)
+      const row = {};
+      Object.keys(raw).forEach((k) => {
+        const key = CATEGORY_COLUMNS.find(
+          (c) => c.toLowerCase() === String(k).toLowerCase()
+        );
+        if (key) row[key] = raw[k];
+        // also carry through potential _id/mongoId (not in CATEGORY_COLUMNS)
+        if (String(k).toLowerCase() === "_id") row._id = raw[k];
+        if (String(k).toLowerCase() === "mongoid") row.mongoId = raw[k];
+      });
+
+      const doc = rowToDoc(row);
+
+      // Accept incoming categoryId explicitly if present in CSV
+      if (!doc.categoryId && row.categoryId) {
+        doc.categoryId = String(row.categoryId).trim();
+      }
+
+      // Derive slug if missing but name exists
+      if (!doc.slug && !doc.categoryId && !doc.name) continue; // skip useless rows
+      if (!doc.slug && doc.name) {
+        doc.slug = doc.name
+          .toLowerCase()
+          .replace(/\s+/g, "-")
+          .replace(/[^a-z0-9-]/g, "");
+      }
+
+      // Optional CSV-provided Mongo _id (create-time only)
+      const csvMongoId = row.mongoId || row._id;
+
+      // Build match query: prefer categoryId, else slug, else mongoId
+      let query = null;
+      if (doc.categoryId) query = { categoryId: doc.categoryId };
+      else if (doc.slug) query = { slug: doc.slug };
+      else if (csvMongoId) query = { _id: csvMongoId };
+
+      const existing = query ? await Category.findOne(query) : null;
+
+      if (existing) {
+        // Preserve existing.categoryId if incoming is empty
+        if (!doc.categoryId && existing.categoryId)
+          doc.categoryId = existing.categoryId;
+        Object.assign(existing, doc);
+        await existing.save();
+        updated++;
+        upserted.push(existing.slug);
+      } else {
+        // Create new. If CSV has a valid 24-hex _id, use it at create time only.
+        const tryId = String(csvMongoId || "").trim();
+        let createPayload = doc;
+        if (/^[0-9a-fA-F]{24}$/.test(tryId)) {
+          const { Types } = require("mongoose");
+          createPayload = { _id: new Types.ObjectId(tryId), ...doc };
+        }
+        const createdDoc = await Category.create(createPayload);
+        created++;
+        upserted.push(createdDoc.slug);
+      }
+    }
+
+    // Clean up temp file
+    fs.unlink(filePath, () => {});
+
+    return res.json({
+      ok: true,
+      created,
+      updated,
+      count: created + updated,
+      upserted,
+    });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+
+// Export all categories as CSV
+exports.exportCategories = async (req, res, next) => {
+  try {
+    const cats = await Category.find({}).lean();
+
+    const data = cats.map((c) => ({
+      categoryId: c.categoryId || (c._id ? String(c._id) : ""),
+      mongoId: c._id ? String(c._id) : "",
+      name: c.name || "",
+      slug: c.slug || "",
+      parentSlug: c.parentSlug || "",
+      description: c.description || "",
+      isActive: c.isActive === undefined ? true : !!c.isActive,
+      sortOrder: c.sortOrder ?? "",
+      imageUrl: c.imageUrl || "",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data, { header: CATEGORY_COLUMNS });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Categories");
+
+    const csv = XLSX.utils.sheet_to_csv(ws);
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="categories.csv"'
+    );
+    return res.send(csv);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Download a single category row by id or slug
+exports.downloadCategoryRow = async (req, res, next) => {
+  try {
+    const { idOrSlug } = req.params;
+    const c = await Category.findOne({
+      $or: [{ _id: idOrSlug }, { slug: idOrSlug }],
+    }).lean();
+    if (!c) return next(createError(404, "Category not found"));
+
+    const row = [
+      {
+        categoryId: c.categoryId || (c._id ? String(c._id) : ""),
+        mongoId: c._id ? String(c._id) : "",
+        name: c.name || "",
+        slug: c.slug || "",
+        parentSlug: c.parentSlug || "",
+        description: c.description || "",
+        isActive: c.isActive === undefined ? true : !!c.isActive,
+        sortOrder: c.sortOrder ?? "",
+        imageUrl: c.imageUrl || "",
+      },
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(row, { header: CATEGORY_COLUMNS });
+    const csv = XLSX.utils.sheet_to_csv(ws);
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="category-${c.slug}.csv"`
+    );
+    return res.send(csv);
+  } catch (err) {
+    next(err);
+  }
+};

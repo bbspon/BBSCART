@@ -1,6 +1,7 @@
 // backend/routes/categoryRoutes.js
 const express = require("express");
 const router = express.Router();
+const { uploadImport } = require("../middleware/upload");
 
 // Controllers
 const categoryController = require("../controllers/categoryController");
@@ -44,7 +45,23 @@ router.get(
   requireAssignedVendor,
   categoryController.getVendorCategories
 );
+router.post(
+  "/import",
+  uploadImport.single("file"),
+  categoryController.importCategories
+);
 
+// Export all categories (Admin or SuperAdmin)
+router.get(
+  "/export",
+  categoryController.exportCategories
+);
+
+// Download one category row by id or slug
+router.get(
+  "/download/:idOrSlug",
+  categoryController.downloadCategoryRow
+);
 // ---------------- Admin (unscoped) ----------------
 // Use ROOT paths so mounting at "/api/categories" yields the right URLs
 router.post("/", authUser, categoryController.createCategory);
