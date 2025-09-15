@@ -114,10 +114,7 @@ export default function ProductDetails() {
   return (
     <div className="container py-4">
       <h1 className="mb-3">{p?.name}</h1>
-      <img src={img} alt={p?.name} style={{ maxWidth: 320 }} />
-      <pre style={{ background: "#f7f7f7", padding: 12 }}>
-        Seller: {String(p?.seller_id || "")}
-      </pre>
+    
       <div className="container mx-auto px-4 py-6 grid lg:grid-cols-2 gap-6">
         {/* Left: images + thumbnails + highlights */}
         <div className="space-y-4">
@@ -215,7 +212,7 @@ export default function ProductDetails() {
 
           {/* price with mrp/discount */}
           <div>
-            <div className="text-3xl font-bold text-green-600">₹{price}</div>
+            <div className="text-3xl font-bold text-green-600">₹{p?.price}</div>
             {mrp > price && (
               <>
                 <div className="text-sm text-gray-500 line-through">₹{mrp}</div>
@@ -228,7 +225,7 @@ export default function ProductDetails() {
           <div className="border rounded-lg p-4 bg-white flex items-center gap-3">
             <Truck size={20} className="text-gray-600" />
             <div>
-              Delivery to{" "}
+              Delivery to
               <select
                 className="border-b border-blue-500 outline-none font-semibold"
                 value={deliveryLocation}
