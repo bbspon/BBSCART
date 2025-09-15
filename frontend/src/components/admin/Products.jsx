@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { NavLink } from "react-router-dom";
 import "./assets/dashboard.css";
 import Sidebar from "./layout/sidebar";
@@ -41,6 +41,20 @@ const Products = () => {
   const [sortConfig, setSortConfig] = useState({ key: "", direction: "" });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 25;
+const catMap = useMemo(
+  () => new Map(categories.map((c) => [String(c._id), c.name])),
+  [categories]
+);
+const subMap = useMemo(
+  () => new Map(subCategories.map((s) => [String(s._id), s.name])),
+  [subCategories]
+);
+
+// helper to resolve either an object {_id, name} or a raw id
+const resolveName = (map, idOrObj) => {
+  const id = idOrObj && typeof idOrObj === "object" ? idOrObj._id : idOrObj;
+  return id ? map.get(String(id)) || "" : "";
+};
 
   // keep URL ?page=
   useEffect(() => {
@@ -500,11 +514,15 @@ const Products = () => {
                             <td className="p-3">{p.brand}</td>
                             <td className="p-3">{p.price}</td>
                             <td className="p-3">{p.stock}</td>
+
                             <td className="p-3">
-                              {p?.category_id?.name ?? ""}
+                              {resolveName(catMap, p.category_id || p.category)}
                             </td>
                             <td className="p-3">
-                              {p?.subcategory_id?.name ?? ""}
+                              {resolveName(
+                                subMap,
+                                p.subcategory_id || p.subcategory
+                              )}
                             </td>
                             <td className="p-3 text-right">
                               <div className="flex justify-end gap-2">
