@@ -1,22 +1,56 @@
-// backend/routes/subcategoryRoutes.js
 const express = require("express");
 const router = express.Router();
 
 let ctrl = require("../controllers/subcategoryController");
+const { uploadImport } = require("../middleware/upload");
+const { authMiddleware, requireRole } = require("../middleware/authMiddleware");
+router.post(
+  "/import",
+  // authMiddleware,
+  // requireRole(["admin", "superadmin"]),
+  uploadImport.single("file"),
+  ctrl.importSubcategories
+);
 
-// If the controller file is missing or partial, guard every handler:
-const safe = (fn) =>
-  typeof fn === "function"
-    ? fn
-    : (_req, res) => res.status(500).json({ message: "Handler missing" });
+router.get(
+  "/export",
+  // authMiddleware,
+  // requireRole(["admin", "superadmin"]),
+  ctrl.exportSubcategories
+);
+router.get(
+  "/download/:idOrKey",
+  // authMiddleware,
+  // requireRole(["admin", "superadmin"]),
+  ctrl.downloadSubcategoryRow
+);
+router.get("/seller/:sellerId", ctrl.getSubcategoryBySellerId);
 
-router.get("/", safe(ctrl.getAllSubcategories));
-router.post("/", safe(ctrl.createSubcategory));
-router.get("/:id", safe(ctrl.getSubcategoryById));
-router.put("/:id", safe(ctrl.updateSubcategory));
-router.delete("/:id", safe(ctrl.deleteSubcategory));
+// existing routes (kept)
+router.get("/", ctrl.getAllSubcategories);
+router.post(
+  "/",
+  // authMiddleware,
+  // requireRole(["admin", "superadmin"]),
+  ctrl.createSubcategory
+);
+router.get("/:id", ctrl.getSubcategoryById);
+router.put(
+  "/:id",
+  // authMiddleware,
+  // requireRole(["admin", "superadmin"]),
+  ctrl.updateSubcategory
+);
+router.delete(
+  "/:id",
+  // authMiddleware,
+  // requireRole(["admin", "superadmin"]),
+  ctrl.deleteSubcategory
+);
 
-// Optional: list by seller
-router.get("/seller/:sellerId", safe(ctrl.getSubcategoryBySellerId));
+// new CSV endpoints
+
+
+
 
 module.exports = router;

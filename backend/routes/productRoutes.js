@@ -2,10 +2,8 @@
 const express = require("express");
 const router = express.Router();
 const { uploadFields } = require("../middleware/upload");
-const {
-  deriveAssignedVendor,
-  requireAdmin,
-} = require("../middleware/vendorContext");
+const { deriveAssignedVendor, requireAdmin } = require('../middleware/vendorContext');
+const { uploadImport } = require("../middleware/upload");
 
 // Safe import helpers
 const safe = (fn) =>
@@ -55,6 +53,22 @@ try {
 } catch (_) {}
 
 // ---------- PUBLIC CATALOG (keep vendor-scoped; assignment logic intact) ----------
+
+router.post(
+  "/import-csv",
+  authUser,
+  uploadImport.single("file"),
+  safe(productController.importProductsCSV)
+);
+
+router.get("/export-csv", authUser,deriveAssignedVendor, safe(productController.exportProductsCSV));
+
+// one-row download by Mongo _id or SKU
+router.get(
+  "/download-row/:idOrSku",
+  authUser,
+  safe(productController.downloadProductRow)
+);
 router.get("/search", safe(productController.searchProducts));
 router.get("/catalog/categories", safe(productController.listCategoriesPublic));
 router.get(
@@ -150,17 +164,17 @@ router.post(
   uploadAny,
   safe(productController.importProducts)
 );
-const uploadProductImages = uploadFields([
-  { name: "product_img", maxCount: 1 },
-  { name: "gallery_imgs", maxCount: 10 },
-]);
 
 // pass the middleware (do not call it again)
 router.post(
   "/",
   auth,
   deriveAssignedVendor,
-  uploadProductImages,
+  uploadFields([
+    { name: "product_img", maxCount: 1 },
+    { name: "product_img2", maxCount: 1 },
+    { name: "gallery_imgs", maxCount: 10 },
+  ]),
   productController.createProduct
 );
 router.get(

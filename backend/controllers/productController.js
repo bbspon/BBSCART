@@ -13,6 +13,33 @@ const csvParser = require("csv-parser");
 const archiver = require("archiver");
 const unzipper = require("unzipper");
 const ProductGroup = require("../models/ProductGroup");
+// prefer file path if present; otherwise keep a URL string from body
+function pickFilePath(files, field) {
+  const f = files.find((x) => x.fieldname === field);
+  return f ? `/uploads/${f.filename}` : "";
+}
+function pickUrl(body, ...keys) {
+  for (const k of keys) {
+    const v = (body[k] || "").toString().trim();
+    if (v) return v;
+  }
+  return "";
+}
+function parseUrlList(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.map(String).filter(Boolean);
+  const s = String(v).trim();
+  if (!s) return [];
+  try {
+    const arr = JSON.parse(s);
+    if (Array.isArray(arr)) return arr.map(String).filter(Boolean);
+  } catch {}
+  // also accept pipe-separated string from CSV like "a|b|c"
+  return s
+    .split("|")
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
 
 const toArrayFiles = (files) => {
   if (!files) return [];
@@ -49,6 +76,129 @@ function getVal(row, ...names) {
     }
   }
   return "";
+}
+const toInt = (v, d) => {
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? n : d;
+};
+const toFloat = (v, d) => {
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : d;
+};
+
+// Build a basic filter from querystring (adjust field names if needed)
+function buildGlobalFilter(q = {}) {
+  const filter = {};
+
+  // search across a few text-ish fields (adjust to your schema)
+  if (q.search) {
+    const rx = new RegExp(String(q.search).trim(), "i");
+    filter.$or = [{ name: rx }, { title: rx }, { description: rx }];
+  }
+
+  // price range
+  const minPrice = toFloat(q.minPrice, null);
+  const maxPrice = toFloat(q.maxPrice, null);
+  if (minPrice !== null || maxPrice !== null) {
+    filter.price = {};
+    if (minPrice !== null) filter.price.$gte = minPrice;
+    if (maxPrice !== null) filter.price.$lte = maxPrice;
+  }
+
+  // brands (CSV)
+  if (q.brands) {
+    const arr = String(q.brands)
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (arr.length) filter.brand = { $in: arr };
+  }
+
+  // rating >= (if you store average rating)
+  if (q.rating_gte) {
+    const r = toFloat(q.rating_gte, null);
+    if (r !== null) filter.rating = { $gte: r };
+  }
+
+  // RAM >= (adjust to your schema if needed)
+  if (q.ram_gte) {
+    const ram = toInt(q.ram_gte, null);
+    if (ram !== null) filter.ram = { $gte: ram };
+  }
+
+  return filter;
+}
+
+function sortStage(sort) {
+  switch (sort) {
+    case "price-asc":
+    case "price_asc":
+      return { price: 1 };
+    case "price-desc":
+    case "price_desc":
+      return { price: -1 };
+    case "newest":
+      return { createdAt: -1 };
+    case "popularity":
+    default:
+      return { popularity: -1, createdAt: -1 }; // adjust if you have a popularity field
+  }
+}
+const PRODUCT_COLUMNS = [
+  "productId",
+  "mongoId",
+  "name",
+  "description",
+  "sku",
+  "brand",
+  "price",
+  "stock",
+  "isVariant",
+  "isReview",
+  "categoryId",
+  "categorySlug",
+  "categoryMongoId",
+  "categoryName",
+  "subcategoryId",
+  "subcategorySlug",
+  "subcategoryMongoId",
+  "subcategoryName",
+  "tags",
+  "weight",
+  "dimLength",
+  "dimWidth",
+  "dimHeight",
+  "productImage",
+  "productGallery",
+  "seller_id",
+];
+// resolve category/subcategory by multiple identifiers
+async function resolveCategoryForRow(row) {
+  const id = getVal(row, "categoryId");
+  const slug = getVal(row, "categorySlug");
+  const mid = getVal(row, "categoryMongoId", "category_id");
+  const name = getVal(row, "categoryName");
+  let c = null;
+  if (id) c = await Category.findOne({ categoryId: id });
+  if (!c && slug) c = await Category.findOne({ slug });
+  if (!c && mid && mongoose.Types.ObjectId.isValid(mid))
+    c = await Category.findById(mid);
+  if (!c && name) c = await Category.findOne({ name });
+  return c;
+}
+async function resolveSubcategoryForRow(row, categoryDoc) {
+  const id = getVal(row, "subcategoryId");
+  const slug = getVal(row, "subcategorySlug");
+  const mid = getVal(row, "subcategoryMongoId", "subcategory_id");
+  const name = getVal(row, "subcategoryName");
+  let s = null;
+  if (id) s = await Subcategory.findOne({ subcategoryId: id });
+  if (!s && slug) s = await Subcategory.findOne({ slug });
+  if (!s && mid && mongoose.Types.ObjectId.isValid(mid))
+    s = await Subcategory.findById(mid);
+  if (!s && name && categoryDoc)
+    s = await Subcategory.findOne({ name, category_id: categoryDoc._id });
+  return s;
 }
 
 const haversineDistance = (lat1, lon1, lat2, lon2) => {
@@ -91,247 +241,46 @@ exports.listSellersForAdmin = async (req, res) => {
       .json({ success: false, message: "Failed to load sellers" });
   }
 };
-// exports.createProduct = async (req, res) => {
-//   try {
-//     console.log("createProduct", req.body);
-//     console.log("createProductFiles", req.files);
 
-//     const {
-//       _id,
-//       name,
-//       description,
-//       price,
-//       stock,
-//       SKU,
-//       brand,
-//       weight,
-//       dimensions,
-//       tags,
-//       category_id,
-//       subcategory_id,
-//       is_variant,
-//     } = req.body;
 
-//     // 1) Never use client _id on create
-//     delete req.body._id;
-
-//     // 2) Harden variants parsing
-//     let variantData = [];
-//     if (req.body.variants) {
-//       try {
-//         // Sometimes arrives as '["[]"]' or similar; normalize it
-//         const raw = JSON.parse(req.body.variants);
-//         if (Array.isArray(raw)) {
-//           // if it looks like ["[]"] -> treat as empty
-//           if (raw.length === 1 && typeof raw[0] === "string" && raw[0].trim() === "[]") {
-//             variantData = [];
-//           } else {
-//             // keep only proper objects
-//             variantData = raw.filter(v => v && typeof v === "object");
-//           }
-//         } else {
-//           variantData = [];
-//         }
-//       } catch (err) {
-//         return res.status(400).json({ message: "Invalid variants format" });
-//       }
-//     }
-
-//     let parsedDimensions = {};
-//     if (dimensions) {
-//       try {
-//         parsedDimensions = JSON.parse(dimensions);
-//       } catch (error) {
-//         return res.status(400).json({ message: "Invalid dimensions format" });
-//       }
-//     }
-
-//     let parsedTags = [];
-//     if (typeof tags === "string") {
-//       try {
-//         parsedTags = JSON.parse(tags);
-//       } catch (error) {
-//         console.error("❌ Error parsing tags:", error);
-//         parsedTags = [];
-//       }
-//     } else if (!Array.isArray(tags)) {
-//       parsedTags = [];
-//     }
-
-//     // Guard file handling in the controller
-//     // Prevents crashes → no more connection reset
-//     const files = Array.isArray(req.files) ? req.files : [];
-//     const pick = (field) => files.find(f => f.fieldname === field);
-//     const pickAll = (field) => files.filter(f => f.fieldname === field);
-
-//     const productImage = pick("product_img")
-//       ? `/uploads/${pick("product_img").filename}`
-//       : "";
-
-//     const galleryImages = pickAll("gallery_imgs").map(f => `/uploads/${f.filename}`);
-
-//     // 3) Resolve seller_id
-//     const role = req.user?.role;
-
-//     // If a storefront vendor flow is creating products (seller role),
-//     // require assignment from pincode rotation.
-//     const assignedVendorId = req.assignedVendorId;
-
-//     let sellerId;
-//     let isGlobal = false;
-//     if (role === "admin" || role === "super_admin") {
-//       // NEW: seller_id is optional for admin
-//       const rawSeller = req.body.seller_id;
-//       sellerId = Array.isArray(rawSeller) ? rawSeller.find(Boolean) : rawSeller;
-//       if (!sellerId) {
-//         // admin did not choose a vendor → create as global product
-//         isGlobal = true;
-//       }
-//     }
-//     else {
-//       // Vendor/staff path: enforce assignment
-//       if (!assignedVendorId) {
-//         return res.status(400).json({
-//           success: false,
-//           message: "Assigned vendor is missing for this request."
-//         });
-//       }
-//       sellerId = assignedVendorId;
-//     }
-
-//     let newProduct;
-//     let variantIds = [];
-
-//     if (is_variant === "true" && variantData.length > 0) {
-//       newProduct = new Product({
-//         name,
-//         description,
-//         SKU,
-//         brand,
-//         weight,
-//         dimensions: parsedDimensions,
-//         tags: parsedTags,
-//         category_id,
-//         subcategory_id,
-//         product_img: productImage,
-//         gallery_imgs: galleryImages,
-//         // seller_id: sellerId,
-//         seller_id: sellerId || null,
-//         is_global: Boolean(isGlobal),
-//         is_variant: true,
-//       });
-
-//       await newProduct.save();
-
-//       const variants = await Variant.insertMany(
-//         variantData.map((variant, index) => {
-//           const variantImg = pick(`variant_img_${index}`)
-//             ? `/uploads/${pick(`variant_img_${index}`).filename}`
-//             : "";
-
-//           const variantGalleryImgs = pickAll(`variant_gallery_imgs_${index}`)
-//             .map(f => `/uploads/${f.filename}`);
-
-//           console.log(`Variant ${index} Image Path:`, variantImg);
-//           console.log(`Variant ${index} Gallery Paths:`, variantGalleryImgs);
-
-//           return {
-//             product_id: newProduct._id,
-//             variant_name: variant.variant_name,
-//             price: variant.price,
-//             stock: variant.stock,
-//             SKU: variant.SKU,
-//             attributes: variant.attributes,
-//             variant_img: variantImg,
-//             variant_gallery_imgs: variantGalleryImgs,
-//           };
-//         })
-//       );
-
-//       variantIds = variants.map((variant) => variant._id);
-//       newProduct.variants = variantIds;
-//       await newProduct.save();
-//     } else {
-//       newProduct = new Product({
-//         name,
-//         description,
-//         price,
-//         stock,
-//         SKU,
-//         brand,
-//         weight,
-//         dimensions: parsedDimensions,
-//         tags: parsedTags,
-//         category_id,
-//         subcategory_id,
-//         product_img: productImage,
-//         gallery_imgs: galleryImages,
-//         // seller_id: sellerId,
-//         seller_id: sellerId || null,
-//         is_global: Boolean(isGlobal),
-//         is_variant: false,
-//         variants: [],
-//       });
-
-//       await newProduct.save();
-//     }
-
-//     res.status(201).json(newProduct);
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: err.message });
-//   }
-// };
-
-// exports.getAllProducts = async (req, res) => {
-
-//   try {
-//     const { q: text = "" } = req.query || {};
-
-//     const role = req.user?.role;
-//     const query = {};
-//     const orVendor = [];
-
-//     if (role !== "admin" && role !== "super_admin") {
-//       if (req.assignedVendorUserId) {
-//         const s = String(req.assignedVendorUserId);
-//         orVendor.push({ seller_id: s });
-//         try { orVendor.push({ seller_id: new mongoose.Types.ObjectId(s) }); } catch { }
-//       }
-//       if (req.assignedVendorId) {
-//         try {
-//           orVendor.push({ vendor_id: new mongoose.Types.ObjectId(String(req.assignedVendorId)) });
-//         } catch { }
-//       }
-//       if (orVendor.length) query.$or = orVendor;
-//       if (!query.$or) query.$or = [];
-//       query.$or.push({ seller_id: { $ne: null } });
-//     }
-
-//     // Optional text search (very light; adjust if you have an index)
-//     if (text && String(text).trim()) {
-//       query.$text = { $search: String(text).trim() };
-//     }
-
-//     const products = await Product.find(query).lean();
-
-//     return res.status(200).json({
-//       products,
-//       filteredByVendor: !!orVendor.length,
-//     });
-//   } catch (e) {
-//     console.error("getAllProducts error", e);
-//     return res.status(200).json({ products: [], filteredByVendor: false }); // never 400 here
-//   }
-// };
-// --------- CREATE ----------
 exports.createProduct = async (req, res) => {
   try {
-    // normalize files for both .single/.array and .fields
-    const files = toArrayFiles(req.files).concat(req.file ? [req.file] : []);
-    const pick = (field) => files.find((f) => f.fieldname === field);
-    const pickAll = (field) => files.filter((f) => f.fieldname === field);
+    // Debug multer input
+    console.log("[CTRL FILE KEYS]", Object.keys(req.files || {}));
+    console.log("[CTRL product_img]", req.files?.product_img?.[0]);
+    console.log("[CTRL product_img2]", req.files?.product_img2?.[0]);
+    console.log("[CTRL gallery count]", (req.files?.gallery_imgs || []).length);
 
+    // normalize files
+    const normalizeFiles = (filesObj) => {
+      if (!filesObj) return [];
+      if (Array.isArray(filesObj)) return filesObj;
+      return Object.entries(filesObj).flatMap(([fieldname, arr]) =>
+        (arr || []).map((f) => ({ ...f, fieldname }))
+      );
+    };
+    const files = normalizeFiles(req.files);
+    const pick = (name) => files.find((f) => f.fieldname === name);
+    const pickAll = (name) => files.filter((f) => f.fieldname === name);
+
+    const pickFilePath = (field) => {
+      const f = pick(field);
+      return f ? `/uploads/${f.filename}` : "";
+    };
+    const parseUrlList = (v) => {
+      if (!v) return [];
+      if (Array.isArray(v)) return v.map(String).filter(Boolean);
+      try {
+        const arr = JSON.parse(v);
+        if (Array.isArray(arr)) return arr.map(String).filter(Boolean);
+      } catch {}
+      return String(v)
+        .split(/[|,;]+/)
+        .map((x) => x.trim())
+        .filter(Boolean);
+    };
+
+    // body
     const {
       name,
       description,
@@ -345,138 +294,111 @@ exports.createProduct = async (req, res) => {
       category_id,
       subcategory_id,
       is_variant,
+      product_img_url,
+      product_img2_url,
+      gallery_img_urls,
+      productGallery,
+      seller_id, // 👈 important
     } = req.body;
 
-    // parse structured fields safely
+    // parse objects
     let parsedDimensions = {};
     if (dimensions) {
-      try {
-        parsedDimensions = JSON.parse(dimensions);
-      } catch {
-        return res.status(400).json({ message: "Invalid dimensions" });
-      }
+      if (typeof dimensions === "string") {
+        try {
+          parsedDimensions = JSON.parse(dimensions);
+        } catch {
+          parsedDimensions = {};
+        }
+      } else if (typeof dimensions === "object") parsedDimensions = dimensions;
     }
     let parsedTags = [];
-    if (typeof tags === "string") {
-      try {
-        parsedTags = JSON.parse(tags);
-      } catch {
-        parsedTags = [];
-      }
-    } else if (Array.isArray(tags)) {
-      parsedTags = tags;
+    if (tags) {
+      if (typeof tags === "string") {
+        try {
+          parsedTags = JSON.parse(tags);
+        } catch {
+          parsedTags = tags
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+      } else if (Array.isArray(tags)) parsedTags = tags;
     }
 
     // images
-    const productImage = pick("product_img")
-      ? `/uploads/${pick("product_img").filename}`
-      : "";
-    const galleryImages = pickAll("gallery_imgs").map(
+    const productImage1 = pickFilePath("product_img") || product_img_url || "";
+    const productImage2 =
+      pickFilePath("product_img2") || product_img2_url || "";
+    const galleryFiles = pickAll("gallery_imgs").map(
       (f) => `/uploads/${f.filename}`
     );
+    const galleryUrls = parseUrlList(gallery_img_urls || productGallery);
+    const galleryImages = [...galleryUrls, ...galleryFiles];
 
-    // seller logic
+    // ✅ Seller logic
     const role = req.user?.role;
     const assignedVendorId = req.assignedVendorId;
-    let sellerId = null;
+    let finalSellerId = null;
     let isGlobal = false;
 
     if (role === "admin" || role === "super_admin") {
-      const rawSeller = req.body.seller_id;
-      sellerId = Array.isArray(rawSeller) ? rawSeller.find(Boolean) : rawSeller;
-      if (!sellerId) isGlobal = true; // admin left it blank -> global product
+      finalSellerId = Array.isArray(seller_id)
+        ? seller_id.find(Boolean)
+        : seller_id;
+      if (!finalSellerId) isGlobal = true;
     } else {
       if (!assignedVendorId) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "Assigned vendor is missing for this request.",
-          });
+        return res.status(400).json({
+          success: false,
+          message: "Assigned vendor is missing for this request.",
+        });
       }
-      sellerId = assignedVendorId;
+      finalSellerId = assignedVendorId;
     }
 
-    let newProduct;
+    // ✅ Build product doc
+    const doc = {
+      name,
+      description,
+      SKU,
+      brand,
+      weight,
+      dimensions: parsedDimensions,
+      tags: parsedTags,
+      category_id,
+      subcategory_id,
+      product_img: productImage1 || "",
+      product_img2: productImage2 || "",
+      gallery_imgs: galleryImages,
+      price: price ? Number(price) : undefined,
+      stock: stock ? Number(stock) : undefined,
+      is_variant: String(is_variant) === "true",
+      seller_id: finalSellerId || null,
+      is_global: Boolean(isGlobal),
+    };
 
-    if (String(is_variant) === "true") {
-      // keep variants skeleton support (you can expand later)
-      newProduct = new Product({
-        name,
-        description,
-        SKU,
-        brand,
-        weight,
-        dimensions: parsedDimensions,
-        tags: parsedTags,
-        category_id,
-        subcategory_id,
-        product_img: productImage,
-        gallery_imgs: galleryImages,
-        seller_id: sellerId || null,
-        is_global: Boolean(isGlobal),
-        is_variant: true,
-      });
-      await newProduct.save();
-    } else {
-      newProduct = new Product({
-        name,
-        description,
-        price,
-        stock,
-        SKU,
-        brand,
-        weight,
-        dimensions: parsedDimensions,
-        tags: parsedTags,
-        category_id,
-        subcategory_id,
-        product_img: productImage,
-        gallery_imgs: galleryImages,
-        seller_id: sellerId || null,
-        is_global: Boolean(isGlobal),
-        is_variant: false,
-        variants: [],
-      });
-      await newProduct.save();
-    }
+    const product = await Product.create(doc);
 
-    return res.status(201).json(newProduct);
+    console.log("✅ Saved product:", {
+      product_img: product.product_img,
+      product_img2: product.product_img2,
+      gallery_imgs: product.gallery_imgs,
+      seller_id: product.seller_id,
+      is_global: product.is_global,
+    });
+
+    return res.status(201).json(product);
   } catch (err) {
-    console.error("createProduct error", err);
+    console.error("createProduct error:", err);
     return res.status(500).json({ message: err.message });
   }
 };
 
-// exports.getAllProducts = async (req, res) => {
-//   try {
-//     const role = req.user?.role;
-//     const q = {};
 
-//     if (role === 'admin' || role === 'super_admin') {
-//       const scope = String(req.query.scope || 'all').toLowerCase();
-//       if (scope === 'global') q.is_global = true;
-//       if (scope === 'vendor') q.is_global = false;
-//     } else {
-//       const vendorId = req.assignedVendorId;
-//       if (!vendorId) {
-//         return res.status(400).json({ success: false, message: 'Assigned vendor missing' });
-//       }
-//       q.seller_id = vendorId;
-//       q.is_global = false; // vendors never see global items
-//     }
 
-//     if (req.query.q) q.$text = { $search: String(req.query.q) };
 
-//     const products = await Product.find(q).sort({ createdAt: -1 }).lean();
-//     return res.status(200).json({ products });
-//   } catch (e) {
-//     console.error('getAllProducts error', e);
-//     return res.status(200).json({ products: [] });
-//   }
-// };
 
-// --------- LIST (admin sees all; vendors see theirs only; global hidden from vendors) ----------
 exports.getAllProducts = async (req, res) => {
   try {
     const role = req.user?.role;
@@ -892,12 +814,10 @@ exports.updateProduct = async (req, res) => {
 
       if (role !== "admin" && role !== "super_admin") {
         if (existing.is_global)
-          return res
-            .status(403)
-            .json({
-              success: false,
-              message: "Vendors cannot edit global products",
-            });
+          return res.status(403).json({
+            success: false,
+            message: "Vendors cannot edit global products",
+          });
         if (
           String(existing.seller_id || "") !==
           String(req.assignedVendorId || "")
@@ -1046,20 +966,37 @@ exports.exportProducts = async (req, res) => {
       "Seller Address",
     ];
 
+    const is24hex = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || "").trim());
+
     let csvData = [];
     let allImages = new Set(); // Collect unique image paths
 
     for (const product of products) {
       const category = product.category_id || {};
       const subcategory = product.subcategory_id || {};
-      const seller = product.seller_id || {};
+      const sellerDoc =
+        product.seller_id && typeof product.seller_id === "object"
+          ? product.seller_id
+          : null;
+
+      // Robust seller id: prefer populated doc, else valid string id, else vendor fallbacks
+      const sellerIdOut = (() => {
+        if (sellerDoc && sellerDoc._id) return String(sellerDoc._id);
+        if (is24hex(product.seller_id)) return String(product.seller_id);
+        if (is24hex(product.vendor_id)) return String(product.vendor_id);
+        if (is24hex(product.seller_user_id))
+          return String(product.seller_user_id);
+        return "";
+      })();
 
       const pushImage = (imgPath) => {
         if (imgPath) allImages.add(imgPath);
       };
 
-      if (product.variants.length > 0) {
-        for (const variant of product.variants) {
+      const variants = Array.isArray(product.variants) ? product.variants : [];
+
+      if (variants.length > 0) {
+        for (const variant of variants) {
           // Collect images
           pushImage(product.product_img);
           product.gallery_imgs?.forEach(pushImage);
@@ -1101,11 +1038,11 @@ exports.exportProducts = async (req, res) => {
               ? variant.variant_gallery_imgs.join("|")
               : "",
             "Variant Attributes": JSON.stringify(variant.attributes),
-            "Seller ID": seller._id || "",
-            "Seller Name": seller.name || "",
-            "Seller Email": seller.email || "",
-            "Seller Phone": seller.phone || "",
-            "Seller Address": seller.address || "",
+            "Seller ID": sellerIdOut,
+            "Seller Name": sellerDoc ? sellerDoc.name || "" : "",
+            "Seller Email": sellerDoc ? sellerDoc.email || "" : "",
+            "Seller Phone": sellerDoc ? sellerDoc.phone || "" : "",
+            "Seller Address": sellerDoc ? sellerDoc.address || "" : "",
           });
         }
       } else {
@@ -1145,11 +1082,11 @@ exports.exportProducts = async (req, res) => {
           "Variant Image": "",
           "Variant Gallery Images": "",
           "Variant Attributes": "",
-          "Seller ID": seller._id || "",
-          "Seller Name": seller.name || "",
-          "Seller Email": seller.email || "",
-          "Seller Phone": seller.phone || "",
-          "Seller Address": seller.address || "",
+          "Seller ID": sellerIdOut,
+          "Seller Name": sellerDoc ? sellerDoc.name || "" : "",
+          "Seller Email": sellerDoc ? sellerDoc.email || "" : "",
+          "Seller Phone": sellerDoc ? sellerDoc.phone || "" : "",
+          "Seller Address": sellerDoc ? sellerDoc.address || "" : "",
         });
       }
     }
@@ -1182,7 +1119,6 @@ exports.exportProducts = async (req, res) => {
 
     // Add image files
     allImages.forEach((imgPath) => {
-      // const localImgPath = path.join(__dirname, '../uploads', imgPath);
       const localImgPath = path.join(__dirname, "../", imgPath);
       if (fs.existsSync(localImgPath)) {
         archive.file(localImgPath, { name: `${path.basename(imgPath)}` });
@@ -1773,10 +1709,17 @@ exports.importProductsCSV = async (req, res) => {
         const price = asNum(getVal(r, "price", "Price"));
         const mrp = asNum(getVal(r, "mrp", "MRP"));
         const sale = asNum(getVal(r, "sale", "SalePrice"));
-
+        const _rawSku = getVal(r, "SKU", "sku", "eanNumber");
+        const _normSku = _rawSku && String(_rawSku).trim();
         const doc = {
           name: getVal(r, "name", "Name", "productName"),
-          SKU: getVal(r, "SKU", "sku", "eanNumber"),
+          SKU: getVal(
+            r,
+            "SKU",
+            "sku",
+            "eanNumber",
+            _normSku ? { SKU: _normSku } : {}
+          ),
           brand: getVal(r, "brand", "Brand"),
           description: getVal(r, "description", "Description"),
           price: price ?? undefined,
@@ -1998,10 +1941,7 @@ exports.getProduct = async (req, res) => {
   }
 };
 
-exports.createProduct = async (req, res) => {
-  const p = await Product.create(req.body);
-  res.status(201).json(p);
-};
+
 
 exports.updateProduct = async (req, res) => {
   const p = await Product.findByIdAndUpdate(req.params.id, req.body, {
@@ -2214,5 +2154,376 @@ exports.searchProducts = async (req, res) => {
       pagination: { page: 1, limit: 24, total: 0, pages: 1 },
       message: "Unable to load products",
     });
+  }
+};
+
+exports.getAllProductsGlobal = async (req, res) => {
+  try {
+    const page = Math.max(1, toInt(req.query.page, 1));
+    const limit = Math.min(100, Math.max(1, toInt(req.query.limit, 20)));
+    const skip = (page - 1) * limit;
+
+    const filter = buildGlobalFilter(req.query);
+    const sort = sortStage(req.query.sort);
+
+    const [items, total] = await Promise.all([
+      Product.find(filter).sort(sort).skip(skip).limit(limit).lean(),
+      Product.countDocuments(filter),
+    ]);
+
+    res.json({ success: true, products: items, total, page, limit });
+  } catch (err) {
+    console.error("getAllProductsGlobal error:", err);
+    res.status(500).json({ success: false, error: "Failed to load products" });
+  }
+};
+
+// GET /api/products/facets/all
+exports.getFacetsGlobal = async (req, res) => {
+  try {
+    const filter = buildGlobalFilter(req.query);
+
+    const pipeline = [
+      { $match: filter },
+      {
+        $facet: {
+          brands: [
+            { $match: { brand: { $ne: null } } },
+            { $group: { _id: "$brand", count: { $sum: 1 } } },
+            { $project: { name: "$_id", count: 1, _id: 0 } },
+            { $sort: { count: -1, name: 1 } },
+          ],
+          ram: [
+            { $match: { ram: { $ne: null } } }, // adjust to your schema
+            { $group: { _id: "$ram", count: { $sum: 1 } } },
+            { $project: { value: "$_id", count: 1, _id: 0 } },
+            { $sort: { value: 1 } },
+          ],
+          price: [
+            {
+              $group: {
+                _id: null,
+                min: { $min: "$price" },
+                max: { $max: "$price" },
+              },
+            },
+            { $project: { _id: 0, min: 1, max: 1 } },
+          ],
+        },
+      },
+    ];
+
+    const [agg] = await Product.aggregate(pipeline);
+    const price = (agg?.price && agg.price[0]) || { min: 0, max: 0 };
+
+    res.json({
+      success: true,
+      brands: agg?.brands || [],
+      ram: agg?.ram || [],
+      price,
+    });
+  } catch (err) {
+    console.error("getFacetsGlobal error:", err);
+    res.status(500).json({ success: false, error: "Failed to load facets" });
+  }
+};
+exports.exportProductsCSV = async (req, res) => {
+  try {
+    const list = await Product.find({})
+      .populate("category_id subcategory_id seller_id")
+      .lean();
+
+    const is24hex = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || "").trim());
+
+    const assignedFromCtx =
+      (req.assignedVendorId && String(req.assignedVendorId)) ||
+      (req.assignedVendorUserId && String(req.assignedVendorUserId)) ||
+      "";
+
+    const rows = list.map((p) => {
+      const cat = p.category_id || {};
+      const sub = p.subcategory_id || {};
+      const sellerDoc =
+        p.seller_id && typeof p.seller_id === "object" ? p.seller_id : null;
+
+      // Same fallback chain as your UI, with one extra: assigned vendor from context
+      const sellerIdOut =
+        (sellerDoc && sellerDoc._id && String(sellerDoc._id)) ||
+        (is24hex(p.seller_id) && String(p.seller_id)) ||
+        (is24hex(p.vendor_id) && String(p.vendor_id)) ||
+        (is24hex(p.seller_user_id) && String(p.seller_user_id)) ||
+        assignedFromCtx || // << last fallback, matches admin list behavior
+        "";
+
+      const dims = p.dimensions || {};
+      const tags = Array.isArray(p.tags)
+        ? p.tags.join("|")
+        : typeof p.tags === "string"
+          ? p.tags
+          : "";
+
+      return {
+        productId: p.productId || (p._id ? String(p._id) : ""),
+        mongoId: String(p._id || ""),
+        name: p.name || "",
+        description: p.description || "",
+        sku: p.SKU || p.sku || "",
+        brand: p.brand || "",
+        price: p.price ?? "",
+        stock: p.stock ?? "",
+        isVariant: !!p.is_variant,
+        isReview: !!p.is_review,
+        categoryId: cat.categoryId || "",
+        categorySlug: cat.slug || "",
+        categoryMongoId: cat._id ? String(cat._id) : "",
+        categoryName: cat.name || "",
+        subcategoryId: sub.subcategoryId || "",
+        subcategorySlug: sub.slug || "",
+        subcategoryMongoId: sub._id ? String(sub._id) : "",
+        subcategoryName: sub.name || "",
+        tags,
+        weight: p.weight || "",
+        dimLength: dims.length ?? "",
+        dimWidth: dims.width ?? "",
+        dimHeight: dims.height ?? "",
+        productImage: p.product_img || "",
+        productGallery: Array.isArray(p.gallery_imgs)
+          ? p.gallery_imgs.join("|")
+          : "",
+        seller_id: sellerIdOut,
+      };
+    });
+
+    const parser = new Parser({ fields: PRODUCT_COLUMNS });
+    const csv = parser.parse(rows);
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", 'attachment; filename="products.csv"');
+    return res.status(200).send(csv);
+  } catch (e) {
+    console.error("exportProductsCSV error", e);
+    return res.status(500).json({ message: e.message || "Export failed" });
+  }
+};
+
+// ---------- DOWNLOAD ONE ROW (by _id or SKU) ----------
+exports.downloadProductRow = async (req, res) => {
+  try {
+    const { idOrSku } = req.params;
+    let p = null;
+    if (mongoose.Types.ObjectId.isValid(idOrSku)) {
+      p = await Product.findById(idOrSku)
+        .populate("category_id subcategory_id seller_id")
+        .lean();
+    } else {
+      p = await Product.findOne({ SKU: idOrSku })
+        .populate("category_id subcategory_id seller_id")
+        .lean();
+    }
+    if (!p) return res.status(404).json({ message: "Product not found" });
+
+    const cat = p.category_id || {};
+    const sub = p.subcategory_id || {};
+    const seller = p.seller_id || {};
+    const dims = p.dimensions || {};
+    const tags = Array.isArray(p.tags)
+      ? p.tags.join("|")
+      : typeof p.tags === "string"
+        ? p.tags
+        : "";
+
+    const row = [
+      {
+        productId: p.productId || "",
+        mongoId: String(p._id || ""),
+        name: p.name || "",
+        description: p.description || "",
+        sku: p.SKU || "",
+        brand: p.brand || "",
+        price: p.price ?? "",
+        stock: p.stock ?? "",
+        isVariant: !!p.is_variant,
+        isReview: !!p.is_review,
+        categoryId: cat.categoryId || "",
+        categorySlug: cat.slug || "",
+        categoryMongoId: cat._id ? String(cat._id) : "",
+        categoryName: cat.name || "",
+        subcategoryId: sub.subcategoryId || "",
+        subcategorySlug: sub.slug || "",
+        subcategoryMongoId: sub._id ? String(sub._id) : "",
+        subcategoryName: sub.name || "",
+        tags,
+        weight: p.weight || "",
+        dimLength: dims.length ?? "",
+        dimWidth: dims.width ?? "",
+        dimHeight: dims.height ?? "",
+        productImage: p.product_img || "",
+        productGallery: Array.isArray(p.gallery_imgs)
+          ? p.gallery_imgs.join("|")
+          : "",
+        sellerId: seller._id ? String(seller._id) : p.seller_id || "",
+      },
+    ];
+
+    const parser = new Parser({ fields: PRODUCT_COLUMNS });
+    const csv = parser.parse(row);
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="product-${p.SKU || p._id}.csv"`
+    );
+    return res.send(csv);
+  } catch (e) {
+    console.error("downloadProductRow error", e);
+    return res.status(500).json({ message: e.message || "Download failed" });
+  }
+};
+
+// ---------- CSV IMPORT (no images; idempotent upsert) ----------
+exports.importProductsCSV = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+    const csvText = fs.readFileSync(req.file.path, "utf8");
+    const rows = parseCsvSync(csvText, {
+      columns: true,
+      skip_empty_lines: true,
+    });
+
+    let created = 0,
+      updated = 0,
+      skipped = 0;
+    const upserted = [],
+      errors = [];
+
+    for (const raw of rows) {
+      // tolerant getters (aliases + BOM-safe)
+      const name = getVal(raw, "name", "productname");
+      const description = getVal(raw, "description");
+      const sku = getVal(raw, "sku", "SKU");
+      const brand = getVal(raw, "brand");
+      const price = asNum(getVal(raw, "price"));
+      const stock = asNum(getVal(raw, "stock"));
+      const isVariant = asBool(getVal(raw, "isVariant", "is_variant"));
+      const isReview = asBool(getVal(raw, "isReview", "is_review"));
+      const productId = getVal(raw, "productId");
+      const mongoId = getVal(raw, "mongoId", "_id");
+      const productImage = getVal(raw, "productImage");
+      const productGallery = getVal(raw, "productGallery", "galleryImages");
+      const weight = getVal(raw, "weight");
+      const dimLength = asNum(getVal(raw, "dimLength"));
+      const dimWidth = asNum(getVal(raw, "dimWidth"));
+      const dimHeight = asNum(getVal(raw, "dimHeight"));
+      const sellerIdRaw = getVal(raw, "sellerId");
+
+      const tagsRaw = getVal(raw, "tags");
+      let tags = [];
+      if (tagsRaw) {
+        try {
+          tags = tagsRaw.includes("|")
+            ? tagsRaw
+                .split("|")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : JSON.parse(tagsRaw);
+        } catch {
+          tags = [tagsRaw];
+        }
+      }
+
+      // resolve category/subcategory
+      const category = await resolveCategoryForRow(raw);
+      if (!category) {
+        skipped++;
+        errors.push({ row: raw, reason: "Category not found" });
+        continue;
+      }
+      const subcat = await resolveSubcategoryForRow(raw, category);
+      if (!subcat) {
+        skipped++;
+        errors.push({ row: raw, reason: "Subcategory not found" });
+        continue;
+      }
+
+      // seller
+      const sellerId =
+        (sellerIdRaw &&
+          mongoose.Types.ObjectId.isValid(sellerIdRaw) &&
+          sellerIdRaw) ||
+        (req.user?.userId &&
+          mongoose.Types.ObjectId.isValid(req.user.userId) &&
+          req.user.userId) ||
+        null;
+      if (!sellerId) {
+        skipped++;
+        errors.push({ row: raw, reason: "Missing sellerId" });
+        continue;
+      }
+
+      // build doc
+      const doc = {
+        name,
+        description,
+        SKU: sku,
+        brand,
+        price,
+        stock,
+        product_img: productImage || "",
+        gallery_imgs: productGallery
+          ? productGallery
+              .split("|")
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : [],
+        dimensions: {
+          length: dimLength ?? undefined,
+          width: dimWidth ?? undefined,
+          height: dimHeight ?? undefined,
+        },
+        tags,
+        category_id: category._id,
+        subcategory_id: subcat._id,
+        is_variant: Boolean(isVariant),
+        is_review: Boolean(isReview),
+        seller_id: sellerId,
+      };
+
+      // match: productId -> SKU+seller -> _id
+      let query = null;
+      if (productId) query = { productId };
+      if (!query && sku && sellerId) query = { SKU: sku, seller_id: sellerId };
+      if (!query && mongoId && mongoose.Types.ObjectId.isValid(mongoId))
+        query = { _id: mongoId };
+
+      const existing = query ? await Product.findOne(query) : null;
+
+      if (existing) {
+        Object.assign(existing, doc);
+        await existing.save();
+        updated++;
+        upserted.push(String(existing._id));
+      } else {
+        const payload = { ...doc };
+        if (mongoId && mongoose.Types.ObjectId.isValid(mongoId))
+          payload._id = new mongoose.Types.ObjectId(mongoId);
+        const createdDoc = await Product.create(payload);
+        created++;
+        upserted.push(String(createdDoc._id));
+      }
+    }
+
+    fs.unlink(req.file.path, () => {});
+    return res.json({
+      ok: true,
+      created,
+      updated,
+      skipped,
+      count: created + updated,
+      upserted,
+      errors,
+    });
+  } catch (e) {
+    console.error("importProductsCSV error", e);
+    return res.status(500).json({ message: e.message || "Import failed" });
   }
 };

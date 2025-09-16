@@ -4,7 +4,7 @@ const redis = require("redis");
 // Initialize Redis Client
 const client = redis.createClient({
     socket: {
-        host: "127.0.0.1", // Change if Redis is hosted elsewhere
+        host: "127.0.0.1", // Change if Redis is reqhosted elsewhere
         port: 6379,
     },
 });

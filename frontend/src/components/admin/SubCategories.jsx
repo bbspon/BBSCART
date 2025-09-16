@@ -1,5 +1,5 @@
 // frontend/src/pages/admin/SubCategories.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { NavLink } from "react-router-dom";
 import "./assets/dashboard.css";
 import Sidebar from "./layout/sidebar";
@@ -9,6 +9,13 @@ import Modal from "react-modal";
 import SubCategoryForm from "./SubCategoryForm";
 import toast from "react-hot-toast";
 import instance  from "../../services/axiosInstance";
+import { saveAs } from "file-saver";
+import {
+  importSubcategoriesCSV,
+  exportSubcategoriesCSV,
+  downloadSubcategoryRowCSV,
+} from "../../services/subcategoryAPI";
+
 
 const SubCategories = () => {
   const {
@@ -37,6 +44,8 @@ const SubCategories = () => {
   const [sortConfig, setSortConfig] = useState({ key: "", direction: "" });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 25;
+const fileRef = useRef(null);
+const [isImporting, setIsImporting] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -112,6 +121,48 @@ const SubCategories = () => {
   }, [searchQuery, sortConfig]); // no subCategories to avoid loop
 
   const handleSearchChange = (e) => setSearchQuery(e.target.value);
+const handleClickImport = () => fileRef.current?.click();
+
+const handleFileChange = async (e) => {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  try {
+    setIsImporting(true);
+    const result = await importSubcategoriesCSV(f);
+    toast.success(
+      `Import done. Created: ${result.created}, Updated: ${result.updated}, Skipped: ${result.skipped}`
+    );
+    fetchSubCategories();
+  } catch (err) {
+    console.error(err);
+    toast.error(err?.response?.data?.message || "Import failed");
+  } finally {
+    setIsImporting(false);
+    e.target.value = "";
+  }
+};
+
+const handleExport = async () => {
+  try {
+    const res = await exportSubcategoriesCSV();
+    const blob = new Blob([res.data], { type: "text/csv;charset=utf-8" });
+    saveAs(blob, "subcategories.csv");
+  } catch (err) {
+    console.error(err);
+    toast.error("Export failed");
+  }
+};
+
+const handleDownloadRow = async (idOrKey) => {
+  try {
+    const res = await downloadSubcategoryRowCSV(idOrKey);
+    const blob = new Blob([res.data], { type: "text/csv;charset=utf-8" });
+    saveAs(blob, `subcategory-${idOrKey}.csv`);
+  } catch (err) {
+    console.error(err);
+    toast.error("Download failed");
+  }
+};
 
   const handleAddCategory = async (payload) => {
     try {
@@ -309,6 +360,33 @@ const SubCategories = () => {
                     Add Sub Category
                   </button>
                 </div>
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                  <button
+                    onClick={handleClickImport}
+                    disabled={isImporting}
+                    className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-4 py-2 rounded-lg shadow transition-all"
+                  >
+                    <i className="bx bx-upload"></i>
+                    {isImporting ? "Importing…" : "Import CSV/XLSX"}
+                  </button>
+
+                  <button
+                    onClick={handleExport}
+                    className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-4 py-2 rounded-lg shadow transition-all"
+                  >
+                    <i className="bx bx-download"></i>
+                    Export CSV
+                  </button>
+
+                  <input
+                    type="file"
+                    accept=".csv,.xlsx"
+                    ref={fileRef}
+                    style={{ display: "none" }}
+                    onChange={handleFileChange}
+                  />
+                </div>
+
                 <div className="flex-1 flex items-center justify-end">
                   <div className="relative w-full md:w-80">
                     <input

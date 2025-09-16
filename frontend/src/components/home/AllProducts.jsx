@@ -1,6 +1,26 @@
 // ProductListingFull.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import instance from "../../services/axiosInstance"; // adjust path as needed
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+
+function pickMainImage(p) {
+  // 1. Prefer first gallery image
+  let raw =
+    Array.isArray(p.gallery_imgs) && p.gallery_imgs.length > 0
+      ? p.gallery_imgs[0]
+      : "";
+
+  // 2. Fallbacks if gallery is empty
+  if (!raw)
+    raw = Array.isArray(p.product_img) ? p.product_img[0] : p.product_img;
+  if (!raw)
+    raw = Array.isArray(p.product_img2) ? p.product_img2[0] : p.product_img2;
+
+  if (!raw) return "/img/placeholder.png";
+
+  // 3. Normalize /uploads/ → full URL
+  return raw.startsWith("/uploads/") ? `${API_BASE}${raw}` : raw;
+}
 
 // Helpers
 const inr = (n) => new Intl.NumberFormat("en-IN").format(n);
@@ -468,7 +488,7 @@ export default function ProductListingFull() {
               >
                 <div className="w-36 h-36 flex-shrink-0 rounded overflow-hidden bg-gray-100">
                   <img
-                    src={p.image}
+                    src={pickMainImage(p)}
                     alt={p.title}
                     className="w-full h-full object-contain"
                   />

@@ -16,6 +16,14 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
+
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+const norm = (u) => {
+  if (!u) return "";
+  const s = String(u);
+  return s.startsWith("/uploads/") ? `${API_BASE}${s}` : s;
+};
+
 export default function ProductDetails() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -56,7 +64,51 @@ export default function ProductDetails() {
       }
     })();
   }, [id]);
+useEffect(() => {
+  (async () => {
+    try {
+      setLoading(true);
+      setP(null);
 
+      const { data } = await instance.get(`/api/products/public/${id}`);
+
+      // --- Build normalized arrays ---
+      const galleryMain = Array.isArray(data?.gallery_imgs)
+        ? data.gallery_imgs.map(norm).filter(Boolean)
+        : [];
+
+      const subs = [
+        Array.isArray(data?.product_img)
+          ? data.product_img[0]
+          : data?.product_img,
+        Array.isArray(data?.product_img2)
+          ? data.product_img2[0]
+          : data?.product_img2,
+      ]
+        .map(norm)
+        .filter(Boolean);
+
+      // default main image = first gallery image, then fallbacks
+      const primary = galleryMain[0] || subs[0] || "/img/placeholder.png";
+
+      setP({ ...data, _norm: { galleryMain, subs } });
+      setImg(primary);
+    } catch (e) {
+      console.error("load product failed", e?.response?.data || e.message);
+      setP(null);
+    } finally {
+      setLoading(false);
+    }
+  })();
+}, [id]);
+
+// --- Thumbs order: gallery first (main set), then sub images (product_img, product_img2) ---
+const thumbs = useMemo(() => {
+  const g = p?._norm?.galleryMain || [];
+  const s = p?._norm?.subs || [];
+  const all = [...g, ...s];
+  return all.length ? all : ["/img/placeholder.png"];
+}, [p]);
   const price = p?.priceInfo?.sale ?? p?.price ?? 0;
   const mrp = p?.priceInfo?.mrp ?? p?.price ?? 0;
   const discountText =
@@ -106,6 +158,7 @@ export default function ProductDetails() {
     });
   };
 
+
   const onBuyNow = () => {
     onAddToCart();
     nav("/checkout");
@@ -114,10 +167,7 @@ export default function ProductDetails() {
   return (
     <div className="container py-4">
       <h1 className="mb-3">{p?.name}</h1>
-      <img src={img} alt={p?.name} style={{ maxWidth: 320 }} />
-      <pre style={{ background: "#f7f7f7", padding: 12 }}>
-        Seller: {String(p?.seller_id || "")}
-      </pre>
+
       <div className="container mx-auto px-4 py-6 grid lg:grid-cols-2 gap-6">
         {/* Left: images + thumbnails + highlights */}
         <div className="space-y-4">
@@ -145,7 +195,7 @@ export default function ProductDetails() {
             </div>
 
             <div className="flex gap-2 flex-wrap">
-              {gallery.map((g, i) => (
+              {thumbs.map((g, i) => (
                 <button
                   key={i}
                   onClick={() => setImg(g)}
@@ -215,7 +265,7 @@ export default function ProductDetails() {
 
           {/* price with mrp/discount */}
           <div>
-            <div className="text-3xl font-bold text-green-600">₹{price}</div>
+            <div className="text-3xl font-bold text-green-600">₹{p?.price}</div>
             {mrp > price && (
               <>
                 <div className="text-sm text-gray-500 line-through">₹{mrp}</div>
@@ -228,7 +278,7 @@ export default function ProductDetails() {
           <div className="border rounded-lg p-4 bg-white flex items-center gap-3">
             <Truck size={20} className="text-gray-600" />
             <div>
-              Delivery to{" "}
+              Delivery to
               <select
                 className="border-b border-blue-500 outline-none font-semibold"
                 value={deliveryLocation}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { NavLink } from "react-router-dom";
 import "./assets/dashboard.css";
 import Sidebar from "./layout/sidebar";
@@ -41,6 +41,20 @@ const Products = () => {
   const [sortConfig, setSortConfig] = useState({ key: "", direction: "" });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 25;
+const catMap = useMemo(
+  () => new Map(categories.map((c) => [String(c._id), c.name])),
+  [categories]
+);
+const subMap = useMemo(
+  () => new Map(subCategories.map((s) => [String(s._id), s.name])),
+  [subCategories]
+);
+
+// helper to resolve either an object {_id, name} or a raw id
+const resolveName = (map, idOrObj) => {
+  const id = idOrObj && typeof idOrObj === "object" ? idOrObj._id : idOrObj;
+  return id ? map.get(String(id)) || "" : "";
+};
 
   // keep URL ?page=
   useEffect(() => {
@@ -57,6 +71,16 @@ const Products = () => {
       `${window.location.pathname}?${params}`
     );
   }, [currentPage]);
+const is24hex = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || "").trim());
+
+const getSellerId = (p) => {
+  const s = p?.seller_id;
+  if (s && typeof s === "object" && s._id) return String(s._id); // populated
+  if (is24hex(s)) return String(s); // raw ObjectId string
+  if (is24hex(p?.vendor_id)) return String(p.vendor_id); // fallback, if present
+  if (is24hex(p?.seller_user_id)) return String(p.seller_user_id); // fallback, if present
+  return "";
+};
 
   // ------------ Data fetchers (admin, /api/..., no pincode) ------------
   const fetchCategories = async () => {
@@ -126,13 +150,55 @@ const Products = () => {
   }, [searchQuery, sortConfig, products]);
 
   const handleSearchChange = (e) => setSearchQuery(e.target.value);
+  // real CSV export (text/csv)
+  const handleExportCsv = async () => {
+    try {
+      const res = await instance.get(
+        `${import.meta.env.VITE_API_URL}/api/products/export-csv`,
+        {
+          responseType: "blob",
+        }
+      );
+      const blob = new Blob([res.data], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "products.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("CSV export failed");
+    }
+  };
+
+  // CSV import (no images)
+  const handleImportCsv = async (file) => {
+    if (!file) {
+      toast.error("Pick a CSV file");
+      return;
+    }
+    const form = new FormData();
+    form.append("file", file);
+    try {
+      const res = await instance.post(`${import.meta.env.VITE_API_URL}/api/products/import-csv`, form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success(
+        `Import done. Created: ${res.data.created}, Updated: ${res.data.updated}, Skipped: ${res.data.skipped}`
+      );
+      fetchProducts();
+    } catch (e) {
+      console.error(e);
+      toast.error(e?.response?.data?.message || "CSV import failed");
+    }
+  };
 
   // ------------ CRUD ------------
   const handleAddProduct = async (payload /* FormData from ProductForm */) => {
     try {
       if (editProduct) {
         const { data } = await instance.put(
-          `/api/products/${editProduct._id}`,
+          `${import.meta.env.VITE_API_URL}/api/products/${editProduct._id}`,
           payload,
           {
             headers: { "Content-Type": "multipart/form-data" },
@@ -149,7 +215,7 @@ const Products = () => {
         const { data } = await instance.post("/api/products", payload, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        setProducts(prev => [...prev, data]);  // ok if controller returns the product doc
+        setProducts((prev) => [...prev, data]); // ok if controller returns the product doc
         toast.success("Product created successfully!");
       }
       setIsAddEditModalOpen(false);
@@ -159,8 +225,8 @@ const Products = () => {
       console.error("Error saving product:", err);
       setErrorMessage(
         err?.response?.data?.message ||
-        err.message ||
-        "Failed to save the product."
+          err.message ||
+          "Failed to save the product."
       );
       toast.error("Failed to save the product.");
     }
@@ -178,8 +244,8 @@ const Products = () => {
       console.error("Error deleting product:", err);
       setErrorMessage(
         err?.response?.data?.message ||
-        err.message ||
-        "Failed to delete the product."
+          err.message ||
+          "Failed to delete the product."
       );
     }
   };
@@ -203,21 +269,7 @@ const Products = () => {
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
 
   // ------------ Import / Export ------------
-  const handleExport = async () => {
-    try {
-      const res = await instance.get("/api/products/export", {
-        responseType: "blob",
-      });
-      const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = "products_export.zip";
-      a.click();
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (e) {
-      toast.error("Export failed");
-    }
-  };
+
 
   const handleImport = async (file) => {
     if (!file) {
@@ -296,14 +348,26 @@ const Products = () => {
                   </li>
                 </ul>
               </div>
-              <div onClick={handleExport} className="btn-download">
+              {/* next to existing Export/Import UI */}
+              <button onClick={handleExportCsv} className="btn-download">
                 <i className="bx bxs-cloud-download bx-fade-down-hover" />
-                <span className="text">Export CSV</span>
-              </div>
-              <div onClick={openImportProductModal} className="btn-import">
-                <i className="bx bxs-cloud-download bx-fade-down-hover" />
+                <span className="text">Export CSV (no images)</span>
+              </button>
+
+              <label className="btn-import" style={{ cursor: "pointer" }}>
+                <i className="bx bxs-cloud-upload bx-fade-down-hover" />
                 <span className="text">Import CSV</span>
-              </div>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleImportCsv(f);
+                    e.target.value = "";
+                  }}
+                  style={{ display: "none" }}
+                />
+              </label>
             </div>
 
             <div className="container mx-auto p-4">
@@ -431,6 +495,10 @@ const Products = () => {
                           <th className="p-2 text-left font-semibold">
                             Subcategory
                           </th>
+                          <th className="p-2 text-left font-semibold">
+                            Seller ID
+                          </th>
+
                           <th className="p-2 pr-6 text-right font-semibold">
                             Actions
                           </th>
@@ -446,12 +514,18 @@ const Products = () => {
                             <td className="p-3">{p.brand}</td>
                             <td className="p-3">{p.price}</td>
                             <td className="p-3">{p.stock}</td>
+
                             <td className="p-3">
-                              {p?.category_id?.name ?? ""}
+                              {resolveName(catMap, p.category_id || p.category)}
                             </td>
                             <td className="p-3">
-                              {p?.subcategory_id?.name ?? ""}
+                              {resolveName(
+                                subMap,
+                                p.subcategory_id || p.subcategory
+                              )}
                             </td>
+                            <td className="p-3">{getSellerId(p) || "—"}</td>
+
                             <td className="p-3 text-right">
                               <div className="flex justify-end gap-2">
                                 <button
@@ -502,10 +576,11 @@ const Products = () => {
                       <button
                         key={idx}
                         onClick={() => setCurrentPage(idx + 1)}
-                        className={`w-9 h-9 rounded-full font-semibold transition border-2 ${currentPage === idx + 1
+                        className={`w-9 h-9 rounded-full font-semibold transition border-2 ${
+                          currentPage === idx + 1
                             ? "bg-blue-500 border-blue-500 text-white"
                             : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-blue-100 dark:hover:bg-gray-700"
-                          }`}
+                        }`}
                       >
                         {idx + 1}
                       </button>

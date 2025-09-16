@@ -72,7 +72,9 @@ const ProductSchema = new mongoose.Schema(
     weight: { type: Number },
     dimensions: { length: Number, width: Number, height: Number },
 
-    product_img: String,
+    // inside ProductSchema:
+    product_img: { type: String, default: "" },
+    product_img2: { type: String, default: "" },
     gallery_imgs: [String],
 
     tags: [{ type: String }],
@@ -83,10 +85,10 @@ const ProductSchema = new mongoose.Schema(
     variants: [{ type: ObjectId, ref: "Variant" }],
 
     // Admin global vs vendor product
- is_review: { type: Boolean, default: false },
-     seller_id: { type: ObjectId, ref: "User", default: null, index: true },
+    is_review: { type: Boolean, default: false },
+    seller_id: { type: ObjectId, ref: "User", default: null, index: true },
     is_global: { type: Boolean, default: false, index: true },
-   // Ratings & specs
+    // Ratings & specs
     rating_avg: { type: Number, min: 0, max: 5, default: 0, index: true },
     rating_count: { type: Number, default: 0 },
     specs: [{ type: String }], // bullet points
@@ -104,6 +106,7 @@ const ProductSchema = new mongoose.Schema(
     deliveryIn1Day: { type: Boolean, default: false, index: true },
     assured: { type: Boolean, default: false },
     bestseller: { type: Boolean, default: false },
+    productId: { type: String, index: true, sparse: true },
 
     // Attribute used in filters
     ram: { type: Number, default: 0, index: true },
@@ -130,7 +133,10 @@ ProductSchema.index({ "priceInfo.sale": 1 });
 ProductSchema.index({ created_at: -1 });
 
 // ---------- Hooks ----------
-ProductSchema.pre("save", function (next) { this.updated_at = Date.now(); next(); });
+ProductSchema.pre("save", function (next) {
+  this.updated_at = Date.now();
+  next();
+});
 
 ProductSchema.path("is_global").validate(function (v) {
   if (v === true) return !this.seller_id;
