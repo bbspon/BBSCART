@@ -13,6 +13,33 @@ const csvParser = require("csv-parser");
 const archiver = require("archiver");
 const unzipper = require("unzipper");
 const ProductGroup = require("../models/ProductGroup");
+// prefer file path if present; otherwise keep a URL string from body
+function pickFilePath(files, field) {
+  const f = files.find((x) => x.fieldname === field);
+  return f ? `/uploads/${f.filename}` : "";
+}
+function pickUrl(body, ...keys) {
+  for (const k of keys) {
+    const v = (body[k] || "").toString().trim();
+    if (v) return v;
+  }
+  return "";
+}
+function parseUrlList(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.map(String).filter(Boolean);
+  const s = String(v).trim();
+  if (!s) return [];
+  try {
+    const arr = JSON.parse(s);
+    if (Array.isArray(arr)) return arr.map(String).filter(Boolean);
+  } catch {}
+  // also accept pipe-separated string from CSV like "a|b|c"
+  return s
+    .split("|")
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
 
 const toArrayFiles = (files) => {
   if (!files) return [];
@@ -215,13 +242,45 @@ exports.listSellersForAdmin = async (req, res) => {
   }
 };
 
+
 exports.createProduct = async (req, res) => {
   try {
-    // normalize files for both .single/.array and .fields
-    const files = toArrayFiles(req.files).concat(req.file ? [req.file] : []);
-    const pick = (field) => files.find((f) => f.fieldname === field);
-    const pickAll = (field) => files.filter((f) => f.fieldname === field);
+    // Debug multer input
+    console.log("[CTRL FILE KEYS]", Object.keys(req.files || {}));
+    console.log("[CTRL product_img]", req.files?.product_img?.[0]);
+    console.log("[CTRL product_img2]", req.files?.product_img2?.[0]);
+    console.log("[CTRL gallery count]", (req.files?.gallery_imgs || []).length);
 
+    // normalize files
+    const normalizeFiles = (filesObj) => {
+      if (!filesObj) return [];
+      if (Array.isArray(filesObj)) return filesObj;
+      return Object.entries(filesObj).flatMap(([fieldname, arr]) =>
+        (arr || []).map((f) => ({ ...f, fieldname }))
+      );
+    };
+    const files = normalizeFiles(req.files);
+    const pick = (name) => files.find((f) => f.fieldname === name);
+    const pickAll = (name) => files.filter((f) => f.fieldname === name);
+
+    const pickFilePath = (field) => {
+      const f = pick(field);
+      return f ? `/uploads/${f.filename}` : "";
+    };
+    const parseUrlList = (v) => {
+      if (!v) return [];
+      if (Array.isArray(v)) return v.map(String).filter(Boolean);
+      try {
+        const arr = JSON.parse(v);
+        if (Array.isArray(arr)) return arr.map(String).filter(Boolean);
+      } catch {}
+      return String(v)
+        .split(/[|,;]+/)
+        .map((x) => x.trim())
+        .filter(Boolean);
+    };
+
+    // body
     const {
       name,
       description,
@@ -235,110 +294,111 @@ exports.createProduct = async (req, res) => {
       category_id,
       subcategory_id,
       is_variant,
+      product_img_url,
+      product_img2_url,
+      gallery_img_urls,
+      productGallery,
+      seller_id, // 👈 important
     } = req.body;
 
-    // parse structured fields safely
+    // parse objects
     let parsedDimensions = {};
     if (dimensions) {
-      try {
-        parsedDimensions = JSON.parse(dimensions);
-      } catch {
-        return res.status(400).json({ message: "Invalid dimensions" });
-      }
+      if (typeof dimensions === "string") {
+        try {
+          parsedDimensions = JSON.parse(dimensions);
+        } catch {
+          parsedDimensions = {};
+        }
+      } else if (typeof dimensions === "object") parsedDimensions = dimensions;
     }
     let parsedTags = [];
-    if (typeof tags === "string") {
-      try {
-        parsedTags = JSON.parse(tags);
-      } catch {
-        parsedTags = [];
-      }
-    } else if (Array.isArray(tags)) {
-      parsedTags = tags;
+    if (tags) {
+      if (typeof tags === "string") {
+        try {
+          parsedTags = JSON.parse(tags);
+        } catch {
+          parsedTags = tags
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+      } else if (Array.isArray(tags)) parsedTags = tags;
     }
 
     // images
-    const productImage = pick("product_img")
-      ? `/uploads/${pick("product_img").filename}`
-      : "";
-    const galleryImages = pickAll("gallery_imgs").map(
+    const productImage1 = pickFilePath("product_img") || product_img_url || "";
+    const productImage2 =
+      pickFilePath("product_img2") || product_img2_url || "";
+    const galleryFiles = pickAll("gallery_imgs").map(
       (f) => `/uploads/${f.filename}`
     );
+    const galleryUrls = parseUrlList(gallery_img_urls || productGallery);
+    const galleryImages = [...galleryUrls, ...galleryFiles];
 
-    // seller logic
+    // ✅ Seller logic
     const role = req.user?.role;
     const assignedVendorId = req.assignedVendorId;
-    let sellerId = null;
+    let finalSellerId = null;
     let isGlobal = false;
 
     if (role === "admin" || role === "super_admin") {
-      const rawSeller = req.body.seller_id;
-      sellerId = Array.isArray(rawSeller) ? rawSeller.find(Boolean) : rawSeller;
-      if (!sellerId) isGlobal = true; // admin left it blank -> global product
+      finalSellerId = Array.isArray(seller_id)
+        ? seller_id.find(Boolean)
+        : seller_id;
+      if (!finalSellerId) isGlobal = true;
     } else {
       if (!assignedVendorId) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: "Assigned vendor is missing for this request.",
-          });
+        return res.status(400).json({
+          success: false,
+          message: "Assigned vendor is missing for this request.",
+        });
       }
-      sellerId = assignedVendorId;
+      finalSellerId = assignedVendorId;
     }
 
-    let newProduct;
+    // ✅ Build product doc
+    const doc = {
+      name,
+      description,
+      SKU,
+      brand,
+      weight,
+      dimensions: parsedDimensions,
+      tags: parsedTags,
+      category_id,
+      subcategory_id,
+      product_img: productImage1 || "",
+      product_img2: productImage2 || "",
+      gallery_imgs: galleryImages,
+      price: price ? Number(price) : undefined,
+      stock: stock ? Number(stock) : undefined,
+      is_variant: String(is_variant) === "true",
+      seller_id: finalSellerId || null,
+      is_global: Boolean(isGlobal),
+    };
 
-    if (String(is_variant) === "true") {
-      // keep variants skeleton support (you can expand later)
-      newProduct = new Product({
-        name,
-        description,
-        SKU,
-        brand,
-        weight,
-        dimensions: parsedDimensions,
-        tags: parsedTags,
-        category_id,
-        subcategory_id,
-        product_img: productImage,
-        gallery_imgs: galleryImages,
-        seller_id: sellerId || null,
-        is_global: Boolean(isGlobal),
-        is_variant: true,
-      });
-      await newProduct.save();
-    } else {
-      newProduct = new Product({
-        name,
-        description,
-        price,
-        stock,
-        SKU,
-        brand,
-        weight,
-        dimensions: parsedDimensions,
-        tags: parsedTags,
-        category_id,
-        subcategory_id,
-        product_img: productImage,
-        gallery_imgs: galleryImages,
-        seller_id: sellerId || null,
-        is_global: Boolean(isGlobal),
-        is_variant: false,
-        variants: [],
-      });
-      await newProduct.save();
-    }
+    const product = await Product.create(doc);
 
-    return res.status(201).json(newProduct);
+    console.log("✅ Saved product:", {
+      product_img: product.product_img,
+      product_img2: product.product_img2,
+      gallery_imgs: product.gallery_imgs,
+      seller_id: product.seller_id,
+      is_global: product.is_global,
+    });
+
+    return res.status(201).json(product);
   } catch (err) {
-    console.error("createProduct error", err);
+    console.error("createProduct error:", err);
     return res.status(500).json({ message: err.message });
   }
 };
 
-// --------- LIST (admin sees all; vendors see theirs only; global hidden from vendors) ----------
+
+
+
+
 exports.getAllProducts = async (req, res) => {
   try {
     const role = req.user?.role;
@@ -754,12 +814,10 @@ exports.updateProduct = async (req, res) => {
 
       if (role !== "admin" && role !== "super_admin") {
         if (existing.is_global)
-          return res
-            .status(403)
-            .json({
-              success: false,
-              message: "Vendors cannot edit global products",
-            });
+          return res.status(403).json({
+            success: false,
+            message: "Vendors cannot edit global products",
+          });
         if (
           String(existing.seller_id || "") !==
           String(req.assignedVendorId || "")
@@ -1073,7 +1131,6 @@ exports.exportProducts = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
-
 
 // Helper to delay (optional for better file handling)
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -1652,8 +1709,8 @@ exports.importProductsCSV = async (req, res) => {
         const price = asNum(getVal(r, "price", "Price"));
         const mrp = asNum(getVal(r, "mrp", "MRP"));
         const sale = asNum(getVal(r, "sale", "SalePrice"));
-const _rawSku = getVal(r, "SKU", "sku", "eanNumber");
-const _normSku = _rawSku && String(_rawSku).trim();
+        const _rawSku = getVal(r, "SKU", "sku", "eanNumber");
+        const _normSku = _rawSku && String(_rawSku).trim();
         const doc = {
           name: getVal(r, "name", "Name", "productName"),
           SKU: getVal(
@@ -1884,10 +1941,7 @@ exports.getProduct = async (req, res) => {
   }
 };
 
-exports.createProduct = async (req, res) => {
-  const p = await Product.create(req.body);
-  res.status(201).json(p);
-};
+
 
 exports.updateProduct = async (req, res) => {
   const p = await Product.findByIdAndUpdate(req.params.id, req.body, {
@@ -2252,7 +2306,6 @@ exports.exportProductsCSV = async (req, res) => {
   }
 };
 
-
 // ---------- DOWNLOAD ONE ROW (by _id or SKU) ----------
 exports.downloadProductRow = async (req, res) => {
   try {
@@ -2474,4 +2527,3 @@ exports.importProductsCSV = async (req, res) => {
     return res.status(500).json({ message: e.message || "Import failed" });
   }
 };
-

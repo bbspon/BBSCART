@@ -40,33 +40,66 @@ const app = express();
    ======================= */
 const allowedOrigins = [
   process.env.CLIENT_URL_DEV || "http://localhost:5173",
+
   process.env.CLIENT_URL_PROD || "https://bbscart.com",
 ];
 
 app.use(
   cors({
-    origin: ["https://bbscart.com", "https://www.bbscart.com"],
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    origin: function (origin, callback) {
+      // Allow non-browser requests (no Origin) and known origins
+
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
+
     credentials: true,
+
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+
+    allowedHeaders: [
+      "Content-Type",
+
+      "Authorization",
+
+      "X-Pincode",
+
+      "X-Guest-Key",
+    ],
   })
 );
 
-
 // Handle preflight for all routes
+
 app.options(
   "*",
+
   cors({
     origin: function (origin, callback) {
       if (!origin || allowedOrigins.includes(origin))
         return callback(null, true);
+
       return callback(new Error("Not allowed by CORS"));
     },
+
     credentials: true,
+
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+
+// (Optional) log incoming Origin for debugging
+
+app.use((req, res, next) => {
+  console.log("Request Origin:", req.headers.origin || "N/A");
+
+  next();
+});
 
 // (Optional) log incoming Origin for debugging
 app.use((req, res, next) => {

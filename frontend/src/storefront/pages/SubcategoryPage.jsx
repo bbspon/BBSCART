@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import instance from "../../services/axiosInstance";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export default function SubcategoryPage() {
   const { subcategoryId } = useParams();
@@ -17,7 +18,23 @@ export default function SubcategoryPage() {
   const group = params.get("group") || "";
   const product = params.get("product") || "";
   const label = params.get("label") || "";
+function pickImage(p) {
+  // handle string or array for product_img
+  const firstSingle =
+    (Array.isArray(p.product_img) ? p.product_img[0] : p.product_img) || "";
 
+  // gallery can be string or array; prefer first item if array
+  const firstGallery = Array.isArray(p.gallery_imgs)
+    ? p.gallery_imgs[0]
+    : p.gallery_imgs || "";
+
+  // choose in order: product_img -> gallery
+  const raw = firstSingle || firstGallery || "";
+
+  if (!raw) return ""; // nothing to show
+  if (raw.startsWith("/uploads/")) return `${API_BASE}${raw}`; // served by backend
+  return raw; // already absolute URL
+}
   // keep your original key and add safe fallbacks (no removals)
   const [pincode, setPincode] = useState(
     localStorage.getItem("deliveryPincode") ||
@@ -145,14 +162,15 @@ export default function SubcategoryPage() {
               className="rounded border p-3 hover:bg-gray-50"
             >
               <img
-                src={p.product_img}
+                src={pickImage(p)}
                 alt=""
                 className="mb-2 h-32 w-full rounded object-cover"
               />
+
               <div className="line-clamp-2 text-sm">{p.name}</div>
               <div className="text-xs text-gray-500">{p.brand || ""}</div>
               <div className="text-sm font-semibold">
-                ₹{p.priceInfo?.sale ?? p.price ?? 0}
+                ₹{p.price}
               </div>
             </Link>
           ))}

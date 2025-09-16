@@ -164,17 +164,17 @@ router.post(
   uploadAny,
   safe(productController.importProducts)
 );
-const uploadProductImages = uploadFields([
-  { name: "product_img", maxCount: 1 },
-  { name: "gallery_imgs", maxCount: 10 },
-]);
 
 // pass the middleware (do not call it again)
 router.post(
   "/",
   auth,
   deriveAssignedVendor,
-  uploadProductImages,
+  uploadFields([
+    { name: "product_img", maxCount: 1 },
+    { name: "product_img2", maxCount: 1 },
+    { name: "gallery_imgs", maxCount: 10 },
+  ]),
   productController.createProduct
 );
 router.get(

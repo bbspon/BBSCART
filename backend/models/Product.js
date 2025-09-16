@@ -72,7 +72,9 @@ const ProductSchema = new mongoose.Schema(
     weight: { type: Number },
     dimensions: { length: Number, width: Number, height: Number },
 
-    product_img: String,
+    // inside ProductSchema:
+    product_img: { type: String, default: "" },
+    product_img2: { type: String, default: "" },
     gallery_imgs: [String],
 
     tags: [{ type: String }],
