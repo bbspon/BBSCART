@@ -71,6 +71,16 @@ const resolveName = (map, idOrObj) => {
       `${window.location.pathname}?${params}`
     );
   }, [currentPage]);
+const is24hex = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || "").trim());
+
+const getSellerId = (p) => {
+  const s = p?.seller_id;
+  if (s && typeof s === "object" && s._id) return String(s._id); // populated
+  if (is24hex(s)) return String(s); // raw ObjectId string
+  if (is24hex(p?.vendor_id)) return String(p.vendor_id); // fallback, if present
+  if (is24hex(p?.seller_user_id)) return String(p.seller_user_id); // fallback, if present
+  return "";
+};
 
   // ------------ Data fetchers (admin, /api/..., no pincode) ------------
   const fetchCategories = async () => {
@@ -259,21 +269,7 @@ const resolveName = (map, idOrObj) => {
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
 
   // ------------ Import / Export ------------
-  const handleExport = async () => {
-    try {
-      const res = await instance.get("/api/products/export", {
-        responseType: "blob",
-      });
-      const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = "products_export.zip";
-      a.click();
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (e) {
-      toast.error("Export failed");
-    }
-  };
+
 
   const handleImport = async (file) => {
     if (!file) {
@@ -499,6 +495,10 @@ const resolveName = (map, idOrObj) => {
                           <th className="p-2 text-left font-semibold">
                             Subcategory
                           </th>
+                          <th className="p-2 text-left font-semibold">
+                            Seller ID
+                          </th>
+
                           <th className="p-2 pr-6 text-right font-semibold">
                             Actions
                           </th>
@@ -524,6 +524,8 @@ const resolveName = (map, idOrObj) => {
                                 p.subcategory_id || p.subcategory
                               )}
                             </td>
+                            <td className="p-3">{getSellerId(p) || "—"}</td>
+
                             <td className="p-3 text-right">
                               <div className="flex justify-end gap-2">
                                 <button

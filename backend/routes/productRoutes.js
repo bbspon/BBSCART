@@ -61,7 +61,7 @@ router.post(
   safe(productController.importProductsCSV)
 );
 
-router.get("/export-csv", authUser, safe(productController.exportProductsCSV));
+router.get("/export-csv", authUser,deriveAssignedVendor, safe(productController.exportProductsCSV));
 
 // one-row download by Mongo _id or SKU
 router.get(

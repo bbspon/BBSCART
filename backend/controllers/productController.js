@@ -118,8 +118,8 @@ function sortStage(sort) {
   }
 }
 const PRODUCT_COLUMNS = [
-  "productId", // your external id (optional)
-  "mongoId", // Product._id (for round-trip)
+  "productId",
+  "mongoId",
   "name",
   "description",
   "sku",
@@ -136,16 +136,15 @@ const PRODUCT_COLUMNS = [
   "subcategorySlug",
   "subcategoryMongoId",
   "subcategoryName",
-  "tags", // pipe-delimited or JSON
+  "tags",
   "weight",
-  "dimLength", // numeric columns for dimensions
+  "dimLength",
   "dimWidth",
   "dimHeight",
   "productImage",
-  "productGallery", // pipe-delimited paths
-  "sellerId",
+  "productGallery",
+  "seller_id",
 ];
-
 // resolve category/subcategory by multiple identifiers
 async function resolveCategoryForRow(row) {
   const id = getVal(row, "categoryId");
@@ -1170,20 +1169,37 @@ exports.exportProducts = async (req, res) => {
       "Seller Address",
     ];
 
+    const is24hex = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || "").trim());
+
     let csvData = [];
     let allImages = new Set(); // Collect unique image paths
 
     for (const product of products) {
       const category = product.category_id || {};
       const subcategory = product.subcategory_id || {};
-      const seller = product.seller_id || {};
+      const sellerDoc =
+        product.seller_id && typeof product.seller_id === "object"
+          ? product.seller_id
+          : null;
+
+      // Robust seller id: prefer populated doc, else valid string id, else vendor fallbacks
+      const sellerIdOut = (() => {
+        if (sellerDoc && sellerDoc._id) return String(sellerDoc._id);
+        if (is24hex(product.seller_id)) return String(product.seller_id);
+        if (is24hex(product.vendor_id)) return String(product.vendor_id);
+        if (is24hex(product.seller_user_id))
+          return String(product.seller_user_id);
+        return "";
+      })();
 
       const pushImage = (imgPath) => {
         if (imgPath) allImages.add(imgPath);
       };
 
-      if (product.variants.length > 0) {
-        for (const variant of product.variants) {
+      const variants = Array.isArray(product.variants) ? product.variants : [];
+
+      if (variants.length > 0) {
+        for (const variant of variants) {
           // Collect images
           pushImage(product.product_img);
           product.gallery_imgs?.forEach(pushImage);
@@ -1225,11 +1241,11 @@ exports.exportProducts = async (req, res) => {
               ? variant.variant_gallery_imgs.join("|")
               : "",
             "Variant Attributes": JSON.stringify(variant.attributes),
-            "Seller ID": seller._id || "",
-            "Seller Name": seller.name || "",
-            "Seller Email": seller.email || "",
-            "Seller Phone": seller.phone || "",
-            "Seller Address": seller.address || "",
+            "Seller ID": sellerIdOut,
+            "Seller Name": sellerDoc ? sellerDoc.name || "" : "",
+            "Seller Email": sellerDoc ? sellerDoc.email || "" : "",
+            "Seller Phone": sellerDoc ? sellerDoc.phone || "" : "",
+            "Seller Address": sellerDoc ? sellerDoc.address || "" : "",
           });
         }
       } else {
@@ -1269,11 +1285,11 @@ exports.exportProducts = async (req, res) => {
           "Variant Image": "",
           "Variant Gallery Images": "",
           "Variant Attributes": "",
-          "Seller ID": seller._id || "",
-          "Seller Name": seller.name || "",
-          "Seller Email": seller.email || "",
-          "Seller Phone": seller.phone || "",
-          "Seller Address": seller.address || "",
+          "Seller ID": sellerIdOut,
+          "Seller Name": sellerDoc ? sellerDoc.name || "" : "",
+          "Seller Email": sellerDoc ? sellerDoc.email || "" : "",
+          "Seller Phone": sellerDoc ? sellerDoc.phone || "" : "",
+          "Seller Address": sellerDoc ? sellerDoc.address || "" : "",
         });
       }
     }
@@ -1306,7 +1322,6 @@ exports.exportProducts = async (req, res) => {
 
     // Add image files
     allImages.forEach((imgPath) => {
-      // const localImgPath = path.join(__dirname, '../uploads', imgPath);
       const localImgPath = path.join(__dirname, "../", imgPath);
       if (fs.existsSync(localImgPath)) {
         archive.file(localImgPath, { name: `${path.basename(imgPath)}` });
@@ -1319,6 +1334,7 @@ exports.exportProducts = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
 
 // Helper to delay (optional for better file handling)
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -1897,10 +1913,17 @@ exports.importProductsCSV = async (req, res) => {
         const price = asNum(getVal(r, "price", "Price"));
         const mrp = asNum(getVal(r, "mrp", "MRP"));
         const sale = asNum(getVal(r, "sale", "SalePrice"));
-
+const _rawSku = getVal(r, "SKU", "sku", "eanNumber");
+const _normSku = _rawSku && String(_rawSku).trim();
         const doc = {
           name: getVal(r, "name", "Name", "productName"),
-          SKU: getVal(r, "SKU", "sku", "eanNumber"),
+          SKU: getVal(
+            r,
+            "SKU",
+            "sku",
+            "eanNumber",
+            _normSku ? { SKU: _normSku } : {}
+          ),
           brand: getVal(r, "brand", "Brand"),
           description: getVal(r, "description", "Description"),
           price: price ?? undefined,
@@ -2410,17 +2433,34 @@ exports.getFacetsGlobal = async (req, res) => {
     res.status(500).json({ success: false, error: "Failed to load facets" });
   }
 };
-
 exports.exportProductsCSV = async (req, res) => {
   try {
     const list = await Product.find({})
       .populate("category_id subcategory_id seller_id")
       .lean();
 
+    const is24hex = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || "").trim());
+
+    const assignedFromCtx =
+      (req.assignedVendorId && String(req.assignedVendorId)) ||
+      (req.assignedVendorUserId && String(req.assignedVendorUserId)) ||
+      "";
+
     const rows = list.map((p) => {
       const cat = p.category_id || {};
       const sub = p.subcategory_id || {};
-      const seller = p.seller_id || {};
+      const sellerDoc =
+        p.seller_id && typeof p.seller_id === "object" ? p.seller_id : null;
+
+      // Same fallback chain as your UI, with one extra: assigned vendor from context
+      const sellerIdOut =
+        (sellerDoc && sellerDoc._id && String(sellerDoc._id)) ||
+        (is24hex(p.seller_id) && String(p.seller_id)) ||
+        (is24hex(p.vendor_id) && String(p.vendor_id)) ||
+        (is24hex(p.seller_user_id) && String(p.seller_user_id)) ||
+        assignedFromCtx || // << last fallback, matches admin list behavior
+        "";
+
       const dims = p.dimensions || {};
       const tags = Array.isArray(p.tags)
         ? p.tags.join("|")
@@ -2429,11 +2469,11 @@ exports.exportProductsCSV = async (req, res) => {
           : "";
 
       return {
-        productId: p._id || "", // keep if you use one
+        productId: p.productId || (p._id ? String(p._id) : ""),
         mongoId: String(p._id || ""),
         name: p.name || "",
         description: p.description || "",
-        sku: p.SKU || "",
+        sku: p.SKU || p.sku || "",
         brand: p.brand || "",
         price: p.price ?? "",
         stock: p.stock ?? "",
@@ -2456,7 +2496,7 @@ exports.exportProductsCSV = async (req, res) => {
         productGallery: Array.isArray(p.gallery_imgs)
           ? p.gallery_imgs.join("|")
           : "",
-        sellerId: seller._id ? String(seller._id) : p.seller_id || "",
+        seller_id: sellerIdOut,
       };
     });
 
@@ -2465,12 +2505,13 @@ exports.exportProductsCSV = async (req, res) => {
 
     res.setHeader("Content-Type", "text/csv");
     res.setHeader("Content-Disposition", 'attachment; filename="products.csv"');
-    return res.send(csv);
+    return res.status(200).send(csv);
   } catch (e) {
     console.error("exportProductsCSV error", e);
     return res.status(500).json({ message: e.message || "Export failed" });
   }
 };
+
 
 // ---------- DOWNLOAD ONE ROW (by _id or SKU) ----------
 exports.downloadProductRow = async (req, res) => {
