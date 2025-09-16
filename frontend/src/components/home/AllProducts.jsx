@@ -11,24 +11,22 @@ const getPincode = () => localStorage.getItem("deliveryPincode") || "";
 // const API_FACETS = `${import.meta.env.VITE_API_URL}/api/products`;
 // choose endpoints based on pincode
 const getApiBase = (pin) => {
-  const base = import.meta.env.VITE_API_URL || "";
-
   if (pin) {
-    // Vendor flow (respect assign-vendor): keep your existing endpoints
+    // vendor-scoped endpoints (respect assigned vendor for this pincode)
     return {
-      list: `${base}/api/products/public`,
-      facets: `${base}/api/products/facets`,
-      extraParams: {}, // public list doesn't need scope
+      list: `${import.meta.env.VITE_API_URL}/api/products/public`,
+      facets: `${import.meta.env.VITE_API_URL}/api/products/facets`,
+      extraParams: {}, // public endpoints don't use scope
     };
   }
-
-  // No pincode → always show FULL catalog (new endpoints)
+  // admin list (show all: global + vendor)
   return {
-    list: `${base}/api/products/all`,
-    facets: `${base}/api/products/facets/all`,
-    extraParams: {}, // no scope param needed
+    list: `${import.meta.env.VITE_API_URL}/api/products`,
+    facets: `${import.meta.env.VITE_API_URL}/api/products/facets`,
+    extraParams: { scope: "all" },
   };
 };
+
 export default function ProductListingFull() {
   const [search, setSearch] = useState("");
   const [minPrice, setMinPrice] = useState(0);
@@ -68,20 +66,20 @@ export default function ProductListingFull() {
       return copy;
     });
   }
-useEffect(() => {
-  if (pincode) {
-    instance.defaults.headers.common["X-Pincode"] = pincode;
-  } else {
-    delete instance.defaults.headers.common["X-Pincode"];
-  }
-}, [pincode]);
+  useEffect(() => {
+    if (pincode) {
+      instance.defaults.headers.common["X-Pincode"] = pincode;
+    } else {
+      delete instance.defaults.headers.common["X-Pincode"];
+    }
+  }, [pincode]);
 
-// optional: listen to a custom event if your app updates pincode elsewhere
-useEffect(() => {
-  const onPinChange = () => setPincode(getPincode());
-  window.addEventListener("pincode:changed", onPinChange);
-  return () => window.removeEventListener("pincode:changed", onPinChange);
-}, []);
+  // optional: listen to a custom event if your app updates pincode elsewhere
+  useEffect(() => {
+    const onPinChange = () => setPincode(getPincode());
+    window.addEventListener("pincode:changed", onPinChange);
+    return () => window.removeEventListener("pincode:changed", onPinChange);
+  }, []);
   function resetFilters() {
     setSearch("");
     setMinPrice(priceRange.min);
@@ -423,16 +421,18 @@ useEffect(() => {
                 <button
                   aria-label="Grid view"
                   onClick={() => setView("grid")}
-                  className={`px-2 py-1 text-sm ${view === "grid" ? "font-semibold" : ""
-                    }`}
+                  className={`px-2 py-1 text-sm ${
+                    view === "grid" ? "font-semibold" : ""
+                  }`}
                 >
                   Grid
                 </button>
                 <button
                   aria-label="Table / row view"
                   onClick={() => setView("table")}
-                  className={`px-2 py-1 text-sm ${view === "table" ? "font-semibold" : ""
-                    }`}
+                  className={`px-2 py-1 text-sm ${
+                    view === "table" ? "font-semibold" : ""
+                  }`}
                 >
                   Rows
                 </button>
@@ -585,16 +585,18 @@ useEffect(() => {
             <button
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className={`px-3 py-1 border rounded text-sm ${page <= 1 ? "opacity-50 cursor-not-allowed" : ""
-                }`}
+              className={`px-3 py-1 border rounded text-sm ${
+                page <= 1 ? "opacity-50 cursor-not-allowed" : ""
+              }`}
             >
               Prev
             </button>
             <button
               disabled={page >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className={`px-3 py-1 border rounded text-sm ${page >= totalPages ? "opacity-50 cursor-not-allowed" : ""
-                }`}
+              className={`px-3 py-1 border rounded text-sm ${
+                page >= totalPages ? "opacity-50 cursor-not-allowed" : ""
+              }`}
             >
               Next
             </button>

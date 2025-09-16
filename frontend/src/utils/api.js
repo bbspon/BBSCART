@@ -1,10 +1,15 @@
 import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL+"/api";
+// const api = axios.create({
+//     baseURL: "http://localhost:4000/api",
+//     timeout: 45000,
+//     withCredentials: false,   // set to true only if you’re using cookies
+// });
 const api = axios.create({
-    baseURL: "http://localhost:4000/api",
-    timeout: 45000,
-    withCredentials: false,   // set to true only if you’re using cookies
+  baseURL: API_URL,
+  timeout: 45000,
+  withCredentials: false, // set to true only if you’re using cookies
 });
 
 // Flag to track refresh attempts
@@ -56,14 +61,56 @@ export default api;
 
 
 
+// // import axios from "axios";
+
+// // const API = axios.create({
+// //   // backend base — note: server.js is on port 5000 and vendor routes mounted at /vendors
+
+// //   baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
+
+// //   timeout: 30000,
+// // });
+
+// // export default API;
+
+
 // import axios from "axios";
 
-// const API = axios.create({
-//   // backend base — note: server.js is on port 5000 and vendor routes mounted at /vendors
+// function resolveBaseURL() {
+//   let url = import.meta.env.VITE_API_BASE_URL || "/api";
+//   if (typeof window !== "undefined") {
+//     const prod =
+//       window.location.hostname !== "localhost" &&
+//       window.location.hostname !== "127.0.0.1";
+//     const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(url);
+//     if (prod && isLocal) url = "/api";
+//   }
+//   return url.endsWith("/") ? url.slice(0, -1) : url;
+// }
 
-//   baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
-
-//   timeout: 30000,
+// const api = axios.create({
+//   baseURL: resolveBaseURL(), // -> "/api" in prod
+//   withCredentials: true, // if you use cookies for auth
+//   timeout: 45000,
+//   headers: {
+//     "Content-Type": "application/json",
+//     "X-Requested-With": "XMLHttpRequest",
+//   },
 // });
 
-// export default API;
+// api.interceptors.response.use(
+//   (res) => {
+//     const ct = res.headers?.["content-type"] || "";
+//     if (typeof res.data === "string" && ct.includes("text/html")) {
+//       console.error(
+//         "[api] HTML from API. Check Nginx/Express routing. Sample:",
+//         res.data.slice(0, 160)
+//       );
+//       throw new Error("API returned HTML instead of JSON");
+//     }
+//     return res;
+//   },
+//   (err) => Promise.reject(err)
+// );
+
+// export default api;
