@@ -2,9 +2,13 @@
 const express = require("express");
 const router = express.Router();
 const { uploadFields } = require("../middleware/upload");
-const { deriveAssignedVendor, requireAdmin } = require('../middleware/vendorContext');
+const {
+  deriveAssignedVendor,
+  requireAdmin,
+} = require("../middleware/vendorContext");
 const { uploadImport } = require("../middleware/upload");
-
+const multer = require("multer");
+const path = require("path");
 // Safe import helpers
 const safe = (fn) =>
   typeof fn === "function"
@@ -53,6 +57,19 @@ try {
 } catch (_) {}
 
 // ---------- PUBLIC CATALOG (keep vendor-scoped; assignment logic intact) ----------
+const storage = multer.memoryStorage();
+const csvFileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (ext !== ".csv" && file.mimetype !== "text/csv") {
+    return cb(new Error("Invalid file type. Only .csv allowed"), false);
+  }
+  cb(null, true);
+};
+const uploadCsv = multer({
+  storage,
+  fileFilter: csvFileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 
 router.post(
   "/import-csv",
@@ -61,9 +78,20 @@ router.post(
   safe(productController.importProductsCSV)
 );
 
-router.get("/export-csv", authUser,deriveAssignedVendor, safe(productController.exportProductsCSV));
+router.get(
+  "/export-csv",
+  authUser,
+  deriveAssignedVendor,
+  safe(productController.exportProductsCSV)
+);
+router.post(
+  "/import-all",
+  authUser,
+  deriveAssignedVendor,
+  uploadCsv.single("file"),
 
-// one-row download by Mongo _id or SKU
+  safe(productController.importAllCSV)
+); // one-row download by Mongo _id or SKU
 router.get(
   "/download-row/:idOrSku",
   authUser,

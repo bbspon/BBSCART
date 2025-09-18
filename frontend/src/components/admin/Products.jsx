@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { NavLink } from "react-router-dom";
 import "./assets/dashboard.css";
 import Sidebar from "./layout/sidebar";
@@ -41,20 +41,29 @@ const Products = () => {
   const [sortConfig, setSortConfig] = useState({ key: "", direction: "" });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 25;
-const catMap = useMemo(
-  () => new Map(categories.map((c) => [String(c._id), c.name])),
-  [categories]
-);
-const subMap = useMemo(
-  () => new Map(subCategories.map((s) => [String(s._id), s.name])),
-  [subCategories]
-);
 
-// helper to resolve either an object {_id, name} or a raw id
-const resolveName = (map, idOrObj) => {
-  const id = idOrObj && typeof idOrObj === "object" ? idOrObj._id : idOrObj;
-  return id ? map.get(String(id)) || "" : "";
-};
+  // ---------- NEW: Import-All CSV UI state ----------
+  const [iaDryRun, setIaDryRun] = useState(true); // dry run toggle
+  const [iaMode, setIaMode] = useState("lenient"); // 'lenient' | 'strict'
+  const [iaLoading, setIaLoading] = useState(false);
+  const [iaResult, setIaResult] = useState(null);
+  const importAllInputRef = useRef(null);
+  // --------------------------------------------------
+
+  const catMap = useMemo(
+    () => new Map(categories.map((c) => [String(c._id), c.name])),
+    [categories]
+  );
+  const subMap = useMemo(
+    () => new Map(subCategories.map((s) => [String(s._id), s.name])),
+    [subCategories]
+  );
+
+  // helper to resolve either an object {_id, name} or a raw id
+  const resolveName = (map, idOrObj) => {
+    const id = idOrObj && typeof idOrObj === "object" ? idOrObj._id : idOrObj;
+    return id ? map.get(String(id)) || "" : "";
+  };
 
   // keep URL ?page=
   useEffect(() => {
@@ -71,16 +80,17 @@ const resolveName = (map, idOrObj) => {
       `${window.location.pathname}?${params}`
     );
   }, [currentPage]);
-const is24hex = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || "").trim());
 
-const getSellerId = (p) => {
-  const s = p?.seller_id;
-  if (s && typeof s === "object" && s._id) return String(s._id); // populated
-  if (is24hex(s)) return String(s); // raw ObjectId string
-  if (is24hex(p?.vendor_id)) return String(p.vendor_id); // fallback, if present
-  if (is24hex(p?.seller_user_id)) return String(p.seller_user_id); // fallback, if present
-  return "";
-};
+  const is24hex = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || "").trim());
+
+  const getSellerId = (p) => {
+    const s = p?.seller_id;
+    if (s && typeof s === "object" && s._id) return String(s._id); // populated
+    if (is24hex(s)) return String(s); // raw ObjectId string
+    if (is24hex(p?.vendor_id)) return String(p.vendor_id); // fallback, if present
+    if (is24hex(p?.seller_user_id)) return String(p.seller_user_id); // fallback, if present
+    return "";
+  };
 
   // ------------ Data fetchers (admin, /api/..., no pincode) ------------
   const fetchCategories = async () => {
@@ -150,6 +160,7 @@ const getSellerId = (p) => {
   }, [searchQuery, sortConfig, products]);
 
   const handleSearchChange = (e) => setSearchQuery(e.target.value);
+
   // real CSV export (text/csv)
   const handleExportCsv = async () => {
     try {
@@ -180,9 +191,13 @@ const getSellerId = (p) => {
     const form = new FormData();
     form.append("file", file);
     try {
-      const res = await instance.post(`${import.meta.env.VITE_API_URL}/api/products/import-csv`, form, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await instance.post(
+        `${import.meta.env.VITE_API_URL}/api/products/import-csv`,
+        form,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
       toast.success(
         `Import done. Created: ${res.data.created}, Updated: ${res.data.updated}, Skipped: ${res.data.skipped}`
       );
@@ -192,6 +207,46 @@ const getSellerId = (p) => {
       toast.error(e?.response?.data?.message || "CSV import failed");
     }
   };
+
+  // ------------ Import-All CSV (NEW) ------------
+  const handleImportAllCsv = async (file) => {
+    if (!file) {
+      toast.error("Pick a CSV file");
+      return;
+    }
+    setIaResult(null);
+    setIaLoading(true);
+    const form = new FormData();
+    form.append("file", file);
+    try {
+      const url = `${
+        import.meta.env.VITE_API_URL
+      }/api/products/import-all?dryRun=${
+        iaDryRun ? "true" : "false"
+      }&mode=${iaMode}`;
+      const res = await instance.post(url, form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setIaResult(res?.data || null);
+      if (iaDryRun) {
+        toast.success("Dry run OK. Review the stats below.");
+      } else {
+        toast.success("Import-all completed");
+        // refresh lists after real run
+        fetchCategories();
+        fetchSubCategories();
+        fetchProducts();
+      }
+    } catch (e) {
+      const msg = e?.response?.data?.error || e?.message || "Import-all failed";
+      setIaResult(e?.response?.data || null);
+      toast.error(msg);
+    } finally {
+      setIaLoading(false);
+      if (importAllInputRef.current) importAllInputRef.current.value = "";
+    }
+  };
+  // ----------------------------------------------
 
   // ------------ CRUD ------------
   const handleAddProduct = async (payload /* FormData from ProductForm */) => {
@@ -267,9 +322,6 @@ const getSellerId = (p) => {
     currentPage * itemsPerPage
   );
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-
-  // ------------ Import / Export ------------
-
 
   const handleImport = async (file) => {
     if (!file) {
@@ -348,12 +400,14 @@ const getSellerId = (p) => {
                   </li>
                 </ul>
               </div>
-              {/* next to existing Export/Import UI */}
+
+              {/* existing Export CSV */}
               <button onClick={handleExportCsv} className="btn-download">
                 <i className="bx bxs-cloud-download bx-fade-down-hover" />
                 <span className="text">Export CSV (no images)</span>
               </button>
 
+              {/* existing Import CSV */}
               <label className="btn-import" style={{ cursor: "pointer" }}>
                 <i className="bx bxs-cloud-upload bx-fade-down-hover" />
                 <span className="text">Import CSV</span>
@@ -369,6 +423,78 @@ const getSellerId = (p) => {
                 />
               </label>
             </div>
+
+            {/* NEW: Import-All CSV controls */}
+            <div className="flex flex-col md:flex-row md:items-end gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 mb-4">
+              <div className="flex-1">
+                <div className="text-sm font-semibold mb-2">
+                  Import CSV (All-in-One: Categories + Subcategories + Products)
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <select
+                    value={iaMode}
+                    onChange={(e) => setIaMode(e.target.value)}
+                    className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                    title="Mode"
+                  >
+                    <option value="lenient">Lenient (skip bad rows)</option>
+                    <option value="strict">
+                      Strict (abort on first error)
+                    </option>
+                  </select>
+
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={iaDryRun}
+                      onChange={(e) => setIaDryRun(e.target.checked)}
+                    />
+                    Dry run (validate only)
+                  </label>
+
+                  <label
+                    className={`btn-import ${
+                      iaLoading ? "opacity-60 pointer-events-none" : ""
+                    }`}
+                    style={{ cursor: "pointer" }}
+                    title="Choose CSV for Import-All"
+                  >
+                    <i className="bx bxs-cloud-upload bx-fade-down-hover" />
+                    <span className="text">
+                      {iaLoading ? "Uploading..." : "Import-All CSV"}
+                    </span>
+                    <input
+                      ref={importAllInputRef}
+                      type="file"
+                      accept=".csv"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleImportAllCsv(f);
+                      }}
+                      style={{ display: "none" }}
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* NEW: Import-All result preview */}
+            {iaResult && (
+              <div className="mb-4">
+                <div className="overflow-auto rounded-xl shadow border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+                  <pre
+                    style={{
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                      fontSize: 12,
+                      margin: 0,
+                    }}
+                  >
+                    {JSON.stringify(iaResult, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            )}
 
             <div className="container mx-auto p-4">
               {errorMessage && (

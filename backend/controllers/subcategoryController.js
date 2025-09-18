@@ -38,19 +38,21 @@ async function resolveCategory(row) {
     if (c) return c;
   }
   if (name) {
-    const c = await Category.findOne({ name });
+    // ✅ case-insensitive match
+    const c = await Category.findOne({ name: new RegExp(`^${name}$`, "i") });
     if (c) return c;
   }
   return null;
 }
+
 
 function rowToSubDoc(row, category) {
   return {
     subcategoryId: toStr(row.subcategoryId) || undefined,
     name: toStr(row.name),
     description: toStr(row.description),
-    category_id: category?._id,
-    seller_id: toStr(row.sellerId) || undefined
+    category_id: category ? category._id : undefined, // ✅ ensure ObjectId
+    seller_id: toStr(row.sellerId) || undefined,
   };
 }
 
@@ -217,6 +219,10 @@ exports.importSubcategories = async (req, res, next) => {
         // optional extra aliases if your CSV ever uses them
         if (lk === "catid" && !row.categoryId) row.categoryId = raw[k];
         if (lk === "category" && !row.categoryName) row.categoryName = raw[k];
+        if (lk === "categoryname" && !row.categoryName)
+          row.categoryName = raw[k]; // ✅ new alias
+        if (lk === "category name" && !row.categoryName)
+          row.categoryName = raw[k]; // ✅ Excel-style header
         if (lk === "categoryslug" && !row.categorySlug)
           row.categorySlug = raw[k];
       });
