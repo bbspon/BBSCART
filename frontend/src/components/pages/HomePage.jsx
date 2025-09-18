@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect } from "react";
 import HeroSection from "../home/HeroSection";
 import SectionCategory from "../home/SectionCategory";
 import AnimationCards from "../home/AnimationCards";
@@ -11,9 +11,8 @@ import ProductList from "../products/ProductList";
 import BannerOne from "../home/BannerOne";
 import Services from "../home/Services";
 import CallToActionSection from "../home/CallToActionSection";
-import { useLocation } from 'react-router-dom';
-import AppDownloadCTA from '../layout/AppDownloadCTA';
-import CategoryMegaMenu from "../../storefront/components/CategoryMegaMenu";
+import { useLocation } from "react-router-dom";
+import AppDownloadCTA from "../layout/AppDownloadCTA";
 
 function HomePage() {
   const location = useLocation();
@@ -23,13 +22,10 @@ function HomePage() {
   }, [location]);
   return (
     <>
-
-      {/* Page Content */}
-      <CategoryMegaMenu />
       <HeroSection />
       <div className="homepage bbscontainer">
         <SectionCategory />
-        <div className='home'>
+        <div className="home">
           <ProductList heading="Grocery Items" type="Slider" />
         </div>
         <TrendingItems />
@@ -46,9 +42,8 @@ function HomePage() {
         <Services />
       </div>
       {/* Page Content */}
-
     </>
-  )
+  );
 }
 
-export default HomePage
+export default HomePage;

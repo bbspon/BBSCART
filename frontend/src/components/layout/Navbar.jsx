@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { ProductService } from "../../services/ProductService";
 import { useSelector } from "react-redux";
 import ReactDOM from "react-dom";
+import CategoryMegaMenu from "../../storefront/components/CategoryMegaMenu";
 
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(false);
@@ -132,86 +133,31 @@ const MegaMenu = ({ menuType }) => {
           </button>
 
           <ul className="hidden lg:flex overflow-x-auto no-scrollbar justify-center space-x-2 lg:space-x-8 py-2 w-full">
-            {fullMenuData.map((item) => (
-              <li
-                key={item.id}
-                className="relative group flex-shrink-0"
-                onMouseEnter={() => setActiveMenu(item.id)}
-                onMouseLeave={() => setActiveMenu(null)}
-              >
-                {item.externalLink ? (
-                  <a
-                    href={item.externalLink}
-                    className="flex items-center gap-1 px-4 py-2 rounded-md font-semibold text-gray-800 hover:bg-[#f7eaea] hover:text-[#cf1717] transition"
-                  >
-                    {item.title}
-                  </a>
-                ) : (
-                  <button
-                    className={cn(
-                      "flex items-center gap-1 px-4 py-2 rounded-md font-semibold text-gray-800 hover:bg-[#f7eaea] hover:text-[#cf1717] transition",
-                      activeMenu === item.id
-                        ? "bg-[#f7eaea] text-[#cf1717]"
-                        : ""
-                    )}
-                    aria-haspopup="true"
-                    aria-expanded={activeMenu === item.id}
-                  >
-                    <span>{item.title}</span>
-                    <svg
-                      className="w-4 h-4 ml-1"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
+            {/* Render Category MegaMenu here */}
+            <li className="relative group flex-shrink-0">
+              <CategoryMegaMenu />
+            </li>
+
+            {/* Keep other external links */}
+            {fullMenuData
+              .filter((item) => item.id !== "grocery-1") // remove supermarket
+              .map((item) => (
+                <li
+                  key={item.id}
+                  className="relative group flex-shrink-0"
+                  onMouseEnter={() => setActiveMenu(item.id)}
+                  onMouseLeave={() => setActiveMenu(null)}
+                >
+                  {item.externalLink ? (
+                    <a
+                      href={item.externalLink}
+                      className="flex items-center gap-1 px-4 py-2 rounded-md font-semibold text-gray-800 hover:bg-[#f7eaea] hover:text-[#cf1717] transition"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
-                )}
-                {!item.externalLink &&
-                  activeMenu === item.id &&
-                  item.submenu &&
-                  ReactDOM.createPortal(
-                    <div className="fixed left-0 top-20 w-full h-full z-[9999] pointer-events-none">
-                      <div className="absolute left-1/2 -translate-x-1/2 top-40 w-[95vw] max-w-5xl bg-white border border-[#cf1717] rounded-xl shadow-2xl p-6 flex flex-col pointer-events-auto">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
-                          {item.submenu.map((submenu) => (
-                            <div
-                              key={submenu.id}
-                              className="flex-1 min-w-[180px] max-w-xs"
-                            >
-                              <div className="mb-2 border-b border-[#cf1717] pb-1">
-                                <h3 className="text-base font-bold text-[#cf1717] mb-0.5">
-                                  {submenu.title}
-                                </h3>
-                              </div>
-                              <ul className="space-y-1 mt-2">
-                                {submenu.items.map((subItem) => (
-                                  <li key={subItem.id}>
-                                    <a
-                                      href={subItem.link}
-                                      className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-gray-700 hover:bg-[#cf1717]/10 hover:text-[#cf1717] transition group"
-                                    >
-                                      <span className="inline-block w-2 h-2 rounded-full bg-[#cf1717] opacity-60 group-hover:opacity-100"></span>
-                                      <span>{subItem.title}</span>
-                                    </a>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>,
-                    document.body
-                  )}
-              </li>
-            ))}
+                      {item.title}
+                    </a>
+                  ) : null}
+                </li>
+              ))}
           </ul>
         </div>
       </nav>
