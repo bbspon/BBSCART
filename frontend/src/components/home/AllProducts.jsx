@@ -34,15 +34,15 @@ const getApiBase = (pin) => {
   if (pin) {
     // vendor-scoped endpoints (respect assigned vendor for this pincode)
     return {
-      list: `${import.meta.env.VITE_API_URL}/products/public`,
-      facets: `${import.meta.env.VITE_API_URL}/products/facets`,
+      list: `${import.meta.env.VITE_API_URL}/api/products/public`,
+      facets: `${import.meta.env.VITE_API_URL}/api/products/facets`,
       extraParams: {}, // public endpoints don't use scope
     };
   }
   // admin list (show all: global + vendor)
   return {
-    list: `${import.meta.env.VITE_API_URL}/products`,
-    facets: `${import.meta.env.VITE_API_URL}/products/facets`,
+    list: `${import.meta.env.VITE_API_URL}/api/products`,
+    facets: `${import.meta.env.VITE_API_URL}/api/products/facets`,
     extraParams: { scope: "all" },
   };
 };
