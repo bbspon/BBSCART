@@ -95,8 +95,7 @@ async function isSupermarketRequest(req) {
 app.use(async (req, res, next) => {
   // Tenant guard: only bbscart.com (not ThiaWorld Jewellery)
   const host = (req.headers.host || "").split(":")[0].toLowerCase();
-  const hostOk = PINCODE_ENFORCE_HOSTS.some(h => host.endsWith(h));
-  if (!hostOk) return next();
+const hostOk = PINCODE_ENFORCE_HOSTS.some((h) => host === h);  if (!hostOk) return next();
 
   // Only for certain API roots
   const pathOk = PINCODE_ENFORCE_PATHS.some(p => req.path.startsWith(p));
