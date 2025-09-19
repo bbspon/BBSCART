@@ -86,7 +86,7 @@ const ProductSchema = new mongoose.Schema(
 
     // Admin global vs vendor product
     is_review: { type: Boolean, default: false },
-    seller_id: { type: ObjectId, ref: "User", default: null, index: true },
+    seller_id: { type: ObjectId, ref: "Vendor", default: null, index: true },
     is_global: { type: Boolean, default: false, index: true },
     // Ratings & specs
     rating_avg: { type: Number, min: 0, max: 5, default: 0, index: true },
