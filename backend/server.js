@@ -49,24 +49,37 @@ const assignVendorMiddleware = require("./middleware/assignVendorMiddleware");
 const Product = require("./models/Product");
 
 // ENV knobs (easy to tune without code changes)
-const PINCODE_ENFORCE_HOSTS =
-  (process.env.PINCODE_ENFORCE_HOSTS || "bbscart.com")
-    .split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+const PINCODE_ENFORCE_HOSTS = (
+  process.env.PINCODE_ENFORCE_HOSTS || "bbscart.com"
+)
+  .split(",")
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
 
 // which API roots should ever be gated by pincode (products, cart, etc.)
-const PINCODE_ENFORCE_PATHS =
-  (process.env.PINCODE_ENFORCE_PATHS || "/api/products,/api/cart,/api/wishlist,/api/orders")
-    .split(",").map(s => s.trim()).filter(Boolean);
+const PINCODE_ENFORCE_PATHS = (
+  process.env.PINCODE_ENFORCE_PATHS ||
+  "/api/products,/api/cart,/api/wishlist,/api/orders"
+)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 
 // which categories (by slug) actually require pincode/vendor
-const PINCODE_ENFORCE_CATEGORIES =
-  (process.env.PINCODE_ENFORCE_CATEGORIES || "supermarket")
-    .split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+const PINCODE_ENFORCE_CATEGORIES = (
+  process.env.PINCODE_ENFORCE_CATEGORIES || "supermarket"
+)
+  .split(",")
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
 
 // Attempt to decide if this request is for a "Supermarket" product/category
 async function isSupermarketRequest(req) {
   // Fast-path: if you have dedicated supermarket API roots (tweak as needed)
-  if (req.path.startsWith("/api/groceries") || req.path.startsWith("/api/fruits")) {
+  if (
+    req.path.startsWith("/api/groceries") ||
+    req.path.startsWith("/api/fruits")
+  ) {
     return true;
   }
 
@@ -82,7 +95,9 @@ async function isSupermarketRequest(req) {
   }
 
   // If the client passes category info in query/body (list/filter/create)
-  const catSlug = String(req.query?.category_slug || req.body?.category_slug || "").toLowerCase();
+  const catSlug = String(
+    req.query?.category_slug || req.body?.category_slug || ""
+  ).toLowerCase();
   if (catSlug && PINCODE_ENFORCE_CATEGORIES.includes(catSlug)) return true;
 
   // If you only have category_id, you can optionally resolve it here (extra DB hit):
@@ -95,10 +110,11 @@ async function isSupermarketRequest(req) {
 app.use(async (req, res, next) => {
   // Tenant guard: only bbscart.com (not ThiaWorld Jewellery)
   const host = (req.headers.host || "").split(":")[0].toLowerCase();
-const hostOk = PINCODE_ENFORCE_HOSTS.some((h) => host === h);  if (!hostOk) return next();
+  const hostOk = PINCODE_ENFORCE_HOSTS.some((h) => host.endsWith(h));
+  if (!hostOk) return next();
 
   // Only for certain API roots
-  const pathOk = PINCODE_ENFORCE_PATHS.some(p => req.path.startsWith(p));
+  const pathOk = PINCODE_ENFORCE_PATHS.some((p) => req.path.startsWith(p));
   if (!pathOk) return next();
 
   // Only when the category involved is "supermarket"
@@ -109,7 +125,6 @@ const hostOk = PINCODE_ENFORCE_HOSTS.some((h) => host === h);  if (!hostOk) retu
   return assignVendorMiddleware(req, res, next);
 });
 // ---- END: Scoped vendor+pincode enforcement ----
-
 
 app.use(
   cors({
