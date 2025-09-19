@@ -215,7 +215,6 @@ app.use("/api/agent-heads", agentHeadRoutes);
 
 app.use("/api/auth", authRoutes); // 🔐 Shared Login/Register from bbs-auth
 app.use("/api/admin", adminRoutes);
-app.use(require("./middleware/assignVendorMiddleware"));
 
 app.use("/api/products", productRoutes);
 app.use("/api/groceries", require("./routes/groceryRoutes"));
