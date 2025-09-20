@@ -30,7 +30,11 @@ export const register = async (userData, dispatch, navigate) => {
 // Login function
 export const login = async (dispatch, email, password, navigate) => {
     try {
-        const response = await api.post(`${import.meta.env.VITE_API_URL}/auth/login`, { email, password }, { withCredentials: true });
+        const response = await instance.post(
+          `/auth/login`,
+          { email, password },
+          { withCredentials: true }
+        );
 
         if (response.status === 200 && response.data?.user) {
             const user = response.data.user;
