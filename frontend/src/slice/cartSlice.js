@@ -1,14 +1,12 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from '../utils/api';
-import instance from '../services/axiosInstance';
+
 const BASE_URL = "/cart"; // Update this with your backend URL
 
 // ✅ Fetch cart items
 export const fetchCartItems = createAsyncThunk("cart/fetchCartItems", async (_, { rejectWithValue }) => {
     try {
-        const response = await instance.get(`${BASE_URL}`, {
-          withCredentials: true,
-        });
+        const response = await api.get(`${BASE_URL}`, { withCredentials: true });
         return response.data;
     } catch (error) {
         return rejectWithValue(error.response?.data || "Error fetching cart items");
@@ -23,10 +21,10 @@ export const addToCart = createAsyncThunk(
     try {
         if (!productId) throw new Error("Product ID is missing");
 
-        const response = await instance.post(
-          `${BASE_URL}/add`,
-          { productId, variantId, quantity },
-          { withCredentials: true }
+        const response = await api.post(
+            `${BASE_URL}/add`, 
+            { productId, variantId, quantity }, 
+            { withCredentials: true }
         );
 
         console.log("API Response:", response.data);
@@ -43,10 +41,10 @@ export const updateQuantity = createAsyncThunk(
   async ({ productId, variantId = null, quantity }, { rejectWithValue }) => {
     console.log("Updating Quantity:", { productId, variantId, quantity });
     try {
-        const response = await instance.put(
-          `${BASE_URL}/update`,
-          { productId, variantId, quantity },
-          { withCredentials: true }
+        const response = await api.put(
+            `${BASE_URL}/update`, 
+            { productId, variantId, quantity }, 
+            { withCredentials: true }
         );
 
         return response.data;
@@ -62,9 +60,9 @@ export const removeFromCart = createAsyncThunk(
     async ({ productId, variantId = null }, { rejectWithValue }) => {
         console.log("removeFromCart:", productId, variantId); // Debugging
         try {
-            await instance.delete(`${BASE_URL}/remove/${productId}`, {
-              data: { variantId },
-              withCredentials: true,
+            await api.delete(`${BASE_URL}/remove/${productId}`, { 
+                data: { variantId }, 
+                withCredentials: true 
             });
             return { productId, variantId };
         } catch (error) {
@@ -76,7 +74,7 @@ export const removeFromCart = createAsyncThunk(
 // ✅ Clear entire cart
 export const clearCart = createAsyncThunk("cart/clearCart", async (_, { rejectWithValue }) => {
     try {
-        await instance.delete(`${BASE_URL}/clear`, { withCredentials: true });
+        await api.delete(`${BASE_URL}/clear`, { withCredentials: true });
         return [];
     } catch (error) {
         return rejectWithValue(error.response?.data || "Error clearing cart");
