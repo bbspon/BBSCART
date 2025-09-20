@@ -22,15 +22,15 @@ const getApiBase = (pin) => {
   if (pin) {
     // vendor-scoped endpoints
     return {
-      list: `/products/public`,
-      facets: `/products/facets`,
+      list: `/api/products/public`,
+      facets: `/api/products/facets`,
       extraParams: {},
     };
   }
   // global list
   return {
-    list: `/products`,
-    facets: `/products/facets`,
+    list: `/api/products`,
+    facets: `/api/products/facets`,
     extraParams: { scope: "all" },
   };
 };
