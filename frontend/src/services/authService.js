@@ -1,7 +1,7 @@
 import toast from "react-hot-toast";
 import { logoutUser, setUser } from "../slice/authSlice";
 import api from "../utils/api"; // Import the centralized Axios instance
-
+import instance from "./axiosInstance";
 // Register function
 export const register = async (userData, dispatch, navigate) => {
     try {
@@ -30,7 +30,7 @@ export const register = async (userData, dispatch, navigate) => {
 // Login function
 export const login = async (dispatch, email, password, navigate) => {
     try {
-        const response = await api.post(`${import.meta.env.VITE_API_URL}/api/auth/login`, { email, password }, { withCredentials: true });
+        const response = await api.post(`${import.meta.env.VITE_API_URL}/auth/login`, { email, password }, { withCredentials: true });
 
         if (response.status === 200 && response.data?.user) {
             const user = response.data.user;
@@ -116,7 +116,9 @@ export const updateProfile = async (userData) => {
 // Load User (Fixed infinite loop issue)
 export const loadUser = () => async (dispatch) => {
     try {
-        const response = await api.get("/auth/me", { withCredentials: true });
+        const response = await instance.get("/auth/me", {
+          withCredentials: true,
+        });
 
         console.log("User Data on Refresh:", response.data); // ✅ Debugging
 

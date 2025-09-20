@@ -1,51 +1,40 @@
-// ProductListingFull.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import instance from "../../services/axiosInstance"; // adjust path as needed
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 function pickMainImage(p) {
-  // 1. Prefer first gallery image
   let raw =
     Array.isArray(p.gallery_imgs) && p.gallery_imgs.length > 0
       ? p.gallery_imgs[0]
       : "";
-
-  // 2. Fallbacks if gallery is empty
   if (!raw)
     raw = Array.isArray(p.product_img) ? p.product_img[0] : p.product_img;
   if (!raw)
     raw = Array.isArray(p.product_img2) ? p.product_img2[0] : p.product_img2;
-
   if (!raw) return "/img/placeholder.png";
-
-  // 3. Normalize /uploads/ → full URL
   return raw.startsWith("/uploads/") ? `${API_BASE}${raw}` : raw;
 }
 
-// Helpers
 const inr = (n) => new Intl.NumberFormat("en-IN").format(n);
 const getPincode = () => localStorage.getItem("deliveryPincode") || "";
 
-// // API endpoints Need to Update
-// const API_LIST = `${import.meta.env.VITE_API_URL}/api/products`;
-// const API_FACETS = `${import.meta.env.VITE_API_URL}/api/products`;
-// choose endpoints based on pincode
 const getApiBase = (pin) => {
   if (pin) {
-    // vendor-scoped endpoints (respect assigned vendor for this pincode)
+    // vendor-scoped endpoints
     return {
-      list: `${import.meta.env.VITE_API_URL}/products/public`,
-      facets: `${import.meta.env.VITE_API_URL}/products/facets`,
-      extraParams: {}, // public endpoints don't use scope
+      list: `/products/public`,
+      facets: `/products/facets`,
+      extraParams: {},
     };
   }
-  // admin list (show all: global + vendor)
+  // global list
   return {
-    list: `${import.meta.env.VITE_API_URL}/products`,
-    facets: `${import.meta.env.VITE_API_URL}/products/facets`,
+    list: `/products`,
+    facets: `/products/facets`,
     extraParams: { scope: "all" },
   };
 };
+
 
 export default function ProductListingFull() {
   const [search, setSearch] = useState("");
@@ -86,6 +75,7 @@ export default function ProductListingFull() {
       return copy;
     });
   }
+
   useEffect(() => {
     if (pincode) {
       instance.defaults.headers.common["X-Pincode"] = pincode;
@@ -94,12 +84,12 @@ export default function ProductListingFull() {
     }
   }, [pincode]);
 
-  // optional: listen to a custom event if your app updates pincode elsewhere
   useEffect(() => {
     const onPinChange = () => setPincode(getPincode());
     window.addEventListener("pincode:changed", onPinChange);
     return () => window.removeEventListener("pincode:changed", onPinChange);
   }, []);
+
   function resetFilters() {
     setSearch("");
     setMinPrice(priceRange.min);
@@ -172,7 +162,7 @@ export default function ProductListingFull() {
         : undefined,
       gstInvoice: gstInvoiceOnly || undefined,
       deliveryIn1Day: delivery1DayOnly || undefined,
-      sort: sortBy,
+      sortBy, // changed from sort
       page,
       limit,
     };
