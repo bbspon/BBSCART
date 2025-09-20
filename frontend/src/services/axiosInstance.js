@@ -1,7 +1,8 @@
 import axios from "axios";
 import { getGuestKey, ensureGuestKey } from "../utils/guestKey";
+
 const instance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL + "/api",
+  baseURL: import.meta.env.VITE_API_URL || "/api",
   withCredentials: true,
 });
 // If you use token-based auth, attach it here:

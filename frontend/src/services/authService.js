@@ -1,12 +1,12 @@
 import toast from "react-hot-toast";
 import { logoutUser, setUser } from "../slice/authSlice";
 import api from "../utils/api"; // Import the centralized Axios instance
-import instance from "./axiosInstance";
+
 // Register function
 export const register = async (userData, dispatch, navigate) => {
     try {
-        const response = await instance.post(
-          `/api/auth/register`,
+        const response = await api.post(
+          `${import.meta.env.VITE_API_URL}/api/auth/register`,
           userData
         );
  if (response.status >= 200 && response.status < 300 && response.data?.user) {
@@ -30,11 +30,7 @@ export const register = async (userData, dispatch, navigate) => {
 // Login function
 export const login = async (dispatch, email, password, navigate) => {
     try {
-        const response = await instance.post(
-          `/api/auth/login`,
-          { email, password },
-          { withCredentials: true }
-        );
+        const response = await api.post(`${import.meta.env.VITE_API_URL}/api/auth/login`, { email, password }, { withCredentials: true });
 
         if (response.status === 200 && response.data?.user) {
             const user = response.data.user;
@@ -58,7 +54,7 @@ export const login = async (dispatch, email, password, navigate) => {
 // Logout function
 export const logout = async (dispatch) => {
     try {
-        await instance.post("/auth/logout");
+        await api.post("/auth/logout");
     } catch (error) {
         console.error("Logout failed:", error.response?.data?.message || error.message);
     }
@@ -72,7 +68,7 @@ export const logout = async (dispatch) => {
 // Forgot Password
 export const forgotPassword = async (email) => {
     try {
-        await instance.post("/auth/forgot-password", { email });
+        await api.post("/auth/forgot-password", { email });
         toast.success("Password reset link sent to your email");
     } catch (error) {
         console.error("Forgot Password Error:", error.response?.data || error.message);
@@ -83,7 +79,7 @@ export const forgotPassword = async (email) => {
 // Reset Password
 export const resetPassword = async (token, password) => {
     try {
-        await instance.post(`/auth/reset-password/${token}`, { password });
+        await api.post(`/auth/reset-password/${token}`, { password });
         toast.success("Password reset successful. Please login.");
     } catch (error) {
         console.error("Reset Password Error:", error.response?.data || error.message);
@@ -94,7 +90,7 @@ export const resetPassword = async (token, password) => {
 // Check if user is authenticated
 export const isAuthenticated = async () => {
     try {
-        const response = await instance.get("/auth/check-auth");
+        const response = await api.get("/auth/check-auth");
         return response.data; // Returns userId and role if valid
     } catch (error) {
         localStorage.removeItem("token");
@@ -105,10 +101,10 @@ export const isAuthenticated = async () => {
 // Update Profile
 export const updateProfile = async (userData) => {
     try {
-        const response = await instance.put("/auth/update-profile", userData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
+        const response = await api.put("/auth/update-profile", userData, {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
         });
         return response.data; // Returns updated user data
     } catch (error) {
@@ -120,9 +116,7 @@ export const updateProfile = async (userData) => {
 // Load User (Fixed infinite loop issue)
 export const loadUser = () => async (dispatch) => {
     try {
-        const response = await instance.get("/api/auth/me", {
-          withCredentials: true,
-        });
+        const response = await api.get("/auth/me", { withCredentials: true });
 
         console.log("User Data on Refresh:", response.data); // ✅ Debugging
 
