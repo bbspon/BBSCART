@@ -70,7 +70,7 @@ export default function TerritoryHeadForm() {
     const fd = new FormData();
     fd.append("document", file);
     const { data } = await axios.post(
-      `${import.meta.env.VITE_API_URL}/territory-heads/upload`,
+      `${import.meta.env.VITE_API_URL}/api/territory-heads/upload`,
       fd,
       { headers: { "Content-Type": "multipart/form-data" } }
     );
@@ -86,7 +86,7 @@ export default function TerritoryHeadForm() {
     try {
       const fileUrl = await uploadDoc(file);
       const r = await axios.post(
-        `${import.meta.env.VITE_API_URL}/territory-heads/step-by-key`,
+        `${import.meta.env.VITE_API_URL}/api/territory-heads/step-by-key`,
         { territoryHeadId, pan_pic: fileUrl }
       );
       const id = r?.data?.data?._id;
@@ -112,7 +112,7 @@ export default function TerritoryHeadForm() {
         dob: formData.dob || "",
       };
       const resp = await axios.post(
-        `${import.meta.env.VITE_API_URL}/territory-heads/step-by-key`,
+        `${import.meta.env.VITE_API_URL}/api/territory-heads/step-by-key`,
         payload
       );
       if (!resp?.data?.ok) throw new Error("Save failed");
@@ -136,7 +136,7 @@ export default function TerritoryHeadForm() {
     try {
       const fileUrl = await uploadDoc(file);
       const r = await axios.post(
-        `${import.meta.env.VITE_API_URL}/territory-heads/step-by-key`,
+        `${import.meta.env.VITE_API_URL}/api/territory-heads/step-by-key`,
         { territoryHeadId, aadhar_pic_front: fileUrl }
       );
       const id = r?.data?.data?._id;
@@ -159,7 +159,7 @@ export default function TerritoryHeadForm() {
     try {
       const fileUrl = await uploadDoc(file);
       const r = await axios.post(
-        `${import.meta.env.VITE_API_URL}/territory-heads/step-by-key`,
+        `${import.meta.env.VITE_API_URL}/api/territory-heads/step-by-key`,
         { territoryHeadId, aadhar_pic_back: fileUrl }
       );
       const id = r?.data?.data?._id;
@@ -183,7 +183,7 @@ export default function TerritoryHeadForm() {
         return;
       }
       const r = await axios.post(
-        `${import.meta.env.VITE_API_URL}/territory-heads/step-by-key`,
+        `${import.meta.env.VITE_API_URL}/api/territory-heads/step-by-key`,
         {
           territoryHeadId,
           aadhar_number: aNumRaw,
@@ -233,7 +233,7 @@ export default function TerritoryHeadForm() {
 
       setLoadingGST(true);
       const r = await axios.put(
-        `${import.meta.env.VITE_API_URL}/territory-heads/gst`,
+        `${import.meta.env.VITE_API_URL}/api/territory-heads/gst`,
         fd,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
@@ -277,7 +277,7 @@ export default function TerritoryHeadForm() {
 
     try {
       const response = await axios.put(
-        `${import.meta.env.VITE_API_URL}/territory-heads/${tid}/bank`,
+        `${import.meta.env.VITE_API_URL}/api/territory-heads/${tid}/bank`,
         fd,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
@@ -340,7 +340,7 @@ export default function TerritoryHeadForm() {
       return;
     }
     const r = await axios.post(
-      `${import.meta.env.VITE_API_URL}/territory-heads/register`,
+      `${import.meta.env.VITE_API_URL}/api/territory-heads/register`,
       { territoryHeadId: tid }
     );
     if (!r?.data?.ok) throw new Error(r?.data?.message || "Submit failed");
@@ -371,7 +371,7 @@ export default function TerritoryHeadForm() {
     if (outletImage) fd.append("outlet_nameboard_image", outletImage);
 
     const r = await axios.put(
-      `${import.meta.env.VITE_API_URL}/territory-heads/outlet`,
+      `${import.meta.env.VITE_API_URL}/api/territory-heads/outlet`,
       fd,
       { headers: { "Content-Type": "multipart/form-data" } }
     );
