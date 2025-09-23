@@ -148,8 +148,8 @@ export default function VendorForm() {
     setLoadingPan(true);
     try {
       const fileUrl = await uploadDoc(file);
-      const r = await axios.post(
-        `${import.meta.env.VITE_API_URL}/vendors/step-by-key`,
+      const r = await instance.post(
+        `/vendors/step-by-key`,
         { vendorId, pan_pic: fileUrl }
       );
       const id = r?.data?.data?._id;
@@ -175,8 +175,8 @@ export default function VendorForm() {
         dob: formData.dob || "",
         email: formData.email || "",
       };
-      const resp = await axios.post(
-        `${import.meta.env.VITE_API_URL}/vendors/step-by-key`,
+      const resp = await instance.post(
+        `/vendors/step-by-key`,
         payload
       );
       if (!resp?.data?.ok) throw new Error("Save failed");
@@ -199,8 +199,8 @@ export default function VendorForm() {
     setLoadingAFront(true);
     try {
       const fileUrl = await uploadDoc(file);
-      const r = await axios.post(
-        `${import.meta.env.VITE_API_URL}/vendors/step-by-key`,
+      const r = await instance.post(
+        `/vendors/step-by-key`,
         { vendorId, aadhar_pic_front: fileUrl }
       );
       const id = r?.data?.data?._id;
@@ -222,8 +222,8 @@ export default function VendorForm() {
     setLoadingABack(true);
     try {
       const fileUrl = await uploadDoc(file);
-      const r = await axios.post(
-        `${import.meta.env.VITE_API_URL}/vendors/step-by-key`,
+      const r = await instance.post(
+        `/vendors/step-by-key`,
         { vendorId, aadhar_pic_back: fileUrl }
       );
       const id = r?.data?.data?._id;
@@ -246,8 +246,8 @@ export default function VendorForm() {
         alert("Missing Aadhaar number");
         return;
       }
-      const r = await axios.post(
-        `${import.meta.env.VITE_API_URL}/vendors/step-by-key`,
+      const r = await instance.post(
+        `/vendors/step-by-key`,
         {
           vendorId,
           aadhar_number: aNumRaw,
@@ -296,8 +296,8 @@ export default function VendorForm() {
       fd.append("gst_address[district]", formData.gst_district || "");
 
       setLoadingGST(true);
-      const r = await axios.put(
-        `${import.meta.env.VITE_API_URL}/vendors/gst`,
+      const r = await instance.put(
+        `/vendors/gst`,
         fd,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
@@ -340,8 +340,8 @@ export default function VendorForm() {
     fd.append("bank_address", bankData.bank_address || "");
 
     try {
-      const response = await axios.put(
-        `${import.meta.env.VITE_API_URL}/vendors/${vid}/bank`,
+      const response = await instance.put(
+        `/vendors/${vid}/bank`,
         fd,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
@@ -401,8 +401,8 @@ export default function VendorForm() {
       alert("Missing vendorId");
       return;
     }
-    const r = await axios.post(
-      `${import.meta.env.VITE_API_URL}/vendors/submit`,
+    const r = await instance.post(
+      `/vendors/submit`,
       { vendorId: vid }
     );
     if (!r?.data?.ok) {
@@ -433,8 +433,8 @@ export default function VendorForm() {
     if (outlet.lng) fd.append("outlet_coords[lng]", outlet.lng);
     if (outletImage) fd.append("outlet_nameboard_image", outletImage);
 
-    const r = await axios.put(
-      `${import.meta.env.VITE_API_URL}/vendors/outlet`,
+    const r = await instance.put(
+      `/vendors/outlet`,
       fd,
       { headers: { "Content-Type": "multipart/form-data" } }
     );
