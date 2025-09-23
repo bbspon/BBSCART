@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-
+import API from "../../utils/api";
 import { Form, Button, Spinner, Row, Col } from "react-bootstrap";
 import { useNavigate, useLocation } from "react-router-dom";
 import Select from "react-select";
 import axios from "axios";
+
 // Options
 const constitutionOptions = [
   { value: "proprietorship", label: "Proprietorship" },
@@ -108,7 +109,7 @@ export default function VendorForm() {
   // Optional explicit start: get a fresh draft id from server
   const startNewOnServer = async () => {
     const r = await axios.post(
-      `/vendors/start`
+      `${import.meta.env.VITE_API_URL}/api/vendors/start`
     );
     const id = r?.data?.data?._id;
     if (id) {
@@ -133,9 +134,11 @@ export default function VendorForm() {
   const uploadDoc = async (file) => {
     const fd = new FormData();
     fd.append("document", file);
-    const { data } = await axios.post(`/vendors/upload`, fd, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const { data } = await axios.post(
+      `${import.meta.env.VITE_API_URL}/api/vendors/upload`,
+      fd,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
     if (!data?.ok || !data?.fileUrl) throw new Error("Upload failed");
     return data.fileUrl;
   };
@@ -148,7 +151,7 @@ export default function VendorForm() {
     try {
       const fileUrl = await uploadDoc(file);
       const r = await axios.post(
-        `/vendors/step-by-key`,
+        `${import.meta.env.VITE_API_URL}/api/vendors/step-by-key`,
         { vendorId, pan_pic: fileUrl }
       );
       const id = r?.data?.data?._id;
@@ -175,7 +178,7 @@ export default function VendorForm() {
         email: formData.email || "",
       };
       const resp = await axios.post(
-        `/vendors/step-by-key`,
+        `${import.meta.env.VITE_API_URL}/api/vendors/step-by-key`,
         payload
       );
       if (!resp?.data?.ok) throw new Error("Save failed");
@@ -199,7 +202,7 @@ export default function VendorForm() {
     try {
       const fileUrl = await uploadDoc(file);
       const r = await axios.post(
-        `/vendors/step-by-key`,
+        `${import.meta.env.VITE_API_URL}/api/vendors/step-by-key`,
         { vendorId, aadhar_pic_front: fileUrl }
       );
       const id = r?.data?.data?._id;
@@ -222,7 +225,7 @@ export default function VendorForm() {
     try {
       const fileUrl = await uploadDoc(file);
       const r = await axios.post(
-        `/vendors/step-by-key`,
+        `${import.meta.env.VITE_API_URL}/api/vendors/step-by-key`,
         { vendorId, aadhar_pic_back: fileUrl }
       );
       const id = r?.data?.data?._id;
@@ -246,7 +249,7 @@ export default function VendorForm() {
         return;
       }
       const r = await axios.post(
-        `/vendors/step-by-key`,
+        `${import.meta.env.VITE_API_URL}/api/vendors/step-by-key`,
         {
           vendorId,
           aadhar_number: aNumRaw,
@@ -296,7 +299,7 @@ export default function VendorForm() {
 
       setLoadingGST(true);
       const r = await axios.put(
-        `/vendors/gst`,
+        `${import.meta.env.VITE_API_URL}/api/vendors/gst`,
         fd,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
@@ -340,7 +343,7 @@ export default function VendorForm() {
 
     try {
       const response = await axios.put(
-        `/vendors/${vid}/bank`,
+        `${import.meta.env.VITE_API_URL}/api/vendors/${vid}/bank`,
         fd,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
@@ -401,7 +404,7 @@ export default function VendorForm() {
       return;
     }
     const r = await axios.post(
-      `/vendors/submit`,
+      `${import.meta.env.VITE_API_URL}/api/vendors/submit`,
       { vendorId: vid }
     );
     if (!r?.data?.ok) {
@@ -433,7 +436,7 @@ export default function VendorForm() {
     if (outletImage) fd.append("outlet_nameboard_image", outletImage);
 
     const r = await axios.put(
-      `/vendors/outlet`,
+      `${import.meta.env.VITE_API_URL}/api/vendors/outlet`,
       fd,
       { headers: { "Content-Type": "multipart/form-data" } }
     );
