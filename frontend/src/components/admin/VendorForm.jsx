@@ -4,7 +4,7 @@ import { Form, Button, Spinner, Row, Col } from "react-bootstrap";
 import { useNavigate, useLocation } from "react-router-dom";
 import Select from "react-select";
 import axios from "axios";
-
+import instance from "../../services/axiosInstance";
 // Options
 const constitutionOptions = [
   { value: "proprietorship", label: "Proprietorship" },
@@ -108,8 +108,8 @@ export default function VendorForm() {
 
   // Optional explicit start: get a fresh draft id from server
   const startNewOnServer = async () => {
-    const r = await axios.post(
-      `${import.meta.env.VITE_API_URL}/vendors/start`
+    const r = await instance.post(
+      `/vendors/start`
     );
     const id = r?.data?.data?._id;
     if (id) {
@@ -134,11 +134,9 @@ export default function VendorForm() {
   const uploadDoc = async (file) => {
     const fd = new FormData();
     fd.append("document", file);
-    const { data } = await axios.post(
-      `${import.meta.env.VITE_API_URL}/vendors/upload`,
-      fd,
-      { headers: { "Content-Type": "multipart/form-data" } }
-    );
+    const { data } = await instance.post(`/vendors/upload`, fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
     if (!data?.ok || !data?.fileUrl) throw new Error("Upload failed");
     return data.fileUrl;
   };
