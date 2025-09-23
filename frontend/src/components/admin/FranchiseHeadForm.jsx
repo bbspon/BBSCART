@@ -70,7 +70,7 @@ export default function FranchiseHeadForm() {
     const fd = new FormData();
     fd.append("document", file);
     const { data } = await axios.post(
-      `${import.meta.env.VITE_API_URL}/franchisees/upload`,
+      `${import.meta.env.VITE_API_URL}/api/franchisees/upload`,
       fd,
       {
         headers: { "Content-Type": "multipart/form-data" },
@@ -88,7 +88,7 @@ export default function FranchiseHeadForm() {
     try {
       const fileUrl = await uploadDoc(file);
       const r = await axios.post(
-        `${import.meta.env.VITE_API_URL}/franchisees/step-by-key`,
+        `${import.meta.env.VITE_API_URL}/api/franchisees/step-by-key`,
         {
           franchiseeId,
           pan_pic: fileUrl,
@@ -117,7 +117,7 @@ export default function FranchiseHeadForm() {
         dob: formData.dob || "",
       };
       const resp = await axios.post(
-        `${import.meta.env.VITE_API_URL}/franchisees/step-by-key`,
+        `${import.meta.env.VITE_API_URL}/api/franchisees/step-by-key`,
         payload
       );
       if (!resp?.data?.ok) throw new Error("Save failed");
@@ -141,7 +141,7 @@ export default function FranchiseHeadForm() {
     try {
       const fileUrl = await uploadDoc(file);
       const r = await axios.post(
-        `${import.meta.env.VITE_API_URL}/franchisees/step-by-key`,
+        `${import.meta.env.VITE_API_URL}/api/franchisees/step-by-key`,
         {
           franchiseeId,
           aadhar_pic_front: fileUrl,
@@ -167,7 +167,7 @@ export default function FranchiseHeadForm() {
     try {
       const fileUrl = await uploadDoc(file);
       const r = await axios.post(
-        `${import.meta.env.VITE_API_URL}/franchisees/step-by-key`,
+        `${import.meta.env.VITE_API_URL}/api/franchisees/step-by-key`,
         {
           franchiseeId,
           aadhar_pic_back: fileUrl,
@@ -194,7 +194,7 @@ export default function FranchiseHeadForm() {
         return;
       }
       const r = await axios.post(
-        `${import.meta.env.VITE_API_URL}/franchisees/step-by-key`,
+        `${import.meta.env.VITE_API_URL}/api/franchisees/step-by-key`,
         {
           franchiseeId,
           aadhar_number: aNumRaw,
@@ -244,7 +244,7 @@ export default function FranchiseHeadForm() {
 
       setLoadingGST(true);
       const r = await axios.put(
-        `${import.meta.env.VITE_API_URL}/franchisees/gst`,
+        `${import.meta.env.VITE_API_URL}/api/franchisees/gst`,
         fd,
         {
           headers: { "Content-Type": "multipart/form-data" },
@@ -290,7 +290,7 @@ export default function FranchiseHeadForm() {
 
     try {
       const response = await axios.put(
-        `${import.meta.env.VITE_API_URL}/franchisees/${fid}/bank`,
+        `${import.meta.env.VITE_API_URL}/api/franchisees/${fid}/bank`,
         fd,
         {
           headers: { "Content-Type": "multipart/form-data" },
@@ -355,7 +355,7 @@ export default function FranchiseHeadForm() {
       return;
     }
     const r = await axios.post(
-      `${import.meta.env.VITE_API_URL}/franchisees/submit`,
+      `${import.meta.env.VITE_API_URL}/api/franchisees/submit`,
       { franchiseeId: fid }
     );
     if (!r?.data?.ok) throw new Error(r?.data?.message || "Submit failed");
@@ -386,7 +386,7 @@ export default function FranchiseHeadForm() {
     if (outletImage) fd.append("outlet_nameboard_image", outletImage);
 
     const r = await axios.put(
-      `${import.meta.env.VITE_API_URL}/franchisees/outlet`,
+      `${import.meta.env.VITE_API_URL}/api/franchisees/outlet`,
       fd,
       {
         headers: { "Content-Type": "multipart/form-data" },
