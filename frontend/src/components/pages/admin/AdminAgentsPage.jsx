@@ -24,7 +24,7 @@ export default function AdminAgentsPage() {
     setLoading(true);
     try {
       // Your existing endpoint returns approved agents; we filter client-side for UI parity
-      const url = `${import.meta.env.VITE_API_URL}/api/admin/agents`;
+      const url = `${import.meta.env.VITE_API_URL}/api/agent-heads/agents`;
       const { data } = await axios.get(url);
       const list = Array.isArray(data?.data) ? data.data : [];
       setRows(list);
@@ -99,7 +99,7 @@ export default function AdminAgentsPage() {
     // Try to fetch full detail; if not available, fall back to the row
     try {
       const r = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/admin/agents/${id}`
+        `${import.meta.env.VITE_API_URL}/api/agent-heads/agents/${id}`
       );
       if (r?.data?.data) {
         setSelectedDoc(r.data.data);
