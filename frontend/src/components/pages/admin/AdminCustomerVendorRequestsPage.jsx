@@ -94,7 +94,7 @@ export default function AdminCustomerVendorRequestsPage() {
       const r = await axios.get(
         `${
           import.meta.env.VITE_API_URL
-        }/api/customer-become-vendors/admin/customer-vendor/${id}`
+        }/api/customer-become-vendors/admin/customer-vendor/requests/${id}`
       );
       if (r?.data?.ok) setSelectedDoc(r.data.data);
       else setSelectedDoc(null);
