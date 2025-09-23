@@ -4,7 +4,7 @@ import { Form, Button, Spinner, Row, Col } from "react-bootstrap";
 import { useNavigate, useLocation } from "react-router-dom";
 import Select from "react-select";
 import axios from "axios";
-import instance from "../../services/axiosInstance";
+import axios from "../../services/axiosaxios";
 // Options
 const constitutionOptions = [
   { value: "proprietorship", label: "Proprietorship" },
@@ -108,7 +108,7 @@ export default function VendorForm() {
 
   // Optional explicit start: get a fresh draft id from server
   const startNewOnServer = async () => {
-    const r = await instance.post(
+    const r = await axios.post(
       `/vendors/start`
     );
     const id = r?.data?.data?._id;
@@ -134,7 +134,7 @@ export default function VendorForm() {
   const uploadDoc = async (file) => {
     const fd = new FormData();
     fd.append("document", file);
-    const { data } = await instance.post(`/vendors/upload`, fd, {
+    const { data } = await axios.post(`/vendors/upload`, fd, {
       headers: { "Content-Type": "multipart/form-data" },
     });
     if (!data?.ok || !data?.fileUrl) throw new Error("Upload failed");
@@ -148,7 +148,7 @@ export default function VendorForm() {
     setLoadingPan(true);
     try {
       const fileUrl = await uploadDoc(file);
-      const r = await instance.post(
+      const r = await axios.post(
         `/vendors/step-by-key`,
         { vendorId, pan_pic: fileUrl }
       );
@@ -175,7 +175,7 @@ export default function VendorForm() {
         dob: formData.dob || "",
         email: formData.email || "",
       };
-      const resp = await instance.post(
+      const resp = await axios.post(
         `/vendors/step-by-key`,
         payload
       );
@@ -199,7 +199,7 @@ export default function VendorForm() {
     setLoadingAFront(true);
     try {
       const fileUrl = await uploadDoc(file);
-      const r = await instance.post(
+      const r = await axios.post(
         `/vendors/step-by-key`,
         { vendorId, aadhar_pic_front: fileUrl }
       );
@@ -222,7 +222,7 @@ export default function VendorForm() {
     setLoadingABack(true);
     try {
       const fileUrl = await uploadDoc(file);
-      const r = await instance.post(
+      const r = await axios.post(
         `/vendors/step-by-key`,
         { vendorId, aadhar_pic_back: fileUrl }
       );
@@ -246,7 +246,7 @@ export default function VendorForm() {
         alert("Missing Aadhaar number");
         return;
       }
-      const r = await instance.post(
+      const r = await axios.post(
         `/vendors/step-by-key`,
         {
           vendorId,
@@ -296,7 +296,7 @@ export default function VendorForm() {
       fd.append("gst_address[district]", formData.gst_district || "");
 
       setLoadingGST(true);
-      const r = await instance.put(
+      const r = await axios.put(
         `/vendors/gst`,
         fd,
         { headers: { "Content-Type": "multipart/form-data" } }
@@ -340,7 +340,7 @@ export default function VendorForm() {
     fd.append("bank_address", bankData.bank_address || "");
 
     try {
-      const response = await instance.put(
+      const response = await axios.put(
         `/vendors/${vid}/bank`,
         fd,
         { headers: { "Content-Type": "multipart/form-data" } }
@@ -401,7 +401,7 @@ export default function VendorForm() {
       alert("Missing vendorId");
       return;
     }
-    const r = await instance.post(
+    const r = await axios.post(
       `/vendors/submit`,
       { vendorId: vid }
     );
@@ -433,7 +433,7 @@ export default function VendorForm() {
     if (outlet.lng) fd.append("outlet_coords[lng]", outlet.lng);
     if (outletImage) fd.append("outlet_nameboard_image", outletImage);
 
-    const r = await instance.put(
+    const r = await axios.put(
       `/vendors/outlet`,
       fd,
       { headers: { "Content-Type": "multipart/form-data" } }
