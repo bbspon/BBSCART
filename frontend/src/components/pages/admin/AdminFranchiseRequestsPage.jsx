@@ -12,7 +12,7 @@ export default function AdminFranchiseRequestsPage() {
     setLoading(true);
     try {
       const r = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/franchisees/admin/requests`
+        `${import.meta.env.VITE_API_URL}/franchisees/admin/requests`
       );
       if (r?.data?.ok && Array.isArray(r.data.data)) setRows(r.data.data);
     } catch (e) {
