@@ -4,7 +4,6 @@ import { Form, Button, Spinner, Row, Col } from "react-bootstrap";
 import { useNavigate, useLocation } from "react-router-dom";
 import Select from "react-select";
 import axios from "axios";
-import axios from "../../services/axiosaxios";
 // Options
 const constitutionOptions = [
   { value: "proprietorship", label: "Proprietorship" },
