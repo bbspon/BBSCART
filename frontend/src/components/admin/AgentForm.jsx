@@ -67,7 +67,7 @@ export default function AgentHeadForm() {
     const fd = new FormData();
     fd.append("document", file);
     const { data } = await axios.post(
-      `${import.meta.env.VITE_API_URL}/api/agent-heads/upload`,
+      `${import.meta.env.VITE_API_URL}/agent-heads/upload`,
       fd,
       { headers: { "Content-Type": "multipart/form-data" } }
     );
@@ -83,7 +83,7 @@ export default function AgentHeadForm() {
     try {
       const fileUrl = await uploadDoc(file);
       const r = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/agent-heads/step-by-key`,
+        `${import.meta.env.VITE_API_URL}/agent-heads/step-by-key`,
         { agentHeadId, pan_pic: fileUrl }
       );
       const id = r?.data?.data?._id;
@@ -109,7 +109,7 @@ export default function AgentHeadForm() {
         dob: formData.dob || "",
       };
       const resp = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/agent-heads/step-by-key`,
+        `${import.meta.env.VITE_API_URL}/agent-heads/step-by-key`,
         payload
       );
       if (!resp?.data?.ok) throw new Error("Save failed");
@@ -133,7 +133,7 @@ export default function AgentHeadForm() {
     try {
       const fileUrl = await uploadDoc(file);
       const r = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/agent-heads/step-by-key`,
+        `${import.meta.env.VITE_API_URL}/agent-heads/step-by-key`,
         { agentHeadId, aadhar_pic_front: fileUrl }
       );
       const id = r?.data?.data?._id;
@@ -156,7 +156,7 @@ export default function AgentHeadForm() {
     try {
       const fileUrl = await uploadDoc(file);
       const r = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/agent-heads/step-by-key`,
+        `${import.meta.env.VITE_API_URL}/agent-heads/step-by-key`,
         { agentHeadId, aadhar_pic_back: fileUrl }
       );
       const id = r?.data?.data?._id;
@@ -180,7 +180,7 @@ export default function AgentHeadForm() {
         return;
       }
       const r = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/agent-heads/step-by-key`,
+        `${import.meta.env.VITE_API_URL}/agent-heads/step-by-key`,
         {
           agentHeadId,
           aadhar_number: aNumRaw,
@@ -230,7 +230,7 @@ export default function AgentHeadForm() {
 
       setLoadingGST(true);
       const r = await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/agent-heads/gst`,
+        `${import.meta.env.VITE_API_URL}/agent-heads/gst`,
         fd,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
@@ -274,7 +274,7 @@ export default function AgentHeadForm() {
 
     try {
       const response = await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/agent-heads/${aid}/bank`,
+        `${import.meta.env.VITE_API_URL}/agent-heads/${aid}/bank`,
         fd,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
@@ -337,7 +337,7 @@ export default function AgentHeadForm() {
       return;
     }
     const r = await axios.post(
-      `${import.meta.env.VITE_API_URL}/api/agent-heads/register`,
+      `${import.meta.env.VITE_API_URL}/agent-heads/register`,
       { agentHeadId: aid }
     );
     if (!r?.data?.ok) throw new Error(r?.data?.message || "Submit failed");
@@ -367,7 +367,7 @@ export default function AgentHeadForm() {
     if (outletImage) fd.append("outlet_nameboard_image", outletImage);
 
     const r = await axios.put(
-      `${import.meta.env.VITE_API_URL}/api/agent-heads/outlet`,
+      `${import.meta.env.VITE_API_URL}/agent-heads/outlet`,
       fd,
       { headers: { "Content-Type": "multipart/form-data" } }
     );

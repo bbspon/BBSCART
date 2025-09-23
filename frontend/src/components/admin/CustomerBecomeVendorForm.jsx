@@ -67,7 +67,7 @@ export default function CustomerBecomeVendorForm() {
     const fd = new FormData();
     fd.append("document", file);
     const { data } = await axios.post(
-      `${import.meta.env.VITE_API_URL}/api/customer-become-vendors/upload`,
+      `${import.meta.env.VITE_API_URL}/customer-become-vendors/upload`,
       fd,
       { headers: { "Content-Type": "multipart/form-data" } }
     );
@@ -85,7 +85,7 @@ export default function CustomerBecomeVendorForm() {
       const r = await axios.post(
         `${
           import.meta.env.VITE_API_URL
-        }/api/customer-become-vendors/step-by-key`,
+        }/customer-become-vendors/step-by-key`,
         { customerBecomeVendorId, pan_pic: fileUrl }
       );
       console.log("CBV submit response:", r.status, r.data);
@@ -110,7 +110,7 @@ const submitCustomerVendorApplication = async () => {
     return;
   }
   const r = await axios.post(
-    `${import.meta.env.VITE_API_URL}/api/customer-become-vendors/register`,
+    `${import.meta.env.VITE_API_URL}/customer-become-vendors/register`,
     { customerBecomeVendorId: cid }
   );
   if (!r?.data?.ok) throw new Error(r?.data?.message || "Submit failed");
@@ -128,7 +128,7 @@ const submitCustomerVendorApplication = async () => {
       const resp = await axios.post(
         `${
           import.meta.env.VITE_API_URL
-        }/api/customer-become-vendors/step-by-key`,
+        }/customer-become-vendors/step-by-key`,
         payload
       );
       if (!resp?.data?.ok) throw new Error("Save failed");
@@ -154,7 +154,7 @@ const submitCustomerVendorApplication = async () => {
       const r = await axios.post(
         `${
           import.meta.env.VITE_API_URL
-        }/api/customer-become-vendors/step-by-key`,
+        }/customer-become-vendors/step-by-key`,
         { customerBecomeVendorId, aadhar_pic_front: fileUrl }
       );
       const id = r?.data?.data?._id;
@@ -179,7 +179,7 @@ const submitCustomerVendorApplication = async () => {
       const r = await axios.post(
         `${
           import.meta.env.VITE_API_URL
-        }/api/customer-become-vendors/step-by-key`,
+        }/customer-become-vendors/step-by-key`,
         { customerBecomeVendorId, aadhar_pic_back: fileUrl }
       );
       const id = r?.data?.data?._id;
@@ -205,7 +205,7 @@ const submitCustomerVendorApplication = async () => {
       const r = await axios.post(
         `${
           import.meta.env.VITE_API_URL
-        }/api/customer-become-vendors/step-by-key`,
+        }/customer-become-vendors/step-by-key`,
         {
           customerBecomeVendorId,
           aadhar_number: aNumRaw,
@@ -255,7 +255,7 @@ const submitCustomerVendorApplication = async () => {
 
       setLoadingGST(true);
       const r = await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/customer-become-vendors/gst`,
+        `${import.meta.env.VITE_API_URL}/customer-become-vendors/gst`,
         fd,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
@@ -302,7 +302,7 @@ const submitCustomerVendorApplication = async () => {
       const response = await axios.put(
         `${
           import.meta.env.VITE_API_URL
-        }/api/customer-become-vendors/${cid}/bank`,
+        }/customer-become-vendors/${cid}/bank`,
         fd,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
@@ -382,7 +382,7 @@ const submitCustomerVendorApplication = async () => {
     if (outletImage) fd.append("outlet_nameboard_image", outletImage);
 
     const r = await axios.put(
-      `${import.meta.env.VITE_API_URL}/api/customer-become-vendors/outlet`,
+      `${import.meta.env.VITE_API_URL}/customer-become-vendors/outlet`,
       fd,
       { headers: { "Content-Type": "multipart/form-data" } }
     );
