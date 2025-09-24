@@ -1,16 +1,14 @@
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL+"/api";
-// const api = axios.create({
-//     baseURL: "http://localhost:4000/api",
-//     timeout: 45000,
-//     withCredentials: false,   // set to true only if you’re using cookies
-// });
+const API_URL = `${import.meta.env.VITE_API_URL?.replace(/\/$/, "")}/api`;
+
 const api = axios.create({
   baseURL: API_URL,
   timeout: 45000,
-  withCredentials: false, // set to true only if you’re using cookies
+  withCredentials: true, // send cookies for auth/session
 });
+
+
 
 // Flag to track refresh attempts
 let isRefreshing = false;
