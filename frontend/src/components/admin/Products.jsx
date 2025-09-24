@@ -95,7 +95,7 @@ const Products = () => {
   // ------------ Data fetchers (admin, /api/..., no pincode) ------------
   const fetchCategories = async () => {
     try {
-      const { data } = await instance.get("/api/categories");
+      const { data } = await instance.get("/categories");
       setCategories(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Error fetching categories:", err);
@@ -106,7 +106,7 @@ const Products = () => {
 
   const fetchSubCategories = async () => {
     try {
-      const { data } = await instance.get("/api/subcategories");
+      const { data } = await instance.get("/subcategories");
       setSubCategories(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Error fetching subCategories:", err);
@@ -119,7 +119,7 @@ const Products = () => {
 
   const fetchProducts = async () => {
     try {
-      const { data } = await instance.get("/api/products");
+      const { data } = await instance.get("/products");
       // controller returns { products, filteredByVendor }
       const list = Array.isArray(data) ? data : data?.products || [];
       setProducts(list);
@@ -165,7 +165,7 @@ const Products = () => {
   const handleExportCsv = async () => {
     try {
       const res = await instance.get(
-        `${import.meta.env.VITE_API_URL}/api/products/export-csv`,
+        `${import.meta.env.VITE_API_URL}/products/export-csv`,
         {
           responseType: "blob",
         }
@@ -192,7 +192,7 @@ const Products = () => {
     form.append("file", file);
     try {
       const res = await instance.post(
-        `${import.meta.env.VITE_API_URL}/api/products/import-csv`,
+        `${import.meta.env.VITE_API_URL}/products/import-csv`,
         form,
         {
           headers: { "Content-Type": "multipart/form-data" },
@@ -221,7 +221,7 @@ const Products = () => {
     try {
       const url = `${
         import.meta.env.VITE_API_URL
-      }/api/products/import-all?dryRun=${
+      }/products/import-all?dryRun=${
         iaDryRun ? "true" : "false"
       }&mode=${iaMode}`;
       const res = await instance.post(url, form, {
@@ -253,7 +253,7 @@ const Products = () => {
     try {
       if (editProduct) {
         const { data } = await instance.put(
-          `${import.meta.env.VITE_API_URL}/api/products/${editProduct._id}`,
+          `${import.meta.env.VITE_API_URL}/products/${editProduct._id}`,
           payload,
           {
             headers: { "Content-Type": "multipart/form-data" },
@@ -267,7 +267,7 @@ const Products = () => {
       } else {
         // Products.jsx
         // create branch
-        const { data } = await instance.post("/api/products", payload, {
+        const { data } = await instance.post("/products", payload, {
           headers: { "Content-Type": "multipart/form-data" },
         });
         setProducts((prev) => [...prev, data]); // ok if controller returns the product doc
@@ -290,7 +290,7 @@ const Products = () => {
   const handleDeleteProduct = async () => {
     if (!productToDelete) return;
     try {
-      await instance.delete(`/api/products/${productToDelete._id}`);
+      await instance.delete(`/products/${productToDelete._id}`);
       setProducts((prev) => prev.filter((p) => p._id !== productToDelete._id));
       setProductToDelete(null);
       setIsDeleteModalOpen(false);
@@ -331,7 +331,7 @@ const Products = () => {
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const res = await instance.post("/api/products/import", formData, {
+      const res = await instance.post("/products/import", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       if (res?.status === 200) {
