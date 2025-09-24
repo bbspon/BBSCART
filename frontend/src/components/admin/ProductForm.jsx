@@ -652,7 +652,7 @@ const ProductForm = ({
     (async () => {
       try {
         // 1) Who am I?
-        const meRes = await instance.get(`${import.meta.env.VITE_API_URL}/api/auth/me`, {
+        const meRes = await instance.get("/api/auth/me", {
           withCredentials: true,
         });
         const me = meRes?.data?.user || meRes?.data;
@@ -664,7 +664,7 @@ const ProductForm = ({
 
         // 2) Admin/super_admin → load APPROVED vendors from admin endpoint
         if (me?.role === "admin" || me?.role === "super_admin") {
-          const res = await instance.get(`${import.meta.env.VITE_API_URL}/api/vendors/admin/vendors`, {
+          const res = await instance.get("/api/vendors/admin/vendors", {
             params: {
               status: "approved",
               q: "",
