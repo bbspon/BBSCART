@@ -33,7 +33,7 @@ export const register = async (userData, dispatch, navigate) => {
 export const login = async (dispatch, email, password, navigate) => {
   try {
     const response = await instance.post(
-      `${import.meta.env.VITE_API_URL}/auth/login`,
+      `/auth/login`,
       { email, password },
       { withCredentials: true }
     );
