@@ -1,9 +1,12 @@
+// axiosInstance.js
 import axios from "axios";
-import { getGuestKey, ensureGuestKey } from "../utils/guestKey";
+
+const API_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, "") + "/api";
 
 const instance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "/api",
-  withCredentials: true,
+  baseURL: API_URL,
+  timeout: 45000,
+  withCredentials: true, // needed if backend uses cookies
 });
 // If you use token-based auth, attach it here:
 instance.interceptors.request.use((config) => {
