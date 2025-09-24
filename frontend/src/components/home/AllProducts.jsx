@@ -32,14 +32,14 @@ const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
 const getApiBase = (pin) => {
   if (pin) {
     return {
-      list: `${baseUrl}/api/products/public`,
-      facets: `${baseUrl}/api/products/facets`,
+      list: `${baseUrl}/products/public`,
+      facets: `${baseUrl}/products/facets`,
       extraParams: {},
     };
   }
   return {
-    list: `${baseUrl}/api/products`,
-    facets: `${baseUrl}/api/products/facets`,
+    list: `${baseUrl}/products`,
+    facets: `${baseUrl}/products/facets`,
     extraParams: { scope: "all" },
   };
 };
