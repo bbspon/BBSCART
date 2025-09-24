@@ -48,7 +48,7 @@ export default function ProductDetails() {
         setLoading(true);
         setP(null);
 
-        const { data } = await instance.get(`/api/products/public/${id}`);
+        const { data } = await instance.get(`/products/public/${id}`);
         setP(data);
 
         const primary =
@@ -70,7 +70,7 @@ useEffect(() => {
       setLoading(true);
       setP(null);
 
-      const { data } = await instance.get(`/api/products/public/${id}`);
+      const { data } = await instance.get(`/products/public/${id}`);
 
       // --- Build normalized arrays ---
       const galleryMain = Array.isArray(data?.gallery_imgs)
