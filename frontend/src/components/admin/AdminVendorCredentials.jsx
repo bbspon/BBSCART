@@ -10,7 +10,7 @@ export default function AdminVendorCredentials() {
     setMsg("");
     try {
       const { data } = await instance.get(
-        `${import.meta.env.VITE_API_URL}/api/admin/vendors`,
+        `${import.meta.env.VITE_API_URL}/admin/vendors`,
         {
           params: { status: "approved" },
         }
@@ -36,7 +36,7 @@ export default function AdminVendorCredentials() {
     if (!ok) return;
     try {
       const { data } = await instance.post(
-        `/api/admin/vendors/${id}/create-credentials`
+        `/admin/vendors/${id}/create-credentials`
       );
       if (data?.success) {
         setMsg("Link sent successfully");
