@@ -1,10 +1,10 @@
 // import api from "../utils/api";
 import instance from "../services/axiosInstance"
-const BASE_PRODUCTS_URL = `${import.meta.env.VITE_API_URL}/products`;
-const BASE_CATEGORIES_URL = `${import.meta.env.VITE_API_URL}/categories`;
-const BASE_SUBCATEGORIES_URL = `${import.meta.env.VITE_API_URL}/subcategories`;
-const BASE_VARIANTS_URL = `${import.meta.env.VITE_API_URL}/variants`;
-const PAYMENT_VERIFY_URL = `${import.meta.env.VITE_API_URL}/verify-payment`;
+const BASE_PRODUCTS_URL = `/products`;
+const BASE_CATEGORIES_URL = `/categories`;
+const BASE_SUBCATEGORIES_URL = `/subcategories`;
+const BASE_VARIANTS_URL = `/variants`;
+const PAYMENT_VERIFY_URL = `/verify-payment`;
 
 export const ProductService = {
   // Products
