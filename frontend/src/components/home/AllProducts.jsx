@@ -26,13 +26,12 @@ function pickMainImage(p) {
 const inr = (n) => new Intl.NumberFormat("en-IN").format(n);
 const getPincode = () => localStorage.getItem("deliveryPincode") || "";
 
-
 const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
 
 const getApiBase = (pin) => {
   if (pin) {
     return {
-      list: `${baseUrl}/api/products/public`,
+      list: `${baseUrl}/products/public`,
       facets: `${baseUrl}/api/products/facets`,
       extraParams: {},
     };
@@ -43,7 +42,6 @@ const getApiBase = (pin) => {
     extraParams: { scope: "all" },
   };
 };
-
 
 export default function ProductListingFull() {
   const [search, setSearch] = useState("");
