@@ -212,6 +212,7 @@ app.use("/api/customer-become-vendors", customerBecomeVendorRoutes);
 
 app.use("/api/vendors", vendorRoutes);
 app.use("/api/agent-heads", agentHeadRoutes);
+app.use("/api/geo", geoRoutes);
 
 app.use("/api/auth", authRoutes); // 🔐 Shared Login/Register from bbs-auth
 app.use("/api/admin", adminRoutes);
@@ -226,7 +227,6 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/users", userRoutes);
 app.get("/api/health", (req, res) => res.json({ ok: true }));
-app.use("/api/geo", geoRoutes);
 app.use("/api/admin/pincode-vendors", adminPincodeVendorsRoutes);
 app.use("/api/admin/vendors", adminVendorRoutes);
 app.use("/orders", orderRoutes);
