@@ -26,26 +26,24 @@ function pickMainImage(p) {
 const inr = (n) => new Intl.NumberFormat("en-IN").format(n);
 const getPincode = () => localStorage.getItem("deliveryPincode") || "";
 
-// // API endpoints Need to Update
-// const API_LIST = `${import.meta.env.VITE_API_URL}/api/products`;
-// const API_FACETS = `${import.meta.env.VITE_API_URL}/api/products`;
-// choose endpoints based on pincode
+
+const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
+
 const getApiBase = (pin) => {
   if (pin) {
-    // vendor-scoped endpoints (respect assigned vendor for this pincode)
     return {
-      list: `${import.meta.env.VITE_API_URL}/api/products/public`,
-      facets: `${import.meta.env.VITE_API_URL}/api/products/facets`,
-      extraParams: {}, // public endpoints don't use scope
+      list: `${baseUrl}/api/products/public`,
+      facets: `${baseUrl}/api/products/facets`,
+      extraParams: {},
     };
   }
-  // admin list (show all: global + vendor)
   return {
-    list: `${import.meta.env.VITE_API_URL}/api/products`,
-    facets: `${import.meta.env.VITE_API_URL}/api/products/facets`,
+    list: `${baseUrl}/api/products`,
+    facets: `${baseUrl}/api/products/facets`,
     extraParams: { scope: "all" },
   };
 };
+
 
 export default function ProductListingFull() {
   const [search, setSearch] = useState("");
