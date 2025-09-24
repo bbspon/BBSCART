@@ -65,7 +65,7 @@ const Categories = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const { data } = await instance.get("/api/categories");
+        const { data } = await instance.get("/categories");
         setCategories(data || []);
         setFilteredCategories(data || []);
       } catch (error) {
@@ -144,7 +144,7 @@ const Categories = () => {
     try {
       if (editCategory) {
         const { data } = await instance.put(
-          `/api/categories/${editCategory._id}`,
+          `/categories/${editCategory._id}`,
           categoryData
         );
         setCategories((prev) =>
@@ -153,7 +153,7 @@ const Categories = () => {
         setEditCategory(null);
         toast.success("Category updated successfully!");
       } else {
-        const { data } = await instance.post("/api/categories", categoryData);
+        const { data } = await instance.post("/categories", categoryData);
         setCategories((prev) => [...prev, data]);
         toast.success("Category created successfully!");
       }
@@ -172,7 +172,7 @@ const Categories = () => {
 
   const handleDeleteCategory = async () => {
     try {
-      await instance.delete(`/api/categories/${categoryToDelete._id}`);
+      await instance.delete(`/categories/${categoryToDelete._id}`);
       setCategories((prev) =>
         prev.filter((c) => c._id !== categoryToDelete._id)
       );

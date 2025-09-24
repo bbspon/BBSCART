@@ -65,7 +65,7 @@ const [isImporting, setIsImporting] = useState(false);
 
   const fetchCategories = async () => {
     try {
-      const { data } = await instance.get("/api/categories");
+      const { data } = await instance.get("/categories");
       setCategories(data || []);
     } catch (error) {
       console.error("Error fetching categories:", error);
@@ -76,7 +76,7 @@ const [isImporting, setIsImporting] = useState(false);
 
   const fetchSubCategories = async () => {
     try {
-      const { data } = await instance.get("/api/subcategories");
+      const { data } = await instance.get("/subcategories");
       setSubCategories(data || []);
       setFilteredCategories(data || []);
     } catch (error) {
@@ -168,7 +168,7 @@ const handleDownloadRow = async (idOrKey) => {
     try {
       if (editCategory) {
         const { data } = await instance.put(
-          `/api/subcategories/${editCategory._id}`,
+          `/subcategories/${editCategory._id}`,
           payload
         );
         setSubCategories((prev) =>
@@ -177,7 +177,7 @@ const handleDownloadRow = async (idOrKey) => {
         setEditCategory(null);
         toast.success("Subcategory updated successfully!");
       } else {
-        const { data } = await instance.post("/api/subcategories", payload);
+        const { data } = await instance.post("/subcategories", payload);
         setSubCategories((prev) => [...prev, data]);
         toast.success("Subcategory created successfully!");
       }
@@ -197,7 +197,7 @@ const handleDownloadRow = async (idOrKey) => {
 
   const handleDeleteCategory = async () => {
     try {
-      await instance.delete(`/api/subcategories/${categoryToDelete._id}`);
+      await instance.delete(`/subcategories/${categoryToDelete._id}`);
       setSubCategories((prev) =>
         prev.filter((s) => s._id !== categoryToDelete._id)
       );
