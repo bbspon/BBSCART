@@ -115,7 +115,18 @@ exports.getSubcategoryById = async (req, res) => {
     return res.status(500).json({ message: err.message });
   }
 };
+exports.getSubcategoriesByCategoryId = async (req, res) => {
 
+    try {
+      const cat = await Category.findById(req.params.id).populate(
+        "subcategories"
+      );
+      if (!cat) return res.status(404).json({ message: "Category not found" });
+      res.json(cat.subcategories);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  }   
 // READ: Get a single subcategory by ID
 exports.getSubcategoryBySellerId = async (req, res) => {
   try {
