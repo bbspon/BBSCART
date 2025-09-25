@@ -93,6 +93,11 @@ if (subcategoryController) {
     authUser,
     subcategoryController.getSubcategoryById
   );
+  router.get("/:id/subcategories", 
+    authUser,
+    subcategoryController.getSubcategoriesByCategoryId
+  );
+
   router.get(
     "/subcategories/seller/:sellerId",
     authUser,

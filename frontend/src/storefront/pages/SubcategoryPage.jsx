@@ -9,25 +9,25 @@ export default function SubcategoryPage() {
   const { subcategoryId } = useParams();
   const [params, setParams] = useSearchParams();
 
+  // --- pincode helper (kept) ---
   const urlPincode = params.get("pincode") || "";
   const getPincode = () =>
     urlPincode ||
     localStorage.getItem("deliveryPincode") ||
     localStorage.getItem("bb_pincode") ||
     localStorage.getItem("user_pincode") ||
-    localStorage.getItem("pincode") ||
-    "";
+    localStorage.getItem("pincode") 
 
-  // products
-  const [itemsRaw, setItemsRaw] = useState([]); // unfiltered from server
-  const [items, setItems] = useState([]); // filtered client-side
+  // --- products (kept) ---
+  const [itemsRaw, setItemsRaw] = useState([]);
+  const [items, setItems] = useState([]);
   const [q, setQ] = useState(params.get("q") || "");
   const [brandSingle, setBrand] = useState(params.get("brand") || "");
   const [organic, setOrganic] = useState(params.get("organic") || "");
   const [minPrice, setMin] = useState(params.get("minPrice") || "");
   const [maxPrice, setMax] = useState(params.get("maxPrice") || "");
 
-  // url CSV
+  // --- URL CSV (kept) ---
   const brandsCSV = params.get("brands") || "";
   const materialsCSV = params.get("materials") || "";
   const packSizesCSV = params.get("packSizes") || "";
@@ -37,18 +37,21 @@ export default function SubcategoryPage() {
   const ratingsCSV = params.get("ratings") || "";
   const priceBandsCSV = params.get("priceBands") || "";
 
-  // sidebar: categories/subcats
+  // --- categories (optional to keep) ---
   const [categories, setCategories] = useState([]);
-  const [subcats, setSubcats] = useState({});
-  const catsLoadedRef = useRef(false);
 
-  // other route params
+  // --- NEW: all subcategories (direct) ---
+  const [subcategories, setSubcategories] = useState([]);
+  const [subcatSearch, setSubcatSearch] = useState("");
+  const [expandedSubcats, setExpandedSubcats] = useState(true);
+
+  // --- other route params (kept) ---
   const groupId = params.get("groupId") || "";
   const group = params.get("group") || "";
   const product = params.get("product") || "";
   const label = params.get("label") || "";
 
-  // expand states
+  // --- expand states (kept) ---
   const [expandedBrands, setExpandedBrands] = useState(true);
   const [expandedRating, setExpandedRating] = useState(true);
   const [expandedPrice, setExpandedPrice] = useState(true);
@@ -58,6 +61,7 @@ export default function SubcategoryPage() {
   const [expandedReturnPolicy, setExpandedReturnPolicy] = useState(true);
   const [expandedMaterial, setExpandedMaterial] = useState(true);
 
+  // --- fallbacks (kept) ---
   const fallback = {
     materials: [
       "Cotton",
@@ -108,7 +112,7 @@ export default function SubcategoryPage() {
 
   const [facets, setFacets] = useState(null);
 
-  // helpers
+  // ---------- helpers (kept) ----------
   const toStringArray = (input, labelKey = "label") => {
     if (!input) return [];
     if (Array.isArray(input)) {
@@ -211,7 +215,7 @@ export default function SubcategoryPage() {
     setParams(next, { replace: true });
   };
 
-  // derive numeric and csv filters
+  // ---- derive numeric and CSV filters (kept) ----
   const deriveFilters = () => {
     let dMin = null,
       dMax = null;
@@ -275,7 +279,6 @@ export default function SubcategoryPage() {
       brand: brandSingle || undefined,
       organic: organic !== "" ? organic : undefined,
 
-      // priority: explicit inputs > derived from bands
       minPrice: (minPrice || derivedMinPrice) ?? undefined,
       maxPrice: (maxPrice || derivedMaxPrice) ?? undefined,
 
@@ -297,7 +300,7 @@ export default function SubcategoryPage() {
     return qobj;
   };
 
-  // network
+  // ---------- network (kept) ----------
   function loadProducts() {
     const query = buildQuery();
     console.log("[REQ] /products/public", query);
@@ -320,12 +323,12 @@ export default function SubcategoryPage() {
 
   function loadFacets() {
     const query = buildQuery();
-    console.log("[REQ] /products/facets", query);
+    console.log("[REQ] /facets", query);
     instance
-      .get("/products/facets", { params: query })
+      .get("/facets", { params: query })
       .then(({ data }) => {
         const f = data?.facets || data || {};
-        console.log("[RES] /products/facets", f);
+        console.log("[RES] /facets", f);
         setFacets({
           brands: f.brands || f.brand || null,
           materials: f.materials || f.material || null,
@@ -333,14 +336,14 @@ export default function SubcategoryPage() {
           productTypes: f.productTypes || f.productType || null,
           returnPolicies: f.returnPolicies || f.returnPolicy || null,
           discounts: f.discounts || f.discount || null,
-          ratings: f.ratings || f.rating || null,
+          ratings: f.ratings || f.ratings || null,
           priceBands: f.priceBands || f.price || null,
           categories: f.categories || null,
         });
       })
       .catch((err) => {
         console.error(
-          "[ERR] /products/facets",
+          "[ERR] /facets",
           err?.response?.status,
           err?.response?.data || err.message
         );
@@ -348,71 +351,91 @@ export default function SubcategoryPage() {
       });
   }
 
-  function loadCategoriesOnce() {
-    if (catsLoadedRef.current) return;
-    catsLoadedRef.current = true;
-    const pin = getPincode();
-    console.log("[REQ] /products/categories", { pincode: pin });
-    instance
-      .get("/products/categories", { params: { pincode: pin } })
-      .then(({ data }) => {
+  // ---------- NEW: load subcategories directly ----------
+  useEffect(() => {
+    const fetchSubcats = async () => {
+      try {
+        const pincode = getPincode();
+        console.log("[REQ] /subcategories", { pincode });
+        const { data } = await instance.get("/subcategories", {
+          params: { pincode },
+        });
         const arr = Array.isArray(data?.items)
           ? data.items
           : Array.isArray(data)
           ? data
           : [];
-        console.log("[RES] /products/categories", arr.length);
-        setCategories(arr);
-        const firstId = arr?.[0]?._id || arr?.[0]?.id || arr?.[0]?.category_id;
-        if (firstId) loadSubcats(firstId);
-      })
-      .catch((err) => {
+        console.log("[RES] /subcategories", arr.length, arr);
+        setSubcategories(arr);
+      } catch (err) {
         console.error(
-          "[ERR] /products/categories",
+          "[ERR] /subcategories",
+          err?.response?.status,
+          err?.response?.data || err.message
+        );
+        setSubcategories([]);
+      }
+    };
+
+    const fetchCategories = async () => {
+      try {
+        const pincode = getPincode();
+        console.log("[REQ] /categories", { pincode });
+        const { data } = await instance.get("/categories", {
+          params: { pincode },
+        });
+        const arr = Array.isArray(data?.items)
+          ? data.items
+          : Array.isArray(data)
+          ? data
+          : [];
+        console.log("[RES] /categories", arr.length);
+        setCategories(arr);
+      } catch (err) {
+        console.error(
+          "[ERR] /categories",
           err?.response?.status,
           err?.response?.data || err.message
         );
         setCategories([]);
-      });
-  }
+      }
+    };
 
-  const loadSubcats = async (catId) => {
-    const pin = getPincode();
-    console.log("[REQ] /products/categories/:id/subcategories", {
-      catId,
-      pincode: pin,
-    });
-    try {
-      const { data } = await instance.get(
-        `/products/categories/${catId}/subcategories`,
-        { params: { pincode: pin } }
-      );
-      const arr = Array.isArray(data?.items)
-        ? data.items
-        : Array.isArray(data)
-        ? data
-        : [];
-      console.log("[RES] subcategories", catId, arr.length);
-      setSubcats((prev) => ({ ...prev, [catId]: arr }));
-    } catch (err) {
-      console.error(
-        "[ERR] subcategories",
-        catId,
-        err?.response?.status,
-        err?.response?.data || err.message
-      );
-      setSubcats((prev) => ({ ...prev, [catId]: [] }));
-    }
-  };
+    fetchSubcats(); // required for the new sidebar
+    fetchCategories(); // optional: keeps your category block
+  }, []); // on mount
 
-  // compute filtered items locally (fallback if server doesn't filter)
+  // ---------- effects for products/facets (kept) ----------
+  useEffect(() => {
+    loadProducts();
+    loadFacets();
+  }, [
+    subcategoryId,
+    q,
+    brandSingle,
+    organic,
+    minPrice,
+    maxPrice,
+    brandsCSV,
+    materialsCSV,
+    packSizesCSV,
+    productTypesCSV,
+    returnPoliciesCSV,
+    discountsCSV,
+    ratingsCSV,
+    priceBandsCSV,
+    groupId,
+    group,
+    product,
+    urlPincode,
+  ]);
+
+  // ---------- client-side fallback filter (kept) ----------
   const applyClientFilters = (list) => {
-    const pin = getPincode(); // not used in filtering, but keep for clarity
     const term = (q || "").trim().toLowerCase();
 
     const priceMinEff = Number(minPrice || derivedMinPrice);
     const priceMaxEff = Number(maxPrice || derivedMaxPrice);
-
     const hasPriceMin = Number.isFinite(priceMinEff);
     const hasPriceMax = Number.isFinite(priceMaxEff);
 
@@ -488,35 +511,6 @@ export default function SubcategoryPage() {
     });
   };
 
-  // effects
-  useEffect(() => {
-    loadCategoriesOnce();
-  }, []);
-  useEffect(() => {
-    loadProducts();
-    loadFacets();
-  }, [
-    subcategoryId,
-    q,
-    brandSingle,
-    organic,
-    minPrice,
-    maxPrice,
-    brandsCSV,
-    materialsCSV,
-    packSizesCSV,
-    productTypesCSV,
-    returnPoliciesCSV,
-    discountsCSV,
-    ratingsCSV,
-    priceBandsCSV,
-    groupId,
-    group,
-    product,
-    urlPincode,
-  ]);
-
-  // when raw items or any filter changes, re-apply client filters
   useEffect(() => {
     const filtered = applyClientFilters(itemsRaw);
     console.log(
@@ -574,56 +568,74 @@ export default function SubcategoryPage() {
     return raw;
   }
 
+  // ------ UI ------
   return (
     <div className="flex">
       <aside className="w-64 bg-white border-r border-gray-200 p-4 space-y-6">
+        {/* NEW: Shop by Subcategory (direct) */}
+        <div>
+          <div
+            className="flex items-center justify-between cursor-pointer"
+            onClick={() => setExpandedSubcats(!expandedSubcats)}
+          >
+            <h2 className="text-lg font-semibold">Shop by Subcategory</h2>
+            {expandedSubcats ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+          </div>
+
+          {expandedSubcats && (
+            <>
+              <input
+                type="text"
+                placeholder="Search subcategories"
+                className="mt-2 mb-2 w-full border rounded-md px-2 py-1 text-sm"
+                value={subcatSearch}
+                onChange={(e) => setSubcatSearch(e.target.value)}
+              />
+              {!subcategories.length && (
+                <div className="text-sm text-gray-500">No subcategories.</div>
+              )}
+              <ul className="space-y-1 max-h-72 overflow-auto pr-1">
+                {subcategories
+                  .filter((s) => {
+                    if (!subcatSearch.trim()) return true;
+                    const n = (s.name || "").toLowerCase();
+                    return n.includes(subcatSearch.trim().toLowerCase());
+                  })
+                  .map((s) => (
+                    <li key={s._id}>
+                      <Link
+                        to={`/subcategory/${s._id}`}
+                        className="block text-sm text-gray-700 hover:underline"
+                      >
+                        {s.name}
+                      </Link>
+                    </li>
+                  ))}
+              </ul>
+            </>
+          )}
+        </div>
+
+        {/* Optional: keep categories block (won’t be used for subcategories anymore) */}
         <div>
           <h2 className="text-lg font-semibold mb-2">Shop by Category</h2>
           {!categories.length && (
             <div className="text-sm text-gray-500">No categories.</div>
           )}
           <ul className="space-y-2 text-gray-700">
-            {categories.map((cat) => {
-              const catId = cat._id || cat.id || cat.category_id;
-              const catName =
-                cat.name || cat.category_name || cat.title || "Category";
-              return (
-                <li key={catId}>
-                  <button
-                    onClick={() => loadSubcats(catId)}
-                    className="w-full text-left font-medium hover:text-green-600"
-                  >
-                    {catName}
-                  </button>
-                  {Array.isArray(subcats[catId]) &&
-                    subcats[catId].length > 0 && (
-                      <ul className="ml-3 mt-1 space-y-1 text-sm">
-                        {subcats[catId].map((s) => {
-                          const subId = s._id || s.id || s.subcategory_id;
-                          const subName =
-                            s.name ||
-                            s.subcategory_name ||
-                            s.title ||
-                            "Subcategory";
-                          return (
-                            <li key={subId}>
-                              <Link
-                                to={`/subcategory/${subId}`}
-                                className="hover:underline"
-                              >
-                                {subName}
-                              </Link>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                </li>
-              );
-            })}
+            {categories.map((cat) => (
+              <li key={cat._id}>
+                <div className="font-medium">{cat.name}</div>
+              </li>
+            ))}
           </ul>
         </div>
 
+        {/* Refined by (kept) */}
         <div>
           <h2 className="text-lg font-semibold mb-2">Refined by</h2>
 
@@ -986,7 +998,7 @@ export default function SubcategoryPage() {
                 (k) => next[k] === undefined && delete next[k]
               );
               setParams(next, { replace: true });
-              loadProducts(); // also re-pull from server
+              loadProducts();
             }}
           >
             Apply
@@ -1023,7 +1035,7 @@ export default function SubcategoryPage() {
                 <div className="line-clamp-2 text-sm">{p.name}</div>
                 <div className="text-xs text-gray-500">{p.brand || ""}</div>
                 <div className="text-sm font-semibold">
-                  ₹{p.price}
+                  ₹{ p.price}
                 </div>
               </Link>
             ))}
