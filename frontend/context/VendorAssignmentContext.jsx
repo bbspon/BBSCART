@@ -10,7 +10,7 @@ export function VendorAssignmentProvider({ children }) {
   async function setPincode(pin) {
     setLoading(true);
     try {
-      const { data } = await instance.post("/api/geo/pincode", {
+      const { data } = await instance.post("/geo/pincode", {
         pincode: pin,
       });
       if (data?.success) setAssigned(data.assigned || null);
