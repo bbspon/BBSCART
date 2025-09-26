@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import instance from "../../services/axiosInstance"; // adjust path as needed
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
-
+import axios from "axios";
 function pickMainImage(p) {
   // 1. Prefer first gallery image
   let raw =
@@ -174,6 +174,22 @@ export default function ProductListingFull() {
     };
 
     (async () => {
+      try {
+        const response = await axios.get("/api/products/public", { params });
+        setProducts(response.data.products);
+      } catch (error) {
+        if (error.response && error.response.status === 404) {
+          const { message, showContactForm } = error.response.data;
+          if (showContactForm) {
+            // Trigger popup
+            setShowNoVendorPopup(true);
+            setPopupMessage(message);
+          }
+        } else {
+          console.error("Failed to fetch products", error);
+        }
+      }
+
       try {
         const { list, extraParams } = getApiBase(pincode);
         const { data } = await instance.get(list, {
