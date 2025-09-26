@@ -652,7 +652,7 @@ const ProductForm = ({
     (async () => {
       try {
         // 1) Who am I?
-        const meRes = await instance.get("/api/auth/me", {
+        const meRes = await instance.get("/auth/me", {
           withCredentials: true,
         });
         const me = meRes?.data?.user || meRes?.data;
