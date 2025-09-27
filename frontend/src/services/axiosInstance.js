@@ -8,40 +8,63 @@ const instance = axios.create({
   timeout: 45000,
   withCredentials: true, // needed if backend uses cookies
 });
+
 // If you use token-based auth, attach it here:
 instance.interceptors.request.use((config) => {
   const token = localStorage.getItem("admin_token"); // adjust your key
-  if (token && !config.headers.Authorization) {
+  if (token && !config.headers?.Authorization) {
+    config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
-// axiosInstance.js (interceptor)
-instance.interceptors.request.use((config) => {
-  const pin =
-    localStorage.getItem("deliveryPincode") ||
-    localStorage.getItem("bbs_pincode") ||
-    localStorage.getItem("pincode") ||
-    "";
 
-  if (pin) {
-    config.headers["X-Pincode"] = pin;
-    config.params = {
-      ...(config.params || {}),
-      pincode: config.params?.pincode ?? pin,
-    };
+// Always attach X-Pincode (prefer LocalStorage, fallback to cookie) + X-Guest-Key
+instance.interceptors.request.use((config) => {
+  // --- Pincode: LS first (deliveryPincode -> bbs_pincode -> pincode), then cookie fallback ---
+  let pin = "";
+  try {
+    pin =
+      localStorage.getItem("deliveryPincode") ||
+      localStorage.getItem("bbs_pincode") ||
+      localStorage.getItem("pincode") ||
+      "";
+  } catch {
+    // ignore
+  }
+  if (!pin && typeof document !== "undefined") {
+    const m = document.cookie.match(/(?:^|;\s*)pincode=([^;]+)/);
+    if (m) pin = decodeURIComponent(m[1]);
   }
 
-  if (config.params && "pincode" in config.params) {
+  // Ensure headers object exists
+  config.headers = config.headers || {};
+
+  if (pin) {
+    // Header is the single source of truth for the backend
+    config.headers["X-Pincode"] = pin;
+  }
+
+  // Never leak ?pincode=... in query params (header should drive vendor assignment)
+  if (
+    config.params &&
+    Object.prototype.hasOwnProperty.call(config.params, "pincode")
+  ) {
     delete config.params.pincode;
   }
 
-  let gk = localStorage.getItem("guestKey");
-  if (!gk) {
-    gk =
-      (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)) +
-      Date.now().toString(36);
-    localStorage.setItem("guestKey", gk);
+  // --- Guest key to de-duplicate anonymous sessions ---
+  let gk = "";
+  try {
+    gk = localStorage.getItem("guestKey") || "";
+    if (!gk) {
+      gk =
+        (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)) +
+        Date.now().toString(36);
+      localStorage.setItem("guestKey", gk);
+    }
+  } catch {
+    // ignore
   }
   config.headers["X-Guest-Key"] = gk;
 

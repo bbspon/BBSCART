@@ -95,7 +95,23 @@ const toArrayFiles = (files) => {
   // multer.fields -> object of arrays
   return Object.values(files).flat();
 };
+function buildPublicMatch(req) {
+  const ids = [];
+  if (req.assignedVendorId) ids.push(String(req.assignedVendorId));
+  if (req.assignedVendorUserId) ids.push(String(req.assignedVendorUserId)); // <— include user_id too
 
+  const vendorOr = [];
+  for (const id of ids) {
+    vendorOr.push({ seller_id: id }); // string form
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      vendorOr.push({ seller_id: new mongoose.Types.ObjectId(id) }); // ObjectId form
+    }
+  }
+
+  return vendorOr.length
+    ? { $or: [{ is_global: true }, { $or: vendorOr }] }
+    : { is_global: true };
+}
 const toRegex = (s) =>
   new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
 
@@ -2293,97 +2309,119 @@ exports.importProductsCSV = async (req, res) => {
     return res.status(500).json({ message: e.message });
   }
 };
-
 exports.listProducts = async (req, res) => {
   try {
-    const { subcategoryId, groupId, limit = 24, page = 1 } = req.query;
-
-    // Ensure the assigned vendor is present
-    if (!req.assignedVendorId) {
-      return res.status(400).json({ message: "Assigned vendor missing" });
+    if (req.noVendorForPincode) {
+      return res
+        .status(404)
+        .json({ success: true, products: [], total: 0, showContactForm: true });
     }
 
-    const query = {
-      seller_id: new mongoose.Types.ObjectId(String(req.assignedVendorId)), // Filter by pincode vendor
-    };
+    const {
+      search,
+      minPrice,
+      maxPrice,
+      brands, // CSV
+      rating_gte,
+      ram_gte,
+      sort = "newest",
+      page = 1,
+      limit = 20,
+      subcategoryId,
+      groupId,
+    } = req.query;
 
-    // Validate and filter by subcategoryId if provided
-    if (subcategoryId) {
-      if (!mongoose.Types.ObjectId.isValid(subcategoryId)) {
-        return res.status(400).json({ message: "Invalid subcategoryId" });
-      }
-      query.subcategory_id = new mongoose.Types.ObjectId(subcategoryId);
+    // Base match: always include globals; add vendor scope if assigned (dual-id/dual-type)
+    const baseMatch = buildPublicMatch(req);
+    const match = { ...baseMatch }; // NOTE: spread, not `{ .baseMatch }`
+
+    // Optional filters (keep/extend as you already do)
+    if (subcategoryId && mongoose.Types.ObjectId.isValid(subcategoryId)) {
+      match.subcategory_id = new mongoose.Types.ObjectId(subcategoryId);
     }
-
-    // Validate and filter by groupId if provided
-    if (groupId) {
-      if (!mongoose.Types.ObjectId.isValid(groupId)) {
-        return res.status(400).json({ message: "Invalid groupId" });
-      }
-      const group = await ProductGroup.findById(groupId).lean();
-      if (group && group.product_ids?.length) {
-        query._id = { $in: group.product_ids };
-      }
+    if (search && String(search).trim()) {
+      const rx = new RegExp(String(search).trim(), "i");
+      match.$or = (match.$or || []).concat([
+        { name: rx },
+        { title: rx },
+        { description: rx },
+      ]);
     }
+    if (minPrice || maxPrice) {
+      match.price = {};
+      if (minPrice != null) match.price.$gte = Number(minPrice);
+      if (maxPrice != null) match.price.$lte = Number(maxPrice);
+    }
+    if (brands) {
+      const arr = String(brands)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (arr.length) match.brand = { $in: arr };
+    }
+    if (rating_gte) match.rating = { $gte: Number(rating_gte) };
+    if (ram_gte) match.ram = { $gte: Number(ram_gte) };
 
-    // Pagination
-    const skip = (Number(page) - 1) * Number(limit);
+    const sortStage = (() => {
+      const k = String(sort).toLowerCase();
+      if (k === "price-asc" || k === "price_asc") return { price: 1 };
+      if (k === "price-desc" || k === "price_desc") return { price: -1 };
+      if (k === "popularity") return { popularity: -1, createdAt: -1 };
+      return { createdAt: -1, _id: -1 };
+    })();
 
-    // Fetch products
+    const take = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+    const p = Math.max(1, parseInt(page, 10) || 1);
+    const skip = (p - 1) * take;
+
     const [products, total] = await Promise.all([
-      Product.find(query)
-        .populate("category_id subcategory_id")
-        .sort({ createdAt: -1 }) // Sort by newest first
-        .skip(skip)
-        .limit(Number(limit))
-        .lean(),
-      Product.countDocuments(query),
+      Product.find(match).sort(sortStage).skip(skip).limit(take).lean(),
+      Product.countDocuments(match),
     ]);
 
-    res.status(200).json({
+    return res.json({
       success: true,
       products,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        pages: Math.ceil(total / Number(limit)),
-      },
+      total,
+      page: p,
+      limit: take,
+      pages: Math.max(1, Math.ceil(total / take)),
     });
   } catch (err) {
-    console.error("listProducts error:", err);
-    res.status(500).json({ message: "Failed to list products" });
+    console.error("listProducts public error:", err);
+    return res.status(500).json({ message: "Failed to list products" });
   }
 };
-// PUBLIC facets for current seller only
+
+// ---- PUBLIC getFacets (vendor-optional) ----
 exports.getFacets = async (req, res) => {
   try {
-    if (!req.assignedVendorId) {
-      return res.status(400).json({ message: "Assigned seller missing" });
-    }
-
-    const match = {
-      seller_id: new mongoose.Types.ObjectId(String(req.assignedVendorId)),
-    };
+    const match = req.noVendorForPincode
+      ? { is_global: true }
+      : buildPublicMatch(req);
 
     const agg = await Product.aggregate([
       { $match: match },
       {
         $facet: {
           brands: [
+            { $match: { brand: { $ne: null } } },
             { $group: { _id: "$brand", count: { $sum: 1 } } },
-            { $sort: { _id: 1 } },
+            { $project: { name: "$_id", count: 1, _id: 0 } },
+            { $sort: { count: -1, name: 1 } },
           ],
           ram: [
+            { $match: { ram: { $ne: null } } },
             { $group: { _id: "$ram", count: { $sum: 1 } } },
-            { $sort: { _id: 1 } },
+            { $project: { value: "$_id", count: 1, _id: 0 } },
+            { $sort: { value: 1 } },
           ],
           price: [
             {
               $group: {
                 _id: null,
-                min: { $min: "$priceInfo.sale" },
-                max: { $max: "$priceInfo.sale" },
+                min: { $min: "$price" },
+                max: { $max: "$price" },
               },
             },
           ],
@@ -2392,16 +2430,16 @@ exports.getFacets = async (req, res) => {
     ]);
 
     const f = agg[0] || {};
-    res.json({
-      brands: (f.brands || []).map((b) => ({ name: b._id, count: b.count })),
-      ram: (f.ram || []).map((r) => ({ value: r._id, count: r.count })),
+    return res.json({
+      brands: f.brands || [],
+      ram: f.ram || [],
       price: f.price?.[0]
         ? { min: f.price[0].min, max: f.price[0].max }
         : { min: 0, max: 0 },
     });
   } catch (err) {
-    console.error("getFacets error:", err);
-    res.status(500).json({ message: err.message });
+    console.error("getFacets public error:", err);
+    return res.status(500).json({ message: err.message });
   }
 };
 

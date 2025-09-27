@@ -36,10 +36,8 @@ function nextMidnightIST() {
 
 function getCustomerKey(req, res) {
   if (req.user?._id) return String(req.user._id);
-  // allow a guest key header for stable assignment
   const g = req.get("x-guest-key");
   if (g) return String(g);
-  // fall back to a cookie we set for guests
   if (req.cookies?.cid) return req.cookies.cid;
   const cid =
     "g_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -81,17 +79,23 @@ async function pickVendorRoundRobin(pincode, dateKey) {
 module.exports = async function assignVendorMiddleware(req, res, next) {
   try {
     // IMPORTANT: prefer explicit sources over cookie
-    const pincode = (
-      req.query?.pincode || // 1) explicit query
-      req.get("x-pincode") || // 2) explicit header
-      req.cookies?.pincode ||
-      ""
-    ) // 3) fallback cookie
-      .toString()
-      .trim();
+    // IMPORTANT: prefer header > cookie > query
+    let rawPin =
+      (req.get("x-pincode") || "").toString().trim() || // 1) header (source of truth)
+      (req.cookies?.pincode || "").toString().trim() || // 2) cookie (fallback)
+      (req.query?.pincode || "").toString().trim(); // 3) query (last resort)
 
-    // If no pincode given, let downstream decide. Do not force 400 here.
-    if (!pincode) return next();
+    // Normalize: only accept a 6-digit pincode
+    const pincode = /^\d{6}$/.test(rawPin) ? rawPin : "";
+
+    if (!pincode) {
+      // no usable pincode: make it explicit for downstream
+      req.assignedVendorId = null;
+      req.assignedVendorUserId = null;
+      req._resolvedPincode = "";
+      req.noVendorForPincode = false; // no pin yet; controller will treat as "global only"
+      return next();
+    }
 
     // Keep cookie in sync with the resolved pincode
     if (req.cookies?.pincode !== pincode) {

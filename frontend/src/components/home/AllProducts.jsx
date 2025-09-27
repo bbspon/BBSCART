@@ -28,20 +28,11 @@ const getPincode = () => localStorage.getItem("deliveryPincode") || "";
 
 const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
 
-const getApiBase = (pin) => {
-  if (pin) {
-    return {
-      list: `${baseUrl}/api/products/public`,
-      facets: `${baseUrl}/api/products/facets`,
-      extraParams: {},
-    };
-  }
-  return {
-    list: `${baseUrl}/api/products`,
-    facets: `${baseUrl}/api/products/facets`,
-    extraParams: { scope: "all" },
-  };
-};
+ const getApiBase = () => ({
+   list: `${baseUrl}/api/products/public`,
+  facets: `${baseUrl}/api/products/facets`,
+  extraParams: {},
+ });
 
 export default function ProductListingFull() {
   const [search, setSearch] = useState("");
@@ -117,42 +108,65 @@ export default function ProductListingFull() {
       return copy;
     });
 
-  // Fetch facets
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const { facets } = getApiBase(pincode);
-        const { data } = await instance.get(facets);
-        if (!alive) return;
-        const brands = (data.brands || []).map((b) => b.name).filter(Boolean);
-        const rams = (data.ram || [])
-          .map((r) => Number(r.value))
-          .filter((n) => !Number.isNaN(n));
-        const price = data.price || { min: 0, max: 30000 };
-        setAllBrands(brands);
-        setRamOptions(rams.sort((a, b) => a - b));
-        setPriceRange({
-          min: Math.max(0, Math.floor(price.min || 0)),
-          max: Math.ceil(price.max || 30000),
-        });
-        setMinPrice(Math.max(0, Math.floor(price.min || 0)));
-        setMaxPrice(Math.ceil(price.max || 30000));
-      } catch (e) {
-        console.error("Failed to load facets", e);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [pincode]);
+useEffect(() => {
+  let alive = true;
+
+  // Guard: do not fetch facets without a valid 6-digit pincode
+  let pin = "";
+  try {
+    pin = localStorage.getItem("deliveryPincode") || "";
+  } catch {}
+  if (!/^\d{6}$/.test(pin)) {
+    setAllBrands([]);
+    setRamOptions([]);
+    setPriceRange({ min: 0, max: 30000 });
+    return; // <-- bail
+  }
+
+  (async () => {
+    try {
+      const { facets } = getApiBase(); // always public endpoints
+      const { data } = await instance.get(facets);
+      if (!alive) return;
+      const brands = (data.brands || []).map((b) => b.name).filter(Boolean);
+      const rams = (data.ram || [])
+        .map((r) => Number(r.value))
+        .filter((n) => !Number.isNaN(n))
+        .sort((a, b) => a - b);
+      const price = data.price || { min: 0, max: 30000 };
+      setAllBrands(brands);
+      setRamOptions(rams);
+      setPriceRange({
+        min: Math.max(0, Math.floor(price.min || 0)),
+        max: Math.ceil(price.max || 30000),
+      });
+      setMinPrice(Math.max(0, Math.floor(price.min || 0)));
+      setMaxPrice(Math.ceil(price.max || 30000));
+    } catch (e) {
+      console.error("Failed to load facets", e);
+    }
+  })();
+
+  return () => {
+    alive = false;
+  };
+}, [pincode]);
 
   // Fetch products
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
     setErr("");
-
+let pin = "";
+try {
+  pin = localStorage.getItem("deliveryPincode") || "";
+} catch {}
+if (!/^\d{6}$/.test(pin)) {
+  setLoading(false);
+  setProducts([]);
+  setTotal(0);
+  return; // <-- bail
+}
     const params = {
       search: search || undefined,
       minPrice: Number.isFinite(minPrice) ? minPrice : undefined,
@@ -174,22 +188,6 @@ export default function ProductListingFull() {
     };
 
     (async () => {
-      try {
-        const response = await axios.get("/api/products/public", { params });
-        setProducts(response.data.products);
-      } catch (error) {
-        if (error.response && error.response.status === 404) {
-          const { message, showContactForm } = error.response.data;
-          if (showContactForm) {
-            // Trigger popup
-            setShowNoVendorPopup(true);
-            setPopupMessage(message);
-          }
-        } else {
-          console.error("Failed to fetch products", error);
-        }
-      }
-
       try {
         const { list, extraParams } = getApiBase(pincode);
         const { data } = await instance.get(list, {
