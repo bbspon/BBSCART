@@ -55,6 +55,12 @@ try {
 try {
   Vendor = require("../models/Vendor");
 } catch (_) {}
+function noCachePublic(req, res, next) {
+  res.set("Vary", "X-Pincode, Cookie");
+  res.set("Cache-Control", "private, no-store, no-cache, must-revalidate");
+  res.removeHeader("ETag");
+  next();
+}
 
 // ---------- PUBLIC CATALOG (keep vendor-scoped; assignment logic intact) ----------
 const storage = multer.memoryStorage();
@@ -119,12 +125,16 @@ router.get(
 router.get(
   "/public",
   assignVendorMiddleware,
+    noCachePublic, // <-- add this
+
   safe(productController.listProducts)
 );
 // Vendor-scoped facets
 router.get(
   "/facets",
   assignVendorMiddleware,
+  noCachePublic, // <-- add this
+
   safe(productController.getFacets)
 );
 
