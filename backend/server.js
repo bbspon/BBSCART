@@ -32,6 +32,7 @@ const geoRoutes = require("./routes/geoRoutes");
 const adminPincodeVendorsRoutes = require("./routes/adminPincodeVendorsRoutes");
 const adminVendorRoutes = require("./routes/adminVendorRoutes");
 const orderRoutes = require("./routes/orderRoutes");
+const testimonialRoutes = require("./routes/testimonialRoutes");
 
 const app = express();
 
@@ -230,6 +231,7 @@ app.get("/api/health", (req, res) => res.json({ ok: true }));
 app.use("/api/admin/pincode-vendors", adminPincodeVendorsRoutes);
 app.use("/api/admin/vendors", adminVendorRoutes);
 app.use("/orders", orderRoutes);
+app.use("/api/testimonials", testimonialRoutes);
 
 // ✅ Global Error Handler
 app.use((err, req, res, next) => {

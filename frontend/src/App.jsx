@@ -246,7 +246,7 @@ function App() {
           path="/admin/vendor-credentials"
           element={<AdminVendorCredentials />}
         />
-          <Route path="/accept-invite" element={<AcceptInvite/>} />
+        <Route path="/accept-invite" element={<AcceptInvite />} />
 
         <Route
           path="/vendor/set-password/:token"
@@ -254,12 +254,15 @@ function App() {
         />
         {/* Home Page card navigation */}
         <Route path="/all-products" element={<AllProducts />} />
-        <Route path="/write-testimonial" element={<WriteTestimonial />} />
+        <Route
+          path="/write-testimonial/:productId"
+          element={<WriteTestimonial />}
+        />
         <Route path="/fruits" element={<FruitsDetails />} />
         <Route path="/grocery" element={<GroceryDetails />} />
         {/* ✅ Home>PricingPage */}
         <Route path="/pricing" element={<PricingPage />} />
-      
+
         <Route path="/admin" element={<AdminRoutes />}>
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="products" element={<Products />} />
@@ -270,7 +273,7 @@ function App() {
           <Route path="customers" element={<Customers />} />
           <Route path="other-users" element={<OtherUser />} />
           <Route path="users-request" element={<UserRequest />} />
-        </Route> 
+        </Route>
         {/* Made by medun */}
         {/* GLOBAL CMS CORE MODULES (Shared Across All 3) */}
         <Route path="/admin-cms" element={<BBSCARTCMSPage />}>
@@ -281,7 +284,7 @@ function App() {
           <Route path="dashboard" element={<BBSCARTCMSPage />} />
         </Route>
 
-       {/*260925*/}
+        {/*260925*/}
         <Route path="/cart" element={<NavbarCart />} />
       </Routes>
 

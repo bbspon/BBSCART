@@ -4,10 +4,12 @@ import instance from "../../services/axiosInstance"; // Adjust your axios instan
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import imageCompression from "browser-image-compression";
+import { useParams } from "react-router-dom";
+export default function WriteTestimonial({ productId }) {
+  console.log(productId, " WriteTestimonial rendered");
+  const { productId: routeProductId } = useParams();
+const effectiveProductId = productId || routeProductId || form.productId; 
 
-const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
-
-export default function WriteTestimonial() {
   const [products, setProducts] = useState([]);
   const [form, setForm] = useState({
     name: "",
@@ -22,20 +24,32 @@ export default function WriteTestimonial() {
   const [previewMedia, setPreviewMedia] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch product list
   useEffect(() => {
+    if (productId || routeProductId) {
+      // We already know the product -> no need to fetch list or auto-select
+      setForm((f) => ({ ...f, productId: productId || routeProductId }));
+      return;
+    }
     const fetchProducts = async () => {
       try {
-        const res = await instance.get(`${API_BASE}/products`);
-        setProducts(res.data || []);
+        const res = await instance.get(`/products/public`, {
+          params: { limit: 100 },
+        });
+        const list = Array.isArray(res.data)
+          ? res.data
+          : res.data.products || [];
+        setProducts(list);
+        if (!form.productId && list.length) {
+          setForm((f) => ({ ...f, productId: list[0]._id }));
+        }
       } catch (err) {
         console.error(err);
         toast.error("Failed to load products. Please try later.");
       }
     };
     fetchProducts();
-  }, []);
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId, routeProductId]);
   // Handle input changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -91,20 +105,16 @@ export default function WriteTestimonial() {
     setLoading(true);
 
     try {
-      const data = new FormData();
-      Object.keys(form).forEach((key) => {
-        if (key === "media") {
-          form.media.forEach((file) => data.append("media", file));
-        } else if (key === "verified") {
-          data.append(key, form[key] ? "true" : "false");
-        } else {
-          data.append(key, form[key]);
-        }
-      });
-
-      const res = await instance.post(`${API_BASE}/testimonials`, data, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const payload = {
+        name: form.name,
+        email: form.email,
+        productId: effectiveProductId,
+        rating: form.rating,
+        title: form.title,
+        comment: form.comment,
+        verified: form.verified,
+      };
+      const res = await instance.post(`/testimonials`, payload);
 
       if (res.status === 201 || res.status === 200) {
         toast.success("Your testimonial has been submitted successfully!");
@@ -170,23 +180,33 @@ export default function WriteTestimonial() {
 
         {/* Product & Verified */}
         <div className="flex flex-col md:flex-row md:space-x-4">
-          <div className="flex-1">
-            <label className="block font-medium mb-1">Product *</label>
-            <select
-              name="productId"
-              value={form.productId}
-              onChange={handleChange}
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            >
-              <option value="">Select a product</option>
-              {products.map((p) => (
-                <option key={p._id} value={p._id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {!(productId || routeProductId) ? (
+            <div className="flex-1">
+              <label className="block font-medium mb-1">Product *</label>
+              <select
+                name="productId"
+                value={form.productId}
+                onChange={handleChange}
+              >
+                <option value="">Select a product</option>
+                {products.map((p) => (
+                  <option key={p._id} value={p._id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="flex-1">
+              <label className="block font-medium mb-1">Product</label>
+              <input
+                type="text"
+                value="This product"
+                readOnly
+                className="w-full border rounded px-3 py-2 bg-gray-50 text-gray-500"
+              />
+            </div>
+          )}
           <div className="flex items-center mt-4 md:mt-0">
             <input
               type="checkbox"
@@ -247,7 +267,9 @@ export default function WriteTestimonial() {
 
         {/* Media Upload */}
         <div>
-          <label className="block font-medium mb-1">Upload Images / Videos</label>
+          <label className="block font-medium mb-1">
+            Upload Images / Videos
+          </label>
           <input
             type="file"
             accept="image/*,video/*"
