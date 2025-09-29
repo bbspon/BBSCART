@@ -4,6 +4,7 @@ import instance from "../../services/axiosInstance";
 import { useCart } from "../../../context/CartContext";
 import { addToCart } from "../../slice/cartSlice"; // <- your existing slice action
 import { useDispatch } from "react-redux";
+import { Link } from "react-router-dom";   // add this at the top
 
 import {
   Star,
@@ -467,6 +468,16 @@ const thumbs = useMemo(() => {
               <button className="ml-auto bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm">
                 Rate Product
               </button>
+              {/* <div className="ml-auto w-full max-w-md">
+                <WriteTestimonial productId={p?._id} />
+              </div> */}
+
+              <Link
+                to={`/write-testimonial/${p?._id}`}
+                className="ml-auto bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm"
+              >
+                Write a Testimonial
+              </Link>
             </div>
 
             <div className="space-y-2 mb-6">
