@@ -8,7 +8,7 @@ import {
   FaMinus,
   FaPlus,
 } from "react-icons/fa";
-
+import { Link } from "react-router-dom";
 const API_BASE = import.meta.env.VITE_API_URL || "";
 const API_LIST = `${API_BASE}/api/products/public`;
 const API_FACETS = `${API_BASE}/api/products/facets`;
@@ -101,14 +101,13 @@ export default function Grocery() {
           return;
         }
 
-       const { data } = await axios.get(API_CATEGORY_BY_SLUG, {
-         params: { slug: GROCERIES_SLUG },
-       });
-       const id = data?.item?._id;
-       if (!id) throw new Error("Could not find 'Groceries' category in DB");
-       sessionStorage.setItem("catId:groceries", id);
-       if (live) setCategoryId(id);
-
+        const { data } = await axios.get(API_CATEGORY_BY_SLUG, {
+          params: { slug: GROCERIES_SLUG },
+        });
+        const id = data?.item?._id;
+        if (!id) throw new Error("Could not find 'Groceries' category in DB");
+        sessionStorage.setItem("catId:groceries", id);
+        if (live) setCategoryId(id);
       } catch (e) {
         if (live)
           setCatErr(
@@ -296,7 +295,7 @@ export default function Grocery() {
         {catErr && <p className="text-sm text-red-600 mt-1">{catErr}</p>}
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
         {/* Filters */}
         <aside className="md:col-span-1 bg-white p-4 rounded shadow sticky top-6 h-fit">
           <div className="mb-4">
@@ -499,6 +498,11 @@ export default function Grocery() {
 
         {/* product grid */}
         <main className="md:col-span-4 bg-white p-5 rounded shadow">
+          <nav className="breadcrumb">
+            <Link to="/">Home</Link>
+            <span> &gt; </span>
+            <Link to="/grocery">Groceries</Link>
+          </nav>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {!loading && items.length === 0 && !err && (
               <div className="text-sm text-gray-600">

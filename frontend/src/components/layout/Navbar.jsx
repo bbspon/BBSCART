@@ -24,7 +24,18 @@ const MegaMenu = ({ menuType }) => {
   const { user } = useSelector((state) => state.auth);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [activeSidebarMenu, setActiveSidebarMenu] = useState(null);
+  const [isTablet, setIsTablet] = useState(false);
 
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      setIsTablet(width >= 768 && width < 1024); 
+    };
+
+    handleResize(); // set initial values
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -62,26 +73,6 @@ const MegaMenu = ({ menuType }) => {
 
   const fullMenuData = [
     {
-      id: "grocery-1",
-      title: "SuperMarket",
-      submenu:
-        dynamicCategories.length > 0
-          ? dynamicCategories.map((cat) => ({
-              id: cat._id,
-              title: cat.name,
-              description: cat.description || "",
-              items: (cat.subcategories || []).map((sub) => ({
-                id: sub._id,
-                title: sub.name,
-                link: `/product/subcategory/${sub._id}`,
-              })),
-              image:
-                cat.image ||
-                "https://images.unsplash.com/photo-1542838132-92c53300491e?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80",
-            }))
-          : [],
-    },
-    {
       id: "jewelry-1",
       title: "Thiaworld Jewellery",
       externalLink: "https://thiaworld.bbscart.com/",
@@ -98,7 +89,8 @@ const MegaMenu = ({ menuType }) => {
   return (
     <>
       <div
-        className="w-full bg-[#3d1757] text-white py-2 text-center overflow-hidden sticky top-0 z-50"
+        className="w-full bg-gradient-to-r from-[#4d060a] via-[#6b0e13] to-[#141414]
+                text-white py-2 text-center overflow-hidden sticky top-0 z-50 shadow-neutral-950 shadow-2xl"
         style={{ boxShadow: "1px 1px 6px rgba(79, 50, 103, 0.2)" }}
       >
         <ul className="offer-msg list-none m-0 p-0">
@@ -110,10 +102,11 @@ const MegaMenu = ({ menuType }) => {
           </li>
         </ul>
       </div>
+
       <nav className="relative bg-white shadow-md border-b border-gray-100 z-30">
         <div className="container mx-auto px-2 flex items-center justify-between">
           <button
-            className="lg:hidden p-2 text-[#cf1717] focus:outline-none"
+            className="md:hidden p-2 text-[#cf1717] focus:outline-none"
             onClick={() => setMobileSidebarOpen(true)}
             aria-label="Open menu"
           >
@@ -151,7 +144,7 @@ const MegaMenu = ({ menuType }) => {
                   {item.externalLink ? (
                     <a
                       href={item.externalLink}
-                      className="flex items-center gap-1 px-4 py-2 rounded-md font-semibold text-gray-800 hover:bg-[#f7eaea] hover:text-[#cf1717] transition"
+                      className="flex items-center gap-1 px-4 py-2 rounded-md font-semibold text-zinc-950 hover:bg-zinc-100 text-semibold transition"
                     >
                       {item.title}
                     </a>
@@ -161,6 +154,7 @@ const MegaMenu = ({ menuType }) => {
           </ul>
         </div>
       </nav>
+
       {isMobile &&
         mobileSidebarOpen &&
         ReactDOM.createPortal(
@@ -191,6 +185,9 @@ const MegaMenu = ({ menuType }) => {
               </button>
               <div className="flex-1 overflow-y-auto pt-8 pb-4 px-4">
                 <ul className="space-y-2">
+                  <li className="relative group flex-shrink-0">
+                    <CategoryMegaMenu />
+                  </li>
                   {fullMenuData.map((item) => (
                     <li key={item.id}>
                       {item.externalLink ? (
@@ -267,6 +264,50 @@ const MegaMenu = ({ menuType }) => {
           </div>,
           document.body
         )}
+
+      {isTablet && (
+        <div className="hidden md:flex flex-row border h-full w-full">
+          {/* Wrapper that lays its <li> children in a row */}
+          <ul className="flex flex-row w-full">
+            <li className="flex-1 px-4">
+              <CategoryMegaMenu />
+            </li>
+
+            {fullMenuData.slice(0, 3).map(
+              (
+                item // show first 3 as example
+              ) => (
+                <li key={item.id} className="flex-1 px-4">
+                  {item.externalLink ? (
+                    <a
+                      href={item.externalLink}
+                      className="block w-full text-center px-3 py-2 rounded-md font-semibold text-gray-800 hover:bg-[#f7eaea] hover:text-[#cf1717] transition"
+                    >
+                      {item.title}
+                    </a>
+                  ) : (
+                    <button
+                      className={cn(
+                        "w-full text-center px-3 py-2 rounded-md font-semibold text-gray-800 hover:bg-[#f7eaea] hover:text-[#cf1717] transition",
+                        activeSidebarMenu === item.id
+                          ? "bg-[#f7eaea] text-[#cf1717]"
+                          : ""
+                      )}
+                      onClick={() =>
+                        setActiveSidebarMenu(
+                          activeSidebarMenu === item.id ? null : item.id
+                        )
+                      }
+                    >
+                      {item.title}
+                    </button>
+                  )}
+                </li>
+              )
+            )}
+          </ul>
+        </div>
+      )}
 
       <style>{`
         .bounce-text {

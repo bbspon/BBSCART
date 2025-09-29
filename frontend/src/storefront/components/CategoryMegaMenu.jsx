@@ -69,19 +69,56 @@ export default function CategoryMegaMenu() {
   }, [open]);
 
   // Close when mouse leaves button + menu
+  // useEffect(() => {
+  //   const handleMouseMove = (e) => {
+  //     if (!open) return;
+  //     const btn = btnRef.current;
+  //     const menu = menuRef.current;
+  //     if (btn && menu && !btn.contains(e.target) && !menu.contains(e.target)) {
+  //       setOpen(false);
+  //     }
+  //   };
+  //   if (open) {
+  //     document.addEventListener("mousemove", handleMouseMove);
+  //   }
+  //   return () => document.removeEventListener("mousemove", handleMouseMove);
+  // }, [open]);
+
   useEffect(() => {
+    const timerRef = { current: null };
+
     const handleMouseMove = (e) => {
       if (!open) return;
       const btn = btnRef.current;
       const menu = menuRef.current;
-      if (btn && menu && !btn.contains(e.target) && !menu.contains(e.target)) {
-        setOpen(false);
+      const outside =
+        btn && menu && !btn.contains(e.target) && !menu.contains(e.target);
+
+      if (outside) {
+        // start 5-second countdown if not already running
+        if (!timerRef.current) {
+          timerRef.current = setTimeout(() => {
+            setOpen(false);
+            timerRef.current = null;
+          }, 500);
+        }
+      } else {
+        // pointer back inside, cancel any pending close
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
       }
     };
+
     if (open) {
       document.addEventListener("mousemove", handleMouseMove);
     }
-    return () => document.removeEventListener("mousemove", handleMouseMove);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, [open]);
 
   return (
@@ -90,7 +127,7 @@ export default function CategoryMegaMenu() {
       <button
         ref={btnRef}
         onMouseEnter={() => setOpen(true)}
-        className="rounded bg-green-600 px-4 py-2 text-white"
+        className="rounded  text-zinc-950 hover:bg-zinc-100 px-4 py-2 font-semibold  hover:text-black"
       >
         Shop by Category
       </button>
@@ -102,11 +139,11 @@ export default function CategoryMegaMenu() {
             id="mega-menu-popup"
             ref={menuRef}
             style={{ top: menuTop }}
-            className="absolute left-1/2 z-[9999] -translate-x-1/2 w-[950px] rounded bg-white shadow-lg"
+            className="absolute left-1/2 z-[9999] -translate-x-1/2 m-auto rounded bg-white shadow-lg"
           >
-            <div className="flex">
+            <div className="flex max-w-screen ">
               {/* Left: categories */}
-              <div className="w-[32%] bg-[#111] text-white">
+              <div className="w-[100%] bg-[#111] text-white">
                 <div className="max-h-[440px] overflow-auto p-2">
                   {cats.map((c) => (
                     <div
@@ -120,10 +157,11 @@ export default function CategoryMegaMenu() {
                     </div>
                   ))}
                 </div>
+                
               </div>
 
               {/* Middle: subcategories */}
-              <div className="w-[34%] border-x p-3">
+              <div className="w-[80%] border-x p-3">
                 <div className="max-h-[440px] overflow-auto">
                   {!subs.length ? (
                     <div className="px-2 py-2 text-sm text-gray-500">
@@ -152,7 +190,7 @@ export default function CategoryMegaMenu() {
               </div>
 
               {/* Right: groups */}
-              <div className="w-[34%] p-3">
+              <div className="w-[80%] p-3">
                 <div className="max-h-[440px] overflow-auto">
                   {!groups.length ? (
                     <div className="px-2 py-2 text-sm text-gray-500">
@@ -172,8 +210,7 @@ export default function CategoryMegaMenu() {
                 </div>
               </div>
             </div>
-          </div>,
-          document.body
+          </div>,document.body
         )}
     </>
   );

@@ -11,7 +11,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import clsx from "clsx";
-
+import { Link } from "react-router-dom";
 const ProductPage = () => {
   const [selectedImage, setSelectedImage] = useState(
     "https://www.notebookcheck.org/fileadmin/Notebooks/News/_nc3/12sultraconceptUntitled.jpg"
@@ -94,10 +94,17 @@ const ProductPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Breadcrumb */}
-      <nav className="text-sm text-gray-500 px-9 pt-5">
-        Home / Electronics / Headphones /{" "}
-        <span className="text-gray-800">Sony WH-1000XM5</span>
+      <nav className="breadcrumb text-sm text-gray-500 px-9 pt-5">
+        <Link to="/">Home</Link>
+        <span> &gt; </span>
+        <Link to="/grocery">Groceries</Link>
+        <span> &gt; </span>
+          <span className="text-gray-800">Sony WH-1000XM5</span>
       </nav>
+   
+     
+     
+  
 
       <div className="container mx-auto px-4 py-6 grid lg:grid-cols-2 gap-6 ">
         {/* Left Column - Images */}

@@ -54,34 +54,23 @@ const SectionCategory = () => {
   const settings = {
     dots: false,
     infinite: true,
-    speed: 1000,
-    slidesToShow: 4,
+    speed: 800,
+    slidesToShow: 5,
     slidesToScroll: 1,
     responsive: [
-      {
-        breakpoint: 1024,
-        settings: {
-          slidesToShow: 2,
-          slidesToScroll: 1,
-        },
-      },
-      {
-        breakpoint: 768,
-        settings: {
-          slidesToShow: 1,
-          slidesToScroll: 1,
-        },
-      },
+      { breakpoint: 1536, settings: { slidesToShow: 4 } }, // large desktops
+      { breakpoint: 1280, settings: { slidesToShow: 3 } }, // laptops
+      { breakpoint: 1024, settings: { slidesToShow: 2 } }, // tablets landscape
+      { breakpoint: 768, settings: { slidesToShow: 1 } },  // tablets portrait & mobiles
     ],
   };
 
   return (
-    <section className="category-carousel pb-6 md:pb-12 max-w-[85%] md:max-w-full mx-auto">
-
-      <h2 className="font-quicksand text-center text-lg md:text-xl lg:text-2xl font-bold md:mb-4">
-        Explore Categories
-      </h2>
-      <div>
+ <div className="flex justify-center items-center">
+      <section className="category-carousel w-full max-w-screen-2xl px-4 md:px-6 lg:px-8 pb-8 md:pb-12">
+        <h2 className="font-quicksand text-center text-xl md:text-2xl lg:text-3xl font-bold mb-6">
+          Explore Categories
+        </h2>
         <Slider {...settings}>
           {categories.map((category) => (
             <div key={category.id} className="p-4">
@@ -92,21 +81,19 @@ const SectionCategory = () => {
                   initial={{ opacity: 0, y: 40 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
-                  className={`category-box p-6 rounded-xl flex flex-col items-center justify-between text-center w-[300px] h-[350px] shadow-xl ${category.bgColor}`}
+                  className={`category-box p-6 rounded-xl flex flex-col items-center justify-between text-center shadow-xl ${category.bgColor}`}
                 >
-                  <div className="category-image mb-4">
+                  <div className="mb-4 w-full flex justify-center">
                     <img
                       src={category.icon}
                       alt={category.name}
-                      className="w-[250px] h-[150px] object-contain"
+                      className="w-40 h-28 sm:w-48 sm:h-32 md:w-56 md:h-36 object-contain"
                     />
                   </div>
-                  <h5 className="text-md md:text-lg font-semibold mb-1">
+                  <h5 className="text-base md:text-lg font-semibold mb-1">
                     {category.name}
                   </h5>
-                  <p className="text-sm text-gray-700">
-                    {category.items} items
-                  </p>
+                  <p className="text-sm text-gray-700">{category.items} items</p>
                   {category.description && (
                     <p className="text-xs text-gray-500 mt-2 hidden md:block">
                       {category.description}
@@ -117,8 +104,8 @@ const SectionCategory = () => {
             </div>
           ))}
         </Slider>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 };
 

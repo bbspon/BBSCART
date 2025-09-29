@@ -94,6 +94,9 @@ import AdminCustomerVendorRequestsPage from './components/pages/admin/AdminCusto
 import AdminVendorCredentials from "./components/admin/AdminVendorCredentials";
 import VendorSetPassword from "./components/pages/VendorSetPassword";
 import AcceptInvite from './components/pages/admin/AcceptInvite';
+import NavbarCart from './components/NavbarCart';
+import AllTestimonials from './components/home/WriteTestimonial';
+import WriteTestimonial from './components/home/WriteTestimonial';
 function App() {
   const dispatch = useDispatch();
   const location = useLocation(); // Get the current route
@@ -251,6 +254,7 @@ function App() {
         />
         {/* Home Page card navigation */}
         <Route path="/all-products" element={<AllProducts />} />
+        <Route path="/write-testimonial" element={<WriteTestimonial />} />
         <Route path="/fruits" element={<FruitsDetails />} />
         <Route path="/grocery" element={<GroceryDetails />} />
         {/* ✅ Home>PricingPage */}
@@ -266,7 +270,6 @@ function App() {
           <Route path="customers" element={<Customers />} />
           <Route path="other-users" element={<OtherUser />} />
           <Route path="users-request" element={<UserRequest />} />
-
         </Route> 
         {/* Made by medun */}
         {/* GLOBAL CMS CORE MODULES (Shared Across All 3) */}
@@ -277,6 +280,9 @@ function App() {
         <Route path="/thia-jewellery-cms" element={<ThiaJewelleryCMS />}>
           <Route path="dashboard" element={<BBSCARTCMSPage />} />
         </Route>
+
+       {/*260925*/}
+        <Route path="/cart" element={<NavbarCart />} />
       </Routes>
 
       {shouldRenderHeaderFooter && <FooterTop />}
