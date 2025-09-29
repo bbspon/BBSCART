@@ -1,8 +1,9 @@
 // ProductListingFull.jsx
+import { Link } from "react-router-dom";
 import React, { useEffect, useMemo, useState } from "react";
 import instance from "../../services/axiosInstance"; // adjust path as needed
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
-import axios from "axios";
+
 function pickMainImage(p) {
   // 1. Prefer first gallery image
   let raw =
@@ -28,11 +29,20 @@ const getPincode = () => localStorage.getItem("deliveryPincode") || "";
 
 const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
 
- const getApiBase = () => ({
-   list: `${baseUrl}/api/products/public`,
-  facets: `${baseUrl}/api/products/facets`,
-  extraParams: {},
- });
+const getApiBase = (pin) => {
+  if (pin) {
+    return {
+      list: `${baseUrl}/api/products/public`,
+      facets: `${baseUrl}/api/products/facets`,
+      extraParams: {},
+    };
+  }
+  return {
+    list: `${baseUrl}/api/products`,
+    facets: `${baseUrl}/api/products/facets`,
+    extraParams: { scope: "all" },
+  };
+};
 
 export default function ProductListingFull() {
   const [search, setSearch] = useState("");
@@ -108,65 +118,42 @@ export default function ProductListingFull() {
       return copy;
     });
 
-useEffect(() => {
-  let alive = true;
-
-  // Guard: do not fetch facets without a valid 6-digit pincode
-  let pin = "";
-  try {
-    pin = localStorage.getItem("deliveryPincode") || "";
-  } catch {}
-  if (!/^\d{6}$/.test(pin)) {
-    setAllBrands([]);
-    setRamOptions([]);
-    setPriceRange({ min: 0, max: 30000 });
-    return; // <-- bail
-  }
-
-  (async () => {
-    try {
-      const { facets } = getApiBase(); // always public endpoints
-      const { data } = await instance.get(facets);
-      if (!alive) return;
-      const brands = (data.brands || []).map((b) => b.name).filter(Boolean);
-      const rams = (data.ram || [])
-        .map((r) => Number(r.value))
-        .filter((n) => !Number.isNaN(n))
-        .sort((a, b) => a - b);
-      const price = data.price || { min: 0, max: 30000 };
-      setAllBrands(brands);
-      setRamOptions(rams);
-      setPriceRange({
-        min: Math.max(0, Math.floor(price.min || 0)),
-        max: Math.ceil(price.max || 30000),
-      });
-      setMinPrice(Math.max(0, Math.floor(price.min || 0)));
-      setMaxPrice(Math.ceil(price.max || 30000));
-    } catch (e) {
-      console.error("Failed to load facets", e);
-    }
-  })();
-
-  return () => {
-    alive = false;
-  };
-}, [pincode]);
+  // Fetch facets
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const { facets } = getApiBase(pincode);
+        const { data } = await instance.get(facets);
+        if (!alive) return;
+        const brands = (data.brands || []).map((b) => b.name).filter(Boolean);
+        const rams = (data.ram || [])
+          .map((r) => Number(r.value))
+          .filter((n) => !Number.isNaN(n));
+        const price = data.price || { min: 0, max: 30000 };
+        setAllBrands(brands);
+        setRamOptions(rams.sort((a, b) => a - b));
+        setPriceRange({
+          min: Math.max(0, Math.floor(price.min || 0)),
+          max: Math.ceil(price.max || 30000),
+        });
+        setMinPrice(Math.max(0, Math.floor(price.min || 0)));
+        setMaxPrice(Math.ceil(price.max || 30000));
+      } catch (e) {
+        console.error("Failed to load facets", e);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [pincode]);
 
   // Fetch products
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
     setErr("");
-let pin = "";
-try {
-  pin = localStorage.getItem("deliveryPincode") || "";
-} catch {}
-if (!/^\d{6}$/.test(pin)) {
-  setLoading(false);
-  setProducts([]);
-  setTotal(0);
-  return; // <-- bail
-}
+
     const params = {
       search: search || undefined,
       minPrice: Number.isFinite(minPrice) ? minPrice : undefined,
@@ -228,7 +215,8 @@ if (!/^\d{6}$/.test(pin)) {
   const filtered = useMemo(() => products, [products]);
 
   return (
-    <div className="flex gap-6 p-6">
+ <>
+    <div className="flex gap-4 ">
       {/* Sidebar */}
       <aside className="w-72 border rounded bg-white p-4 sticky top-4 self-start h-fit">
         <h3 className="text-lg font-semibold mb-3">Filters</h3>
@@ -414,15 +402,17 @@ if (!/^\d{6}$/.test(pin)) {
       </aside>
 
       {/* Main */}
-      <main className="flex-1">
-        <div className="mb-4">
-          <nav className="text-sm text-gray-600 mb-2">
-            Home &gt; Mobiles &gt; Mobiles
+      <main className="flex-1 items-center py-3 pe-8">
+        <div className="">
+          <nav className="breadcrumb mb-4">
+            <Link to="/">Home</Link>
+            <span> &gt; </span>
+            <Link to="/all-products">All Products</Link>
           </nav>
 
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
-              <h1 className="text-2xl font-semibold">All Products</h1>
+              <h1 className="text-2xl font-semibold border-b mb-5">All Products</h1>
               <div className="text-sm text-gray-600">
                 {loading
                   ? "Loading..."
@@ -650,5 +640,6 @@ if (!/^\d{6}$/.test(pin)) {
         )}
       </main>
     </div>
+ </>
   );
 }

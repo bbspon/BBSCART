@@ -74,31 +74,39 @@ const HeroVideoCarousel = () => {
       <div className="flex items-center justify-center gap-4 transition-transform duration-500">
         {videos.map((video, idx) => {
           const isActive = idx === activeIndex;
-          const isLeft = idx === (activeIndex - 1 + videos.length) % videos.length;
+          const isLeft =
+            idx === (activeIndex - 1 + videos.length) % videos.length;
           const isRight = idx === (activeIndex + 1) % videos.length;
 
           let style =
             "scale-90 opacity-40 blur-[2px] translate-y-6 pointer-events-none";
           if (isActive)
-            style =
-              "scale-105 opacity-100 blur-0 translate-y-0 z-20 shadow-xl";
+            style = "scale-105 opacity-100 blur-0 translate-y-0 z-20 shadow-xl";
           else if (isLeft)
             style =
               "scale-95 opacity-70 -translate-x-6 md:-translate-x-16 z-10";
           else if (isRight)
-            style =
-              "scale-95 opacity-70 translate-x-6 md:translate-x-16 z-10";
+            style = "scale-95 opacity-70 translate-x-6 md:translate-x-16 z-10";
 
           return (
             <div
               key={idx}
-              className={`relative transform transition-all duration-700 ease-in-out    bg-red-300 rounded-xl overflow-hidden ${style}`}
               style={{
                 width: isActive ? "500px" : "300px",
                 height: isActive ? "400px" : "380px",
-                margin:"-40px",
-                padding:"1px"
+                margin: "-40px",
+                padding: "1px",
               }}
+              className={`relative transform transition-all duration-700 ease-in-out bg-red-300 rounded-xl overflow-hidden
+    ${
+      isActive
+        ? "w-[100vw] sm:w-[500px] md:w-[500px] h-[60vw] sm:h-[350px] md:h-[400px] scale-105 opacity-100 blur-0 z-20 shadow-xl"
+        : isLeft
+        ? "w-[60vw] sm:w-[300px] md:w-[350px] h-[45vw] sm:h-[320px] md:h-[380px] scale-95 opacity-70 -translate-x-6 md:-translate-x-16 z-10"
+        : isRight
+        ? "w-[60vw] sm:w-[300px] md:w-[350px] h-[45vw] sm:h-[320px] md:h-[380px] scale-95 opacity-70 translate-x-6 md:translate-x-16 z-10"
+        : "scale-90 opacity-40 blur-[2px] translate-y-6 pointer-events-none"
+    }`}
             >
               <video
                 ref={(el) => (videoRefs.current[idx] = el)}
@@ -116,7 +124,11 @@ const HeroVideoCarousel = () => {
                     onClick={togglePlay}
                     className="absolute top-4 right-4 rounded-full text-yellow-600 text-[40px] shadow-lg transition"
                   >
-                    {isPlaying ? <i className="ri-pause-circle-line"></i> : <i className="ri-play-circle-fill"></i>}
+                    {isPlaying ? (
+                      <i className="ri-pause-circle-line"></i>
+                    ) : (
+                      <i className="ri-play-circle-fill"></i>
+                    )}
                   </button>
                   <button className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded-md shadow-md transition">
                     View

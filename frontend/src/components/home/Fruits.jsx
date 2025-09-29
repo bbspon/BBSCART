@@ -1,7 +1,7 @@
 // Fruits.jsx — Fruits-only listing filtered by category from DB (no hardcoded ids)
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-
+import { Link } from "react-router-dom";
 const sampleFruits = [];
 
 // API endpoints (generic products APIs)
@@ -296,6 +296,7 @@ export default function FruitsDetails({ products = sampleFruits }) {
 
   return (
     <div className="flex gap-6 p-6">
+       
       {/* Sidebar */}
       <aside className="w-72 border rounded bg-white p-4 sticky top-4 self-start h-fit">
         <h3 className="text-lg font-semibold mb-3">Filters</h3>
@@ -389,6 +390,11 @@ export default function FruitsDetails({ products = sampleFruits }) {
       {/* Main */}
       <main className="flex-1">
         <div className="mb-4">
+            <nav className="breadcrumb">
+            <Link to="/">Home</Link>
+            <span> &gt; </span>
+            <Link to="/mobiles">Fruits</Link>
+          </nav>
           <h1 className="text-2xl font-semibold">Fruits</h1>
           <div className="text-sm text-gray-600">
             {!categoryId && !catErr && "Loading category…"}

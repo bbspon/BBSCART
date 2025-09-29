@@ -43,47 +43,49 @@ const HeroSection = () => {
       >
         {slides.map((slide) => (
           <SwiperSlide key={slide.id}>
-            <div className="hero-slide-container relative w-full ">
+            <div className="hero-slide-container relative w-full  ">
               {/* Background Image */}
               <img
                 src={slide.image}
                 alt={slide.title}
-                className="w-full h-full object-cover object-center"
+                className="<w-full h-full object-cover object-center rounded-md "
               />
 
               {/* Overlay Content */}
               <div className="absolute inset-0 flex flex-col justify-between p-4 sm:p-6 z-10">
                 {/* Buttons - top left */}
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <a
+                <div className="flex flex-row justify-between align-items-center sm:flex-row gap-6">
+                         <a
                     href={slide.link}
-                    className="bg-gradient-to-b from-[#e9ab26] to-[#b7660b]
-                    rounded-md shadow text-white font-medium h-6 px-3 text-xs 
-                    leading-tight flex items-start pt-1 hover:shadow-md"
+                    className="bg-gradient-to-b from-[#e9ab26] to-[#b7660b] rounded-md shadow text-white 
+                    font-medium h-6 max-w-fit px-3 text-xs 
+                    leading-tight flex items-start pt-1 hover:shadow-md mb-1" 
                   >
                     Shop Now
                   </a>
-                  <a
+                    <a
                     href={slide.link}
                     className="bg-gradient-to-b from-[#5bf5138a] to-[#ccc90d8e]
-                    rounded-md shadow text-white font-medium h-6 px-3 text-xs 
+                    rounded-md shadow  text-white font-medium h-6 max-w-fit  px-3 text-xs 
                     leading-tight flex items-start pt-1 hover:shadow-md"
                   >
                     Explore Collections
                   </a>
+           
+                
                 </div>
 
                 {/* Text & Offer - bottom center */}
-                <div className="text-center absolute bottom-4 right-1/4 transform -translate-x-1/2">
-                  <h2 className="text-white font-medium text-xs sm:text-sm drop-shadow mb-1">
-                    {slide.title}
-                  </h2>
-                  <div className="flex justify-center">
-                    <span className="text-xs text-orange-500 font-semibold bg-white rounded px-2 py-[2px] shadow-sm">
+                
+                  <div className="flex flex-col items-start justify-end  gap-1 ">
+                    <span className="text-xs  font-semibold bg-gray-200 rounded px-2 py-[2px] shadow-sm">
                       {slide.offer}
                     </span>
+                          <h2 className="text-white font-medium text-xs sm:text-sm drop-shadow ">
+                    {slide.title}
+                  </h2>
                   </div>
-                </div>
+              
               </div>
             </div>
           </SwiperSlide>

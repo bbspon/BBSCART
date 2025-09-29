@@ -152,7 +152,7 @@ const thumbs = useMemo(() => {
       productId: p._id,
       name: p.name,
       image: img, // <-- add image
-      price: price, // <-- add price
+      price: p?.price ?? 0, // <-- add price
       qty: quantity, // <-- add quantity
       variantId: null,
     });

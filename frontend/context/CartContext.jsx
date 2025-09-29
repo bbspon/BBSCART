@@ -57,32 +57,44 @@ function reducer(state, action) {
 
       // Enforce vendor lock
       if (state.meta.vendorId && state.meta.vendorId !== vendorId) {
-        if (!replaceIfDifferentVendor) return state; // keep as-is
-        // Clear cart when vendor changes (one vendor per day rule on storefront)
+        if (!replaceIfDifferentVendor) return state;
         const cleared = { items: [], meta: { vendorId }, loaded: state.loaded };
-        const withNew = { ...cleared, items: [item] };
+        const withNew = {
+          ...cleared,
+          items: [
+            {
+              ...item,
+              price: Number(item.price) || 0,
+              qty: item.qty || 1,
+              image: item.image || "",
+            },
+          ],
+        };
         saveCart(withNew);
         return withNew;
       }
 
-      // First item sets vendor
       const meta = state.meta.vendorId ? state.meta : { vendorId };
 
-      // Merge qty if same product+variant already exists
       const items = [...state.items];
       const ix = items.findIndex(
         (it) =>
           it.productId === item.productId &&
           String(it.variantId || "") === String(item.variantId || "")
       );
+
       if (ix >= 0) {
-        const merged = { ...items[ix], qty: items[ix].qty + item.qty };
+        const merged = {
+          ...items[ix],
+          qty: items[ix].qty + (item.qty || 1),
+          price: Number(item.price) || Number(items[ix].price) || 0, // <-- normalize price
+        };
         items[ix] = merged;
       } else {
         items.push({
           ...item,
-          price: Number(item.price) || 0, // <-- Ensure price is present and a number
-          image: item.image || "", // <-- Ensure image is present
+          price: Number(item.price) || 0,
+          image: item.image || "",
           qty: item.qty || 1,
         });
       }
@@ -91,6 +103,7 @@ function reducer(state, action) {
       saveCart(next);
       return next;
     }
+
     case "REMOVE": {
       const items = state.items.filter((it, i) => i !== action.index);
       const meta = items.length ? state.meta : { vendorId: null };
