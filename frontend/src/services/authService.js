@@ -1,6 +1,7 @@
 import toast from "react-hot-toast";
 import { logoutUser, setUser } from "../slice/authSlice";
 import instance from "../services/axiosInstance";
+
 // Register function
 export const register = async (userData, dispatch, navigate) => {
   try {
@@ -19,7 +20,12 @@ export const register = async (userData, dispatch, navigate) => {
 
       toast.success("Registration successful");
 
-      navigate(user.role === "admin" ? "/admin/dashboard" : "/");
+      // ✅ Updated navigation logic
+      if (user.role === "admin" || user.role === "seller") {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/");
+      }
 
       return user;
     }
@@ -29,6 +35,7 @@ export const register = async (userData, dispatch, navigate) => {
     throw new Error(error.response?.data?.msg || "Registration failed");
   }
 };
+
 // Login function
 export const login = async (dispatch, email, password, navigate) => {
   try {
@@ -45,7 +52,12 @@ export const login = async (dispatch, email, password, navigate) => {
 
       toast.success("Login successful");
 
-      navigate(user.role === "admin" ? "/admin/dashboard" : "/");
+      // ✅ Updated navigation logic
+      if (user.role === "admin" || user.role === "seller") {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/");
+      }
 
       return user;
     } else {
