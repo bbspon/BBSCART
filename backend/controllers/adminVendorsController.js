@@ -103,6 +103,7 @@ exports.createVendorCredentials = async (req, res) => {
         name: vendor.display_name || vendor.legal_name,
         email: vendor.email,
         phone: vendor.phone,
+        vendor_id: vendor._id,
         password: placeholderHash,
         role: "seller",
         mustChangePassword: true,

@@ -134,7 +134,7 @@ function App() {
     checkHeaderFooter();
   }, [location.pathname]); // Update when the location changes
 
-  const AdminRoutes = () => <ProtectedRoute requiredRole="admin" />;
+  const AdminRoutes = () => <ProtectedRoute allowedRoles={["admin", "seller"]} />;
   const SellerRoutes = () => <ProtectedRoute requiredRole="seller" />;
 
   return (
