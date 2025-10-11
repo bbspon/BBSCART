@@ -48,8 +48,17 @@ export const login = async (dispatch, email, password, navigate) => {
     if (response.status === 200 && response.data?.user) {
       const user = response.data.user;
 
-      dispatch(setUser(user)); // ✅ Store user in Redux
+      // ✅ Store user in Redux
+      dispatch(setUser(user));
 
+      // ✅ Save role and token in localStorage for persistent access
+      if (response.data.token) {
+        localStorage.setItem("token", response.data.token);
+      }
+      localStorage.setItem("role", user.role);
+      localStorage.setItem("userId", user._id); // optional but useful later
+
+      console.log("User role in production:", user.role);
       toast.success("Login successful");
 
       // ✅ Updated navigation logic
@@ -68,6 +77,7 @@ export const login = async (dispatch, email, password, navigate) => {
     toast.error(error.response?.data?.message || "Login failed");
   }
 };
+
 
 // Logout function
 export const logout = async (dispatch) => {

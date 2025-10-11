@@ -883,13 +883,14 @@ exports.getAllProducts = async (req, res) => {
       if (scope === "global") q.is_global = true;
       if (scope === "vendor") q.is_global = false;
     } else {
-      if (!req.assignedVendorId) {
-        return res
-          .status(400)
-          .json({ success: false, message: "Assigned vendor missing" });
-      }
-      q.seller_id = req.assignedVendorId;
-      q.is_global = false;
+       if (req.assignedVendorId) {
+      q.$or = [
+         { seller_id: req.assignedVendorId },
+         { is_global: true },
+      ];
+   } else {
+      q.is_global = true;
+         }
     }
 
     // 1) populate to make client-side handling easy

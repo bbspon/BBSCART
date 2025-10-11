@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 const redis = require("redis");
-
+const User = require("../models/User");
 // Initialize Redis Client
 const client = redis.createClient({
     socket: {
@@ -29,7 +29,19 @@ const auth = async (req, res, next) => {
 
         // Verify token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded;
+           const dbUser = await User.findById(decoded.userId).select("_id role vendor_id");
+   if (!dbUser) {
+     return res.status(401).json({ success: false, message: "User not found" });
+   }
+   req.user = {
+     userId: String(dbUser._id),
+     role: dbUser.role,
+     vendor_id: dbUser.vendor_id ? String(dbUser.vendor_id) : null,
+   };
+   // ✅ Provide a consistent field for controllers that expect vendor assignment
+   if (req.user.role === "seller" && req.user.vendor_id) {
+     req.assignedVendorId = req.user.vendor_id;
+   }
         next();
     } catch (error) {
         console.error("❌ JWT Verification Error:", error.message);
@@ -93,14 +105,21 @@ const authUser = async (req, res, next) => {
             return next();
         }
 
-        try {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            req.user = decoded;  
-        } catch (error) {
-            console.error("❌ Token Verification Failed:", error.message);
-            req.user = null;
-        }
+                    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+     const dbUser = await User.findById(decoded.userId).select("_id role vendor_id");
+     if (dbUser) {
+       req.user = {
+         userId: String(dbUser._id),
+         role: dbUser.role,
+         vendor_id: dbUser.vendor_id ? String(dbUser.vendor_id) : null,
+       };
+       if (req.user.role === "seller" && req.user.vendor_id) {
+         req.assignedVendorId = req.user.vendor_id;
+       }
+     } else {
+       req.user = null;
+     }
         next();
     } catch (error) {
         console.error("❌ JWT Middleware Error:", error.message);

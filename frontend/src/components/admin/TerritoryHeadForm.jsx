@@ -392,27 +392,26 @@ export default function TerritoryHeadForm() {
 
   return (
     <div>
-      <h4 className="mb-3">Territory Head Owner Registration</h4>
-      <div className="mb-3">
+      <h4
+        className="fw-bold mb-4 text-uppercase mt-5 text-center"
+        style={{ color: "#008080", fontSize: "2rem", letterSpacing: "1px" }}
+      >
+        Territory Head Owner Registration
+      </h4>
+      <div className="mb-4 text-center">
         <strong>Step {step} of 5</strong>
       </div>
 
       {step === 1 && (
-        <div>
-          <h5 className="mb-3">Step 1: PAN Card Details</h5>
-          <Form.Group className="mb-3">
-            <Form.Label>Upload PAN (JPG, JPEG, PNG, PDF)</Form.Label>
-            <Form.Control
-              type="file"
-              accept=".jpg,.jpeg,.png,.pdf"
-              onChange={onPanUpload}
-            />
-            {loadingPan && (
-              <div className="mt-2">
-                <Spinner size="sm" /> Uploading PAN…
-              </div>
-            )}
-          </Form.Group>
+        <div
+          className="border-2 p-12 mx-auto m-4 rounded-2xl"
+          style={{
+            maxWidth: "700px",
+            background: "linear-gradient(135deg, #ffffff, #008080)",
+            borderColor: "#008080", // teal border
+          }}
+        >
+          <h5 className="mb-3 text-logoPrimary">Step 1: PAN Card Details</h5>
 
           <Row>
             <Col md={6} className="mb-3">
@@ -422,6 +421,11 @@ export default function TerritoryHeadForm() {
                 onChange={(e) =>
                   setFormData((p) => ({ ...p, firstName: e.target.value }))
                 }
+                className="border border-dark rounded-lg my-3"
+                style={{
+                  border: "0.1px solid #333", // solid black border
+                  boxShadow: "none",
+                }}
               />
             </Col>
             <Col md={6} className="mb-3">
@@ -431,6 +435,11 @@ export default function TerritoryHeadForm() {
                 onChange={(e) =>
                   setFormData((p) => ({ ...p, lastName: e.target.value }))
                 }
+                className="border border-dark rounded-lg my-3"
+                style={{
+                  border: "0.1px solid #333", // solid black border
+                  boxShadow: "none",
+                }}
               />
             </Col>
           </Row>
@@ -443,6 +452,11 @@ export default function TerritoryHeadForm() {
                 onChange={(e) =>
                   setFormData((p) => ({ ...p, dob: e.target.value }))
                 }
+                className="border border-dark rounded-lg my-3"
+                style={{
+                  border: "0.1px solid #333", // solid black border
+                  boxShadow: "none",
+                }}
               />
             </Col>
             <Col md={6} className="mb-3">
@@ -455,12 +469,39 @@ export default function TerritoryHeadForm() {
                     panNumber: e.target.value.toUpperCase(),
                   }))
                 }
+                className="border border-dark rounded-lg my-3"
+                style={{
+                  border: "0.1px solid #333", // solid black border
+                  boxShadow: "none",
+                }}
               />
             </Col>
           </Row>
 
-          <div className="d-flex justify-content-end gap-2">
-            <Button variant="primary" onClick={saveStep1AndNext}>
+          <Form.Group className="mb-3">
+            <Form.Label>Upload PAN (JPG, JPEG, PNG, PDF)</Form.Label>
+            <Form.Control
+              type="file"
+              accept=".jpg,.jpeg,.png,.pdf"
+              onChange={onPanUpload}
+              className="border border-dark rounded-lg my-3"
+              style={{
+                border: "0.1px solid #333", // solid black border
+                boxShadow: "none",
+              }}
+            />
+            {loadingPan && (
+              <div className="mt-2">
+                <Spinner size="sm" /> Uploading PAN…
+              </div>
+            )}
+          </Form.Group>
+          <div className="flex justify-end">
+            <Button
+              variant="primary"
+              className="border-x-green-300 border px-5 py-1 rounded-3xl bg-green-400"
+              onClick={saveStep1AndNext}
+            >
               Save & Continue
             </Button>
           </div>
@@ -468,7 +509,14 @@ export default function TerritoryHeadForm() {
       )}
 
       {step === 2 && (
-        <div>
+        <div
+          className="border-2 p-12 mx-auto m-4 rounded-2xl"
+          style={{
+            maxWidth: "700px",
+            background: "linear-gradient(135deg, #ffffff, #008080)",
+            borderColor: "#008080", // teal border
+          }}
+        >
           <h5 className="mb-3">Step 2: Aadhaar Details</h5>
 
           <Form.Group className="mb-3">
@@ -587,8 +635,12 @@ export default function TerritoryHeadForm() {
             </Col>
           </Row>
 
-          <div className="d-flex justify-content-end gap-2">
-            <button type="button" onClick={saveStep2AndNext}>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="border-x-green-300 border px-5 py-1 rounded-3xl bg-green-400"
+              onClick={saveStep2AndNext}
+            >
               Save & Continue
             </button>
           </div>
@@ -596,7 +648,14 @@ export default function TerritoryHeadForm() {
       )}
 
       {step === 3 && (
-        <div>
+        <div
+          className="border-2 p-12 mx-auto m-4 rounded-2xl"
+          style={{
+            maxWidth: "700px",
+            background: "linear-gradient(135deg, #ffffff, #008080)",
+            borderColor: "#008080", // teal border
+          }}
+        >
           <h5 className="mb-3">Step 3: GST Details</h5>
           <div className="mb-3">
             <label>Upload GST Certificate (PDF/JPG/PNG)</label>
@@ -692,8 +751,12 @@ export default function TerritoryHeadForm() {
             />
           </div>
 
-          <div className="d-flex justify-content-end gap-2">
-            <button type="button" onClick={saveGstAndNext}>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="border-x-green-300 border px-5 py-1 rounded-3xl bg-green-400"
+              onClick={saveGstAndNext}
+            >
               Save & Continue
             </button>
           </div>
@@ -701,7 +764,14 @@ export default function TerritoryHeadForm() {
       )}
 
       {step === 4 && (
-        <div>
+        <div
+          className="border-2 p-12 mx-auto m-4 rounded-2xl"
+          style={{
+            maxWidth: "700px",
+            background: "linear-gradient(135deg, #ffffff, #008080)",
+            borderColor: "#008080", // teal border
+          }}
+        >
           <h5 className="mb-3">Step 4: Bank Details</h5>
 
           <Form.Group className="mb-3">
@@ -785,8 +855,12 @@ export default function TerritoryHeadForm() {
             </Col>
           </Row>
 
-          <div className="d-flex justify-content-end gap-2">
-            <button type="button" onClick={saveBankDetails}>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="border-x-green-300 border px-5 py-1 rounded-3xl bg-green-400"
+              onClick={saveBankDetails}
+            >
               Save Bank Details
             </button>
           </div>
@@ -794,7 +868,14 @@ export default function TerritoryHeadForm() {
       )}
 
       {step === 5 && (
-        <div>
+        <div
+          className="border-2 p-12 mx-auto m-4 rounded-2xl"
+          style={{
+            maxWidth: "700px",
+            background: "linear-gradient(135deg, #ffffff, #008080)",
+            borderColor: "#008080", // teal border
+          }}
+        >
           <h5 className="mb-3">Step 5: Outlet Details</h5>
 
           <Row className="mb-3">
@@ -943,8 +1024,12 @@ export default function TerritoryHeadForm() {
             />
           </Form.Group>
 
-          <div className="d-flex justify-content-end gap-2">
-            <button type="button" onClick={saveOutletAndFinish}>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="border-x-green-300 border px-5 py-1 rounded-3xl bg-green-400"
+              onClick={saveOutletAndFinish}
+            >
               Save Outlet
             </button>
           </div>
