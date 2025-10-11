@@ -237,6 +237,7 @@ exports.login = async (req, res) => {
         email: user.email,
         role: user.role,
         details: user.userdetails, // ✅ Corrected field name
+        vendor_id: user.vendor_id || null,
       },
     });
 
