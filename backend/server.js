@@ -184,7 +184,7 @@ mongoose
   })
   .then(() => console.log("✅ Connected to bbshealthcare (Default DB)"))
   .catch((err) => console.error("❌ Main DB error:", err));
-app.use(posSsoRoutes);
+app.use("/api", posSsoRoutes);
 const { auth } = require("./middleware/authMiddleware");
 app.use("/admin", auth, adminRoutes);
 // ✅ Session & Cookie
