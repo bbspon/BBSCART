@@ -184,9 +184,8 @@ mongoose
   })
   .then(() => console.log("✅ Connected to bbshealthcare (Default DB)"))
   .catch((err) => console.error("❌ Main DB error:", err));
-app.use("/api", posSsoRoutes);
-const { auth } = require("./middleware/authMiddleware");
-app.use("/admin", auth, adminRoutes);
+
+app.use(cookieParser());
 // ✅ Session & Cookie
 app.use(
   session({
@@ -196,8 +195,10 @@ app.use(
     cookie: { secure: false },
   })
 );
-app.use(cookieParser());
 
+app.use("/api", posSsoRoutes);
+const { auth } = require("./middleware/authMiddleware");
+app.use("/admin", auth, adminRoutes);
 // ✅ Body Parsers
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
