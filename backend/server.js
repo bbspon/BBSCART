@@ -33,6 +33,7 @@ const adminPincodeVendorsRoutes = require("./routes/adminPincodeVendorsRoutes");
 const adminVendorRoutes = require("./routes/adminVendorRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const testimonialRoutes = require("./routes/testimonialRoutes");
+const posSsoRoutes = require("./routes/posSso");
 
 const app = express();
 
@@ -183,7 +184,9 @@ mongoose
   })
   .then(() => console.log("✅ Connected to bbshealthcare (Default DB)"))
   .catch((err) => console.error("❌ Main DB error:", err));
-
+app.use(posSsoRoutes);
+const { auth } = require("./middleware/authMiddleware");
+app.use("/admin", auth, adminRoutes);
 // ✅ Session & Cookie
 app.use(
   session({
@@ -232,7 +235,6 @@ app.use("/api/admin/pincode-vendors", adminPincodeVendorsRoutes);
 app.use("/api/admin/vendors", adminVendorRoutes);
 app.use("/orders", orderRoutes);
 app.use("/api/testimonials", testimonialRoutes);
-
 // ✅ Global Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);

@@ -11,7 +11,21 @@ const client = redis.createClient({
 
 client.on("error", (err) => console.error("❌ Redis Client Error:", err));
 client.connect().catch((err) => console.error("❌ Redis Connection Failed:", err));
+const POS_SSO_SECRET = process.env.POS_SSO_SECRET;
 
+// Create a fresh BBSCART access token (what the app already expects)
+function createBbscartAccessToken(userId, jti = require("crypto").randomUUID()) {
+  return jwt.sign({ userId, jti }, process.env.JWT_SECRET, { expiresIn: "1d" });
+}
+function setBbscartCookie(res, accessToken) {
+  res.cookie("accessToken", accessToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "None",
+    maxAge: 24 * 60 * 60 * 1000,
+    domain: ".bbscart.com",
+  });
+}
 // Authentication Middleware
 const auth = async (req, res, next) => {
     try {
@@ -129,4 +143,4 @@ const authUser = async (req, res, next) => {
 };
 
 
-module.exports = { auth, adminOnly, logout, authUser, superAdminOnly };
+module.exports = { auth, adminOnly, logout, authUser, superAdminOnly, createBbscartAccessToken, setBbscartCookie };
