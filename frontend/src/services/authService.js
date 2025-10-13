@@ -6,7 +6,7 @@ import instance from "../services/axiosInstance";
 export const register = async (userData, dispatch, navigate) => {
   try {
     const response = await instance.post(
-      `${import.meta.env.VITE_API_URL}/auth/register`,
+      `${import.meta.env.VITE_API_URL}/api/auth/register`,
       userData
     );
     if (
@@ -77,7 +77,6 @@ export const login = async (dispatch, email, password, navigate) => {
     toast.error(error.response?.data?.message || "Login failed");
   }
 };
-
 
 // Logout function
 export const logout = async (dispatch) => {
