@@ -16,9 +16,10 @@ router.get("/auth/pos-sso", async (req, res) => {
     if (!token) return res.redirect("/login");
 
     // Verify POS token. Short-lived (eg. 120s), signed by POS with POS_SSO_SECRET.
-    const decoded = jwt.verify(token, POS_SSO_SECRET);
-    const userId = decoded.sub;
-    const role = decoded.role;
+ const decoded = jwt.verify(token, POS_SSO_SECRET);
+ const userId = decoded.sub || decoded.userId || decoded.id;
+ const role = decoded.role;
+
 
     if (!userId || role !== "seller") return res.redirect("/login");
 
