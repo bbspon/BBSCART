@@ -10,36 +10,46 @@ const router = express.Router();
 
 const POS_SSO_SECRET = process.env.POS_SSO_SECRET; // must match POS
 
-router.get("/auth/pos-sso", async (req, res) => {
-  try {
-    const token = req.query?.token;
-    if (!token) return res.redirect("/login");
+  router.get("/auth/pos-sso", async (req, res) => {
+    try {
+      const token = req.query?.token;
+      if (!token) return res.redirect("/login");
 
-    // Verify POS token. Short-lived (eg. 120s), signed by POS with POS_SSO_SECRET.
- const decoded = jwt.verify(token, POS_SSO_SECRET);
- const userId = decoded.sub || decoded.userId || decoded.id;
- const role = decoded.role;
+      // Verify POS token. Short-lived (eg. 120s), signed by POS with POS_SSO_SECRET.
+  const decoded = jwt.verify(token, POS_SSO_SECRET);
+  const userId = decoded.sub || decoded.userId || decoded.id;
+  const role = decoded.role;
 
 
-    if (!userId || role !== "seller") return res.redirect("/login");
+      if (!userId || role !== "seller") return res.redirect("/login");
 
-    // Confirm seller exists and is active
-    const dbUser = await User.findById(userId).select(
-      "_id role vendor_id status"
-    );
-    if (!dbUser || dbUser.role !== "seller" || dbUser.status === "blocked") {
+      // Confirm seller exists and is active
+      const dbUser = await User.findById(userId).select(
+        "_id role vendor_id status"
+      );
+      if (!dbUser || dbUser.role !== "seller" || dbUser.status === "blocked") {
+        return res.redirect("/login");
+      }
+
+      // Mint the normal BBSCART access token and set cookie
+      const accessToken = createBbscartAccessToken(String(dbUser._id));
+      setBbscartCookie(res, accessToken);
+
+      // Clean URL and enter the dashboard
+      res.cookie("accessToken", accessToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "None",
+        domain: ".bbscart.com",
+        path: "/",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      return res.redirect("/admin/dashboard");
+      
+    } catch (err) {
       return res.redirect("/login");
     }
-
-    // Mint the normal BBSCART access token and set cookie
-    const accessToken = createBbscartAccessToken(String(dbUser._id));
-    setBbscartCookie(res, accessToken);
-
-    // Clean URL and enter the dashboard
-    return res.redirect("/admin/dashboard");
-  } catch (err) {
-    return res.redirect("/login");
-  }
-});
+  });
 
 module.exports = router;

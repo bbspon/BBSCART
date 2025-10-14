@@ -36,7 +36,7 @@ const testimonialRoutes = require("./routes/testimonialRoutes");
 const posSsoRoutes = require("./routes/posSso");
 
 const app = express();
-
+app.set("trust proxy", 1);
 /* =======================
    ✅ CORS Setup (dev + prod)
    ======================= */
