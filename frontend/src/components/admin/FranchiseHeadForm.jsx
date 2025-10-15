@@ -3,6 +3,7 @@ import axios from "axios";
 import { Form, Button, Spinner, Row, Col } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import Select from "react-select";
+import { toast } from "react-hot-toast";
 
 // Options
 const constitutionOptions = [
@@ -127,6 +128,9 @@ export default function FranchiseHeadForm() {
         localStorage.setItem("franchiseeId", id);
       }
       setStep(2);
+      toast.success("✅ PAN uploaded successfully!", {
+        duration: 4500, // disappears after 2.5s
+      });
     } catch (e) {
       console.error(e);
       alert(e?.response?.data?.message || e.message || "Save failed");
@@ -212,7 +216,10 @@ export default function FranchiseHeadForm() {
         setFranchiseeId(id);
         localStorage.setItem("franchiseeId", id);
       }
-      alert("Aadhaar slide saved");
+      toast.success("✅ Aadhaar uploaded successfully!", {
+        duration: 4500, // disappears after 2.5s
+      });
+
       setStep(3);
     } catch (e) {
       console.error(e);
@@ -252,6 +259,10 @@ export default function FranchiseHeadForm() {
       );
       if (!r?.data?.ok) throw new Error(r?.data?.message || "Save failed");
       setStep(4);
+
+      toast.success("✅ GST uploaded successfully!", {
+        duration: 4500, // disappears after 2.5s
+      });
     } catch (e) {
       console.error(e);
       alert("Save failed");
@@ -298,7 +309,10 @@ export default function FranchiseHeadForm() {
       );
       if (!response?.data?.ok)
         throw new Error(response?.data?.message || "Save failed");
-      alert("Bank details saved successfully.");
+      toast.success("✅Bank details saved successfully.", {
+        duration: 4500, // disappears after 2.5s
+      });
+
       setStep(5);
     } catch (error) {
       console.error("Error saving bank details:", error);
@@ -394,7 +408,10 @@ export default function FranchiseHeadForm() {
     );
 
     if (!r?.data?.ok) throw new Error(r?.data?.message || "Save failed");
-    alert("Outlet details saved");
+
+    toast.success("✅Outlet details saved!", {
+      duration: 4500, // disappears after 2.5s
+    });
 
     // ============ NEW: call final submit before redirect ============
     await submitFranchiseApplication();

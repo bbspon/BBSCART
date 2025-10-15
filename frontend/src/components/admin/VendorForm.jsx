@@ -4,7 +4,7 @@ import { Form, Button, Spinner, Row, Col } from "react-bootstrap";
 import { useNavigate, useLocation } from "react-router-dom";
 import Select from "react-select";
 import axios from "axios";
-
+import { toast } from "react-hot-toast";
 // Options
 const constitutionOptions = [
   { value: "proprietorship", label: "Proprietorship" },
@@ -188,6 +188,9 @@ export default function VendorForm() {
         localStorage.setItem("vendorId", id);
       }
       setStep(2);
+      toast.success("✅ PAN uploaded successfully!", {
+        duration: 4500, // disappears after 2.5s
+      });
     } catch (e) {
       console.error(e);
       alert(e?.response?.data?.message || e.message || "Save failed");
@@ -267,7 +270,10 @@ export default function VendorForm() {
         setVendorId(id);
         localStorage.setItem("vendorId", id);
       }
-      alert("Aadhaar slide saved");
+      toast.success("✅ PAN uploaded successfully!", {
+        duration: 4500, // disappears after 2.5s
+      });
+
       setStep(3);
     } catch (e) {
       console.error(e);
@@ -305,6 +311,9 @@ export default function VendorForm() {
       );
       if (!r?.data?.ok) throw new Error(r?.data?.message || "Save failed");
       setStep(4);
+      toast.success("✅ GST uploaded successfully!", {
+        duration: 4500, // disappears after 2.5s
+      });
     } catch (e) {
       console.error(e);
       alert("Save failed");
@@ -349,7 +358,10 @@ export default function VendorForm() {
       );
       if (!response?.data?.ok)
         throw new Error(response?.data?.message || "Save failed");
-      alert("Bank details saved successfully.");
+      toast.success("Bank details uploaded successfully!", {
+        duration: 4500, // disappears after 2.5s
+      });
+
       setStep(5);
     } catch (error) {
       console.error("Error saving bank details:", error);
@@ -442,13 +454,14 @@ export default function VendorForm() {
     );
 
     if (!r?.data?.ok) throw new Error(r?.data?.message || "Save failed");
-    alert("Outlet details saved");
 
     await submitApplication();
     // IMPORTANT: clear current vendorId so next registration cannot overwrite this one
     localStorage.removeItem("vendorId");
     setVendorId("");
-
+    toast.success("Outlet details saved successfully!", {
+      duration: 4500, // disappears after 2.5s
+    });
     navigate("/vendor-success");
   };
 
@@ -509,7 +522,7 @@ export default function VendorForm() {
             borderColor: "#008080", // teal border
           }}
         >
-          <h5 className="mb-3">Step 1: PAN Card Details</h5>
+          <h5 className="mb-3 text-center">Step 1: PAN Card Details</h5>
 
           <Row>
             <Col md={6} className="mb-3">
@@ -630,7 +643,7 @@ export default function VendorForm() {
             borderColor: "#008080", // teal border
           }}
         >
-          <h5 className="mb-3">Step 2: Aadhaar Details</h5>
+          <h5 className="mb-3 text-center">Step 2: Aadhaar Details</h5>
 
           <Form.Group className="mb-3">
             <Form.Label>Upload Aadhaar Front (JPG, JPEG, PNG, PDF)</Form.Label>
@@ -770,7 +783,7 @@ export default function VendorForm() {
             borderColor: "#008080", // teal border
           }}
         >
-          <h5 className="mb-3">Step 3: GST Details</h5>
+          <h5 className="mb-3 text-center">Step 3: GST Details</h5>
           <div className="mb-3">
             <label>Upload GST Certificate (PDF/JPG/PNG)</label>
             <input
@@ -866,7 +879,7 @@ export default function VendorForm() {
           <div className="flex justify-end">
             <button
               type="button"
-              className="border-x-green-300 border px-5 py-1 rounded-3xl bg-green-400"
+              className="border-x-green-300 border px-5 py-1 rounded-3xl mt-3 bg-green-400"
               onClick={saveGstAndNext}
             >
               Save & Continue
@@ -885,7 +898,7 @@ export default function VendorForm() {
             borderColor: "#008080", // teal border
           }}
         >
-          <h5 className="mb-3">Step 4: Bank Details</h5>
+          <h5 className="mb-3 text-center">Step 4: Bank Details</h5>
           <Form.Group className="mb-3">
             <Form.Label>
               Upload Cancelled Cheque or Bank Letter (PDF/JPG/PNG)
@@ -989,7 +1002,7 @@ export default function VendorForm() {
             borderColor: "#008080", // teal border
           }}
         >
-          <h5 className="mb-3">Step 5: Outlet Details</h5>
+          <h5 className="mb-3 text-center">Step 5: Outlet Details</h5>
 
           <Row className="mb-3">
             <Col md={6}>

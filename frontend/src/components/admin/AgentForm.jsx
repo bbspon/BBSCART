@@ -3,6 +3,7 @@ import axios from "axios";
 import { Form, Button, Spinner, Row, Col } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import Select from "react-select";
+import { toast } from "react-hot-toast";
 
 const constitutionOptions = [
   { value: "proprietorship", label: "Proprietorship" },
@@ -119,6 +120,9 @@ export default function AgentHeadForm() {
         localStorage.setItem("agentHeadId", id);
       }
       setStep(2);
+      toast.success("✅ PAN uploaded successfully!", {
+        duration: 4500, // disappears after 2.5s
+      });
     } catch (e) {
       console.error(e);
       alert(e?.response?.data?.message || e.message || "Save failed");
@@ -198,7 +202,10 @@ export default function AgentHeadForm() {
         setAgentHeadId(id);
         localStorage.setItem("agentHeadId", id);
       }
-      alert("Aadhaar slide saved");
+      toast.success("✅ Aadhaar uploaded successfully!", {
+        duration: 4500, // disappears after 2.5s
+      });
+
       setStep(3);
     } catch (e) {
       console.error(e);
@@ -236,6 +243,9 @@ export default function AgentHeadForm() {
       );
       if (!r?.data?.ok) throw new Error(r?.data?.message || "Save failed");
       setStep(4);
+      toast.success("✅ GST uploaded successfully!", {
+        duration: 4500, // disappears after 2.5s
+      });
     } catch (e) {
       console.error(e);
       alert("Save failed");
@@ -280,7 +290,10 @@ export default function AgentHeadForm() {
       );
       if (!response?.data?.ok)
         throw new Error(response?.data?.message || "Save failed");
-      alert("Bank details saved successfully.");
+      toast.success("Bank details uploaded successfully!", {
+        duration: 4500, // disappears after 2.5s
+      });
+
       setStep(5);
     } catch (error) {
       console.error("Error saving bank details:", error);
@@ -373,7 +386,9 @@ export default function AgentHeadForm() {
     );
 
     if (!r?.data?.ok) throw new Error(r?.data?.message || "Save failed");
-    alert("Outlet details saved");
+    toast.success("✅ Outlet uploaded successfully!", {
+      duration: 4500, // disappears after 2.5s
+    });
 
     // match Territory: submit final application so Admin sees it
     await submitAgentApplication();
@@ -410,7 +425,7 @@ export default function AgentHeadForm() {
             borderColor: "#008080", // teal border
           }}
         >
-          <h5 className="mb-3">Step 1: PAN Card Details</h5>
+          <h5 className="mb-3 text-center">Step 1: PAN Card Details</h5>
 
           <Row>
             <Col md={6} className="mb-3">
@@ -771,7 +786,7 @@ export default function AgentHeadForm() {
             borderColor: "#008080", // teal border
           }}
         >
-          <h5 className="mb-3">Step 4: Bank Details</h5>
+          <h5 className="mb-3 text-center">Step 4: Bank Details</h5>
 
           <Form.Group className="mb-3">
             <Form.Label>
