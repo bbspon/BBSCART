@@ -103,7 +103,7 @@
 //             <Link
 //               key={idx}
 //               to={item.href}
-//               className="relative px-2 py-1 transition-all duration-200 ease-in-out transform 
+//               className="relative px-2 py-1 transition-all duration-200 ease-in-out transform
 //               hover:scale-105 hover:-translate-y-[2px] hover:shadow-md hover:bg-primary hover:text-white hover:rounded-md"
 //             >
 //               {item.name}
@@ -394,39 +394,86 @@ function HeaderTop() {
             <div className="flex items-center cursor-pointer">
               <RiUserShared2Fill className="text-[#6b0e13] w-6 h-6" />
             </div>
-            <div className="absolute right-15 top-full mb-2 w-48 bg-white rounded-md shadow-lg overflow-hidden z-10">
-              {!isAuthenticated ? (
-                <></>
-              ) : (
-                <>
-                  <span className="bb-btn-title font-Poppins text-[12px] text-secondary mb-[4px] capitalize">
-                    Welcome!
-                  </span>
-                  <span className="bb-btn-stitle font-Poppins text-[14px] font-semibold text-secondary">
-                    {user?.name}
-                  </span>
-                </>
-              )}
+            <div className="relative top-8 z-[99]">
+              {/* Dropdown / menu */}
+              <div
+                className="
+      absolute
+      /* ---------- MOBILE (default) ---------- */
+      left-[165px] right-1 bottom-4 w-[30vw]  text-center
+      
+      /* ---------- DESKTOP (sm and up) ---------- */
+      sm:left-auto sm:right-[-82px] sm:top-[-5px] sm:bottom-auto sm:w-52 sm:text-left
+
+      /* common styles */
+      bg-[#6b0e13] backdrop-blur-md rounded-xl shadow-lg overflow-hidden p-0 px-2
+      transform sm:translate-y-2
+      z-[99]
+    "
+                role="dialog"
+                aria-label="User dropdown"
+              >
+                {isAuthenticated && (
+                  <div className="flex flex-col sm:flex-row sm:gap-2 items-center sm:items-start justify-center sm:justify-start">
+                    <span className="bb-btn-title font-Poppins text-[11px] sm:text-[12px] text-white mb-[2px] sm:mb-[4px] capitalize">
+                      Welcome!
+                    </span>
+                    <span className="bb-btn-stitle font-Poppins text-[13px] sm:text-[14px] font-semibold text-white">
+                      {user?.name}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
-            <ul className="absolute right-5 left-50 bottom-[-22px] top-30 mt-2 w-44 bg-white rounded-md shadow-md hidden group-hover:block text-sm">
+
+            <ul
+              className="
+    absolute 
+     p-3 mt-2  bg-white 
+     text-sm z-[99] 
+    hidden group-hover:block
+
+    /* 📱 Mobile (default) */
+    left-44 right-18 bottom-[-190px] w-[20vw] mx-auto  text-center
+
+    /* 💻 Desktop (sm and up) */
+    sm:left-[-85px] sm:right-18 sm:top-[85px] sm:bottom-auto sm:w-44 sm:text-left
+  "
+            >
               {!isAuthenticated ? (
                 <>
-                  <li>
-                    <Link
-                      to="/register"
-                      className="block px-4 py-2 hover:bg-gray-100"
-                    >
-                      Register
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      to="/login"
-                      className="block px-4 py-2 hover:bg-gray-100"
-                    >
-                      Login
-                    </Link>
-                  </li>
+                  <div
+                    className="
+    absolute z-[99] border-2 bg-[#6b0e13] rounded-xl shadow-md
+    /* 🧱 Common padding */
+    p-1
+
+    /* 📱 Mobile (default) */
+    left-[-195px] right-auto bottom-[105px] w-[30vw] mx-auto text-center
+
+    /* 💻 Desktop (sm and up) */  
+    sm:left-14 sm:right-auto sm:bottom-[8px] sm:w-auto sm:text-left
+  "
+                  >
+                    <ul className="flex flex-col">
+                      <li>
+                        <Link
+                          to="/register"
+                          className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
+                        >
+                          Register
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          to="/login"
+                          className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
+                        >
+                          Login
+                        </Link>
+                      </li>
+                    </ul>
+                  </div>
                 </>
               ) : (
                 <>
@@ -469,7 +516,6 @@ function HeaderTop() {
             </ul>
           </div>
 
-        
           <NavbarCart />
           {/* Wishlist */}
           <div className="navbar-cart">

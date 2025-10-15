@@ -13,7 +13,7 @@ import Services from "../home/Services";
 import CallToActionSection from "../home/CallToActionSection";
 import { useLocation } from "react-router-dom";
 import AppDownloadCTA from "../layout/AppDownloadCTA";
-
+import MediaPopupPage from "../home/MediaPopupPage";
 function HomePage() {
   const location = useLocation();
   useEffect(() => {
@@ -22,24 +22,27 @@ function HomePage() {
   }, [location]);
   return (
     <>
-      <HeroSection />
-      <div className="homepage bbscontainer">
-        <SectionCategory />
-        <div className="home">
-          <ProductList heading="Grocery Items" type="Slider" />
+      <div>
+        <MediaPopupPage />
+        <HeroSection />
+        <div className="homepage bbscontainer">
+          <SectionCategory />
+          <div className="home">
+            <ProductList heading="Grocery Items" type="Slider" />
+          </div>
+          <TrendingItems />
+          <VendorSlider />
+          <AnimationCards />
+          <OfferSection />
+          <HeroVideoCarousel />
+          <WhatsAppChat />
+          <AppDownloadCTA />
         </div>
-        <TrendingItems />
-        <VendorSlider />
-        <AnimationCards />
-        <OfferSection />
-        <HeroVideoCarousel />
-        <WhatsAppChat />
-        <AppDownloadCTA />
-      </div>
-      <CallToActionSection />
-      <div className="homepage bbscontainer">
-        <BannerOne />
-        <Services />
+        <CallToActionSection />
+        <div className="homepage bbscontainer">
+          <BannerOne />
+          <Services />
+        </div>
       </div>
       {/* Page Content */}
     </>

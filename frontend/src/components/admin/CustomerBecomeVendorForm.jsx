@@ -3,7 +3,7 @@ import axios from "axios";
 import { Form, Button, Spinner, Row, Col } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import Select from "react-select";
-
+import { toast } from "react-hot-toast";
 const constitutionOptions = [
   { value: "proprietorship", label: "Proprietorship" },
   { value: "partnership", label: "Partnership" },
@@ -138,6 +138,9 @@ export default function CustomerBecomeVendorForm() {
         localStorage.setItem("customerBecomeVendorId", id);
       }
       setStep(2);
+      toast.success("✅ PAN uploaded successfully!", {
+        duration: 4500, // disappears after 2.5s
+      });
     } catch (e) {
       console.error(e);
       alert(e?.response?.data?.message || e.message || "Save failed");
@@ -223,7 +226,10 @@ export default function CustomerBecomeVendorForm() {
         setCustomerBecomeVendorId(id);
         localStorage.setItem("customerBecomeVendorId", id);
       }
-      alert("Aadhaar slide saved");
+      toast.success("✅ Aadhaar  uploaded successfully!", {
+        duration: 4500, // disappears after 2.5s
+      });
+
       setStep(3);
     } catch (e) {
       console.error(e);
@@ -261,6 +267,9 @@ export default function CustomerBecomeVendorForm() {
       );
       if (!r?.data?.ok) throw new Error(r?.data?.message || "Save failed");
       setStep(4);
+      toast.success("✅ GST uploaded successfully!", {
+        duration: 4500, // disappears after 2.5s
+      });
     } catch (e) {
       console.error(e);
       alert("Save failed");
@@ -308,7 +317,10 @@ export default function CustomerBecomeVendorForm() {
       );
       if (!response?.data?.ok)
         throw new Error(response?.data?.message || "Save failed");
-      alert("Bank details saved successfully.");
+      toast.success("✅ Bank uploaded successfully!", {
+        duration: 4500, // disappears after 2.5s
+      });
+
       setStep(5);
     } catch (error) {
       console.error("Error saving bank details:", error);
@@ -388,7 +400,10 @@ export default function CustomerBecomeVendorForm() {
     );
 
     if (!r?.data?.ok) throw new Error(r?.data?.message || "Save failed");
-    alert("Outlet details saved");
+    toast.success("✅ Outlet uploaded successfully!", {
+      duration: 4500, // disappears after 2.5s
+    });
+
     console.log(
       "CBV submit id:",
       customerBecomeVendorId || localStorage.getItem("customerBecomeVendorId")
@@ -431,7 +446,7 @@ export default function CustomerBecomeVendorForm() {
             borderColor: "#008080", // teal border
           }}
         >
-          <h5 className="fw-bold mb-4 text-lg">Step 1: PAN Card Details</h5>
+          <h5 className="fw-bold mb-4 text-center">Step 1: PAN Card Details</h5>
 
           <Row>
             <Col md={6} className="mb-3">
@@ -537,7 +552,7 @@ export default function CustomerBecomeVendorForm() {
             borderColor: "#008080", // teal border
           }}
         >
-          <h5 className="mb-3">Step 2: Aadhaar Details</h5>
+          <h5 className="mb-3 text-center">Step 2: Aadhaar Details</h5>
 
           <Form.Group className="mb-3">
             <Form.Label>Upload Aadhaar Front (JPG, JPEG, PNG, PDF)</Form.Label>
@@ -676,7 +691,7 @@ export default function CustomerBecomeVendorForm() {
             borderColor: "#008080", // teal border
           }}
         >
-          <h5 className="mb-3">Step 3: GST Details</h5>
+          <h5 className="mb-3 text-center">Step 3: GST Details</h5>
           <div className="mb-3">
             <label>Upload GST Certificate (PDF/JPG/PNG)</label>
             <input
@@ -774,7 +789,7 @@ export default function CustomerBecomeVendorForm() {
           <div className="flex justify-end">
             <button
               type="button"
-              className="border-x-green-300 border px-5 py-1 rounded-3xl bg-green-400"
+              className="border-x-green-300 border px-5 py-1 mt-3 rounded-3xl bg-green-400"
               onClick={saveGstAndNext}
             >
               Save & Continue
@@ -792,7 +807,7 @@ export default function CustomerBecomeVendorForm() {
             borderColor: "#008080", // teal border
           }}
         >
-          <h5 className="mb-3">Step 4: Bank Details</h5>
+          <h5 className="mb-3 text-center ">Step 4: Bank Details</h5>
 
           <Form.Group className="mb-3">
             <Form.Label>
@@ -896,7 +911,7 @@ export default function CustomerBecomeVendorForm() {
             borderColor: "#008080", // teal border
           }}
         >
-          <h5 className="mb-3">Step 5: Outlet Details</h5>
+          <h5 className="mb-3 text-center ">Step 5: Outlet Details</h5>
 
           <Row className="mb-3">
             <Col md={6}>
