@@ -56,9 +56,13 @@ const PINCODE_ENFORCE_HOSTS =
     .split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
 
 // which API roots should ever be gated by pincode (products, cart, etc.)
-const PINCODE_ENFORCE_PATHS =
-  (process.env.PINCODE_ENFORCE_PATHS || "/api/products,/api/cart,/api/wishlist,/api/orders")
-    .split(",").map(s => s.trim()).filter(Boolean);
+const PINCODE_ENFORCE_PATHS = (
+  process.env.PINCODE_ENFORCE_PATHS ||
+  "/api/products,/api/cart,/api/wishlist,/api/orders,/orders"
+)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 
 // which categories (by slug) actually require pincode/vendor
 const PINCODE_ENFORCE_CATEGORIES =
@@ -138,6 +142,7 @@ app.use(
       "X-Pincode",
 
       "X-Guest-Key",
+      "X-Delivery-Pincode",
     ],
   })
 );
@@ -159,7 +164,13 @@ app.options(
 
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Pincode",
+      "X-Guest-Key",
+      "X-Delivery-Pincode",
+    ],
   })
 );
 

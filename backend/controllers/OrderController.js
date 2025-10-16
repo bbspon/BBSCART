@@ -145,10 +145,10 @@
 
 //     res.status(200).json({ success: true, orders });
 //   } catch (error) {
-//     res.status(500).json({ 
-//       success: false, 
-//       message: "Error fetching orders", 
-//       error: error.message 
+//     res.status(500).json({
+//       success: false,
+//       message: "Error fetching orders",
+//       error: error.message
 //     });
 //   }
 // };
@@ -265,16 +265,16 @@
 
 // controllers/OrderController.js
 
-const Order = require('../models/Order.js');
-const Variant = require('../models/Variant.js');
-const Product = require('../models/Product.js');
+const Order = require("../models/Order.js");
+const Variant = require("../models/Variant.js");
+const Product = require("../models/Product.js");
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
 
 // Razorpay Instance
 const razorpay = new Razorpay({
-  key_id: 'rzp_test_5kdXsZAny3KeQZ',
-  key_secret: 'h80tjW16ilIw9HDIBXIcEuj7'
+  key_id: "rzp_test_5kdXsZAny3KeQZ",
+  key_secret: "h80tjW16ilIw9HDIBXIcEuj7",
 });
 
 /**
@@ -285,14 +285,30 @@ const razorpay = new Razorpay({
  */
 
 exports.createOrder = async (req, res) => {
-  console.log("createOrder Request Body:", req.user); // Debugging step
+  console.log("order user:", req.user);
+  console.log(
+    "order pincode:",
+    req.body?.shippingAddress?.postalCode ||
+      req.body?.pincode ||
+      req.headers["x-delivery-pincode"] ||
+      req.headers["x-pincode"]
+  );
+  console.log("assignedVendorId:", req.assignedVendorId);
   try {
-    const { orderItems, totalAmount, shippingAddress, paymentMethod, payment_details } = req.body;
+    const {
+      orderItems,
+      totalAmount,
+      shippingAddress,
+      paymentMethod,
+      payment_details,
+    } = req.body;
 
     console.log("Request Body:", req.body); // Debugging step
 
     if (!orderItems || orderItems.length === 0) {
-      return res.status(400).json({ success: false, message: "Order items cannot be empty" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Order items cannot be empty" });
     }
 
     const user_id = req.user ? req.user.userId : null;
@@ -302,12 +318,13 @@ exports.createOrder = async (req, res) => {
     if (!req.assignedVendorId) {
       return res.status(400).json({
         success: false,
-        message: "Assigned vendor missing. Ensure requireAssignedVendor is mounted on this route."
+        message:
+          "Assigned vendor missing. Ensure requireAssignedVendor is mounted on this route.",
       });
     }
 
     // Format order items
-    const formattedOrderItems = orderItems.map(item => ({
+    const formattedOrderItems = orderItems.map((item) => ({
       product: item?.product || null,
       variant: item?.variant || null,
       quantity: item?.quantity || 1,
@@ -322,29 +339,36 @@ exports.createOrder = async (req, res) => {
 
       // If product id not provided because it's a pure-variant line, resolve product via variant
       if (!productId && item.variant) {
-        const v = await Variant.findById(item.variant).select('product').lean();
+        const v = await Variant.findById(item.variant).select("product").lean();
         if (!v || !v.product) {
-          return res.status(400).json({ success: false, message: "Variant not linked to a product" });
+          return res.status(400).json({
+            success: false,
+            message: "Variant not linked to a product",
+          });
         }
         productId = v.product;
       }
 
       if (!productId) {
-        return res.status(400).json({ success: false, message: "Order item missing product reference" });
-      }
-
-      const prod = await Product.findById(productId).select('seller_id').lean();
-      if (!prod) {
-        return res.status(404).json({ success: false, message: "A product in your order no longer exists" });
-      }
-
-      // Compare product.seller_id to assignedVendorId
-      if (String(prod.seller_id) !== String(req.assignedVendorId)) {
         return res.status(400).json({
           success: false,
-          message: "Cart contains items from a different vendor than today's assignment"
+          message: "Order item missing product reference",
         });
       }
+const prod = await Product.findById(productId)
+  .select("seller_id is_global")
+  .lean();
+if (!prod) {
+  return res.status(404).json({ success: false, message: "A product in your order no longer exists" });
+}
+
+// Only enforce vendor match for non-global items
+if (!prod.is_global && String(prod.seller_id) !== String(req.assignedVendorId)) {
+  return res.status(400).json({
+    success: false,
+    message: "Cart contains items from a different vendor than today's assignment"
+  });
+}
     }
     // === End vendor validation ===
 
@@ -353,20 +377,30 @@ exports.createOrder = async (req, res) => {
       if (item.variant) {
         const variant = await Variant.findById(item.variant);
         if (!variant) {
-          return res.status(400).json({ success: false, message: "Variant not found" });
+          return res
+            .status(400)
+            .json({ success: false, message: "Variant not found" });
         }
         if (variant.stock < item.quantity) {
-          return res.status(400).json({ success: false, message: "Insufficient stock for variant" });
+          return res.status(400).json({
+            success: false,
+            message: "Insufficient stock for variant",
+          });
         }
         variant.stock -= item.quantity;
         await variant.save();
       } else {
         const product = await Product.findById(item.product);
         if (!product) {
-          return res.status(400).json({ success: false, message: "Product not found" });
+          return res
+            .status(400)
+            .json({ success: false, message: "Product not found" });
         }
         if (product.stock < item.quantity) {
-          return res.status(400).json({ success: false, message: "Insufficient stock for product" });
+          return res.status(400).json({
+            success: false,
+            message: "Insufficient stock for product",
+          });
         }
         product.stock -= item.quantity;
         await product.save();
@@ -376,7 +410,7 @@ exports.createOrder = async (req, res) => {
     const options = {
       amount: totalAmount * 100, // Convert to paise
       currency: "INR",
-      receipt: `receipt_${Date.now()}`
+      receipt: `receipt_${Date.now()}`,
     };
 
     console.log("Creating Razorpay order with options:", options); // Debugging log
@@ -392,7 +426,7 @@ exports.createOrder = async (req, res) => {
       orderItems: formattedOrderItems,
       total_price: totalAmount,
       shipping_address: shippingAddress,
-      status: 'pending',
+      status: "pending",
       payment_method: paymentMethod,
       payment_details,
       // Optional: persist the assigned vendor for the order (uncomment if your schema has this field)
@@ -400,8 +434,11 @@ exports.createOrder = async (req, res) => {
     });
 
     const savedOrder = await newOrder.save();
-    res.status(201).json({ success: true, message: 'Order created successfully', order: savedOrder });
-
+    res.status(201).json({
+      success: true,
+      message: "Order created successfully",
+      order: savedOrder,
+    });
   } catch (error) {
     console.error("Error creating order:", error); // Full error object
 
@@ -415,23 +452,27 @@ exports.createOrder = async (req, res) => {
 
     res.status(500).json({
       success: false,
-      message: 'Error creating order',
+      message: "Error creating order",
       error: {
         statusCode: error.statusCode || 500,
         code: error.error?.code || "UNKNOWN_ERROR",
-        description: error.error?.description || error.message || "Something went wrong"
-      }
+        description:
+          error.error?.description || error.message || "Something went wrong",
+      },
     });
   }
 };
 
 exports.verifyPayment = async (req, res) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
+      req.body;
     const order = await Order.findOne({ order_id: razorpay_order_id });
 
     if (!order) {
-      return res.status(400).json({ success: false, message: "Order not found" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Order not found" });
     }
 
     const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
@@ -465,7 +506,7 @@ exports.getAllOrders = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error fetching orders",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -479,39 +520,53 @@ exports.getOrderById = async (req, res) => {
       .populate("orderItems.variant", "name options");
 
     if (!order) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found" });
     }
     res.status(200).json({ success: true, order });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error fetching order', error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Error fetching order",
+      error: error.message,
+    });
   }
 };
 
 // Get order by SellerID
 exports.getOrdersBySellerId = async (req, res) => {
-  console.log('getOrdersBySellerId');
+  console.log("getOrdersBySellerId");
   try {
     const { seller_id } = req.params;
 
     // Find orders where any order item belongs to the given seller
     const orders = await Order.find({
-      'orderItems.product': { $in: await Product.find({ seller_id }).distinct('_id') }
+      "orderItems.product": {
+        $in: await Product.find({ seller_id }).distinct("_id"),
+      },
     })
       .populate("user_id", "name email phone")
       .populate({
         path: "orderItems.product",
         select: "name price image",
-        populate: { path: "seller_id", select: "name" }
+        populate: { path: "seller_id", select: "name" },
       })
       .populate("orderItems.variant", "name options");
 
     if (!orders.length) {
-      return res.status(404).json({ success: false, message: 'No orders found for this seller' });
+      return res
+        .status(404)
+        .json({ success: false, message: "No orders found for this seller" });
     }
 
     res.status(200).json({ success: true, orders });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error fetching orders', error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Error fetching orders",
+      error: error.message,
+    });
   }
 };
 
@@ -526,7 +581,11 @@ exports.getOrdersByUserId = async (req, res) => {
 
     res.status(200).json({ success: true, orders });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error fetching orders', error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Error fetching orders",
+      error: error.message,
+    });
   }
 };
 
@@ -534,14 +593,18 @@ exports.getOrdersByUserId = async (req, res) => {
 exports.getOrdersByStatus = async (req, res) => {
   try {
     const { status } = req.params;
-  const orders = await Order.find({ status })
+    const orders = await Order.find({ status })
       .populate("user_id", "name email phone")
       .populate("orderItems.product", "name price image")
       .populate("orderItems.variant", "name options");
 
     res.status(200).json({ success: true, orders });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error fetching orders', error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Error fetching orders",
+      error: error.message,
+    });
   }
 };
 
@@ -552,17 +615,28 @@ exports.updateOrder = async (req, res) => {
       req.params.id,
       { $set: req.body, updated_at: Date.now() },
       { new: true }
-    ).populate("user_id", "name email phone")
+    )
+      .populate("user_id", "name email phone")
       .populate("orderItems.product", "name price image")
       .populate("orderItems.variant", "name options");
 
     if (!updatedOrder) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found" });
     }
 
-    res.status(200).json({ success: true, message: 'Order updated successfully', order: updatedOrder });
+    res.status(200).json({
+      success: true,
+      message: "Order updated successfully",
+      order: updatedOrder,
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error updating order', error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Error updating order",
+      error: error.message,
+    });
   }
 };
 
@@ -571,11 +645,19 @@ exports.deleteOrder = async (req, res) => {
   try {
     const deletedOrder = await Order.findByIdAndDelete(req.params.id);
     if (!deletedOrder) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found" });
     }
 
-    res.status(200).json({ success: true, message: 'Order deleted successfully' });
+    res
+      .status(200)
+      .json({ success: true, message: "Order deleted successfully" });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error deleting order', error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Error deleting order",
+      error: error.message,
+    });
   }
 };

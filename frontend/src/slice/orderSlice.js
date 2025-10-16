@@ -3,17 +3,29 @@ import instance from "../services/axiosInstance"
 const BASE_URL = `${import.meta.env.VITE_API_URL}/orders`; 
 
 // ✅ Place Order
+// orderSlice.js
 export const placeOrder = createAsyncThunk(
   "order/placeOrder",
   async (orderData, { rejectWithValue }) => {
     try {
-      const response = await instance.post(BASE_URL, orderData);
+      const response = await instance.post(
+        `${import.meta.env.VITE_API_URL}/orders`,
+        orderData,
+        {
+          withCredentials: true,  // ensure cookie travels
+          headers: {
+            // Helpful for the backend vendor middleware:
+            "X-Delivery-Pincode": orderData?.shippingAddress?.postalCode || "",
+          },
+        }
+      );
       return response.data;
     } catch (error) {
       return rejectWithValue(error?.response?.data?.message || error.message || "Failed to place order.");
     }
   }
 );
+
 
 // ✅ Get All Orders
 export const getAllOrders = createAsyncThunk(

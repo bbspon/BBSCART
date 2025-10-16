@@ -76,77 +76,95 @@ function CheckoutPage() {
     console.log(orderData);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    console.log(orderData);
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    const res = await loadRazorpay();
+  const res = await loadRazorpay();
 
-    dispatch(placeOrder(orderData))
-      .then((response) => {
-        console.log("Dispatch Response:", response);
-        if (response.payload?.success) {
-          Object.values(cartItems).forEach((item) => {
-            dispatch(
-              removeFromCart({
-                productId: item.productId, // <-- fix here
-                variantId: item.variantId || null,
-              })
-            );
-          });
+  // user id from Redux, fallback to localStorage
+  const authUser =
+    user || JSON.parse(localStorage.getItem("auth_user") || "null");
 
-          if (!res) {
-            console.error("Razorpay SDK failed to load");
-            return;
-          }
-
-          const options = {
-            key: import.meta.env.VITE_RAZORPAY_KEY_ID, // Use your Razorpay key
-            amount: response.payload?.order.total_price,
-            currency: "INR",
-            name: "BBSCart",
-            description: "Test Transaction",
-            order_id: response.payload?.order.order_id,
-            handler: async (response) => {
-              // Step 3: Verify Payment
-              const paymentData = {
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-              };
-              const verifyRes = await ProductService.verifyPayment(paymentData);
-
-              if (verifyRes.success) {
-                toast.success(
-                  "" + verifyRes.message + ", Order placed successfully!"
-                );
-                navigate("/");
-              } else {
-                toast.error(
-                  verifyRes.message || "Payment verification failed!"
-                );
-              }
-            },
-            prefill: {
-              name: user?.name,
-              email: user?.email,
-              contact: user?.details?.phone,
-            },
-            theme: {
-              color: "#3399cc",
-            },
-          };
-          const rzp = new window.Razorpay(options);
-          rzp.open();
-        } else {
-          toast.error(response.payload?.message || "Failed to place order.");
-        }
-      })
-      .catch((error) => {
-        toast.error("Something went wrong. Please try again.");
-        console.error("Order Error:", error);
-      });
+  // ✅ Build from context, NOT localStorage
+  const finalOrder = {
+    user_id: authUser?._id || authUser?.userId || "",
+    orderItems: (Array.isArray(cartItems) ? cartItems : []).map((item) => ({
+      product: item.productId || item._id || item.id,
+      quantity: Number(item.qty) || 0,
+      price: Number(item.price) || 0,
+      variant: item.variantId || null,
+    })),
+    totalAmount: Number(cartTotal) || 0,
+    shippingAddress: orderData.shippingAddress,
+    paymentMethod: "COD",
   };
+
+  console.log("✅ Final Order Payload:", finalOrder);
+
+  // block empty carts early
+  if (!finalOrder.orderItems.length || finalOrder.totalAmount <= 0) {
+    return toast.error("Your cart is empty.");
+  }
+
+  // dispatch as-is (your thunk should post to /orders)
+  dispatch(placeOrder(finalOrder))
+    .then((response) => {
+      console.log("Dispatch Response:", response);
+      if (response.payload?.success) {
+        // cartItems is already an array; no need for Object.values
+        cartItems.forEach((item) => {
+          dispatch(
+            removeFromCart({
+              productId: item.productId,
+              variantId: item.variantId || null,
+            })
+          );
+        });
+
+        if (!res) {
+          console.error("Razorpay SDK failed to load");
+          return;
+        }
+
+        const options = {
+          key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+          amount: response.payload?.order.total_price,
+          currency: "INR",
+          name: "BBSCart",
+          description: "Test Transaction",
+          order_id: response.payload?.order.order_id,
+          handler: async (rzpRes) => {
+            const paymentData = {
+              razorpay_order_id: rzpRes.razorpay_order_id,
+              razorpay_payment_id: rzpRes.razorpay_payment_id,
+              razorpay_signature: rzpRes.razorpay_signature,
+            };
+            const verifyRes = await ProductService.verifyPayment(paymentData);
+            if (verifyRes.success) {
+              toast.success(`${verifyRes.message}, Order placed successfully!`);
+              navigate("/");
+            } else {
+              toast.error(verifyRes.message || "Payment verification failed!");
+            }
+          },
+          prefill: {
+            name: user?.name,
+            email: user?.email,
+            contact: user?.details?.phone,
+          },
+          theme: { color: "#3399cc" },
+        };
+        new window.Razorpay(options).open();
+      } else {
+        toast.error(response.payload?.message || "Failed to place order.");
+      }
+    })
+    .catch((error) => {
+      console.error("Order Error:", error);
+      toast.error("Something went wrong. Please try again.");
+    });
+};
+
 
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
