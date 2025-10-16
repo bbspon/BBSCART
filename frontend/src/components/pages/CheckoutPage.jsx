@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useCart } from "../../../context/CartContext"; // <-- Use your context!
+import { useCart } from "../../../context/CartContext";
 import Select from "react-select";
 import toast from "react-hot-toast";
 import Button from "../layout/Button";
@@ -9,6 +9,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { placeOrder } from "../../slice/orderSlice";
 import { GetCountries, GetState, GetCity } from "react-country-state-city";
 import { removeFromCart } from "../../slice/cartSlice";
+
 const loadRazorpay = () => {
   return new Promise((resolve) => {
     const script = document.createElement("script");
@@ -26,6 +27,7 @@ function CheckoutPage() {
   const user = useSelector((state) => state.auth.user);
   const cart = useCart();
   const cartItems = cart.state.items;
+
   const cartTotal = useMemo(() => {
     return cartItems.reduce(
       (total, item) =>
@@ -35,7 +37,7 @@ function CheckoutPage() {
   }, [cartItems]);
 
   const [orderData, setOrderData] = useState({
-    user_id: user?._id || "", // <-- use user_id
+    user_id: user?._id || "",
     orderItems: cartItems.map((item) => ({
       product: item.productId,
       quantity: item.qty,
@@ -53,98 +55,108 @@ function CheckoutPage() {
     paymentMethod: "COD",
   });
 
-  console.log("orderData", orderData);
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setOrderData((prevData) => ({
       ...prevData,
       shippingAddress: { ...prevData.shippingAddress, [name]: value },
     }));
-    console.log(orderData);
   };
 
   const handleSelectChange = (selectedOption, { name }) => {
-    console.log(selectedOption);
     setOrderData((prevData) => ({
       ...prevData,
       shippingAddress: {
         ...prevData.shippingAddress,
-        [name]: selectedOption.label, // Store label instead of value
+        [name]: selectedOption.label,
       },
     }));
-    console.log(orderData);
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  const res = await loadRazorpay();
+    const sdkLoaded = await loadRazorpay();
 
-  // user id from Redux, fallback to localStorage
-  const authUser =
-    user || JSON.parse(localStorage.getItem("auth_user") || "null");
+    const authUser =
+      user || JSON.parse(localStorage.getItem("auth_user") || "null");
 
-  // ✅ Build from context, NOT localStorage
-  const finalOrder = {
-    user_id: authUser?._id || authUser?.userId || "",
-    orderItems: (Array.isArray(cartItems) ? cartItems : []).map((item) => ({
-      product: item.productId || item._id || item.id,
-      quantity: Number(item.qty) || 0,
-      price: Number(item.price) || 0,
-      variant: item.variantId || null,
-    })),
-    totalAmount: Number(cartTotal) || 0,
-    shippingAddress: orderData.shippingAddress,
-    paymentMethod: "COD",
-  };
+    const finalOrder = {
+      user_id: authUser?._id || authUser?.userId || "",
+      orderItems: (Array.isArray(cartItems) ? cartItems : []).map((item) => ({
+        product: item.productId || item._id || item.id,
+        quantity: Number(item.qty) || 0,
+        price: Number(item.price) || 0,
+        variant: item.variantId || null,
+      })),
+      totalAmount: Number(cartTotal) || 0,
+      shippingAddress: orderData.shippingAddress,
+      paymentMethod: orderData.paymentMethod || "COD",
+    };
 
-  console.log("✅ Final Order Payload:", finalOrder);
+    console.log("✅ Final Order Payload:", finalOrder);
 
-  // block empty carts early
-  if (!finalOrder.orderItems.length || finalOrder.totalAmount <= 0) {
-    return toast.error("Your cart is empty.");
-  }
+    if (!finalOrder.orderItems.length || finalOrder.totalAmount <= 0) {
+      return toast.error("Your cart is empty.");
+    }
 
-  // dispatch as-is (your thunk should post to /orders)
-  dispatch(placeOrder(finalOrder))
-    .then((response) => {
+    try {
+      const response = await dispatch(placeOrder(finalOrder));
       console.log("Dispatch Response:", response);
-      if (response.payload?.success) {
-        // cartItems is already an array; no need for Object.values
-        cartItems.forEach((item) => {
-          dispatch(
-            removeFromCart({
-              productId: item.productId,
-              variantId: item.variantId || null,
-            })
-          );
-        });
 
-        if (!res) {
-          console.error("Razorpay SDK failed to load");
+      if (!response.payload?.success) {
+        toast.error(response.payload?.message || "Failed to place order.");
+        return;
+      }
+
+      const createdOrder = response.payload.order;
+      const method = createdOrder?.payment_method || finalOrder.paymentMethod;
+
+      // === Razorpay path ===
+      if (method === "Razorpay") {
+        if (!sdkLoaded) {
+          toast.error("Payment SDK failed to load");
+          return;
+        }
+
+        const rpOrderId = createdOrder?.order_id;
+        if (!rpOrderId || !rpOrderId.startsWith("order_")) {
+          toast.error("Invalid Razorpay order id");
           return;
         }
 
         const options = {
           key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-          amount: response.payload?.order.total_price,
+          amount: Math.round(createdOrder.total_price * 100),
           currency: "INR",
-          name: "BBSCart",
-          description: "Test Transaction",
-          order_id: response.payload?.order.order_id,
+          name: "BBSCART",
+          description: "Order Payment",
+          order_id: rpOrderId,
           handler: async (rzpRes) => {
-            const paymentData = {
-              razorpay_order_id: rzpRes.razorpay_order_id,
-              razorpay_payment_id: rzpRes.razorpay_payment_id,
-              razorpay_signature: rzpRes.razorpay_signature,
-            };
-            const verifyRes = await ProductService.verifyPayment(paymentData);
-            if (verifyRes.success) {
-              toast.success(`${verifyRes.message}, Order placed successfully!`);
-              navigate("/");
-            } else {
-              toast.error(verifyRes.message || "Payment verification failed!");
+            try {
+              const paymentData = {
+                razorpay_order_id: rzpRes.razorpay_order_id,
+                razorpay_payment_id: rzpRes.razorpay_payment_id,
+                razorpay_signature: rzpRes.razorpay_signature,
+              };
+              const verifyRes = await ProductService.verifyPayment(paymentData);
+              if (verifyRes.success) {
+                cartItems.forEach((item) =>
+                  dispatch(
+                    removeFromCart({
+                      productId: item.productId,
+                      variantId: item.variantId || null,
+                    })
+                  )
+                );
+                toast.success("Payment successful, order placed!");
+                navigate("/orders/success");
+              } else {
+                toast.error(verifyRes.message || "Payment verification failed");
+              }
+            } catch (err) {
+              console.error(err);
+              toast.error("Payment verification failed!");
             }
           },
           prefill: {
@@ -154,18 +166,29 @@ const handleSubmit = async (e) => {
           },
           theme: { color: "#3399cc" },
         };
+
         new window.Razorpay(options).open();
-      } else {
-        toast.error(response.payload?.message || "Failed to place order.");
+        return;
       }
-    })
-    .catch((error) => {
+
+      // === COD or other non-gateway methods ===
+      cartItems.forEach((item) =>
+        dispatch(
+          removeFromCart({
+            productId: item.productId,
+            variantId: item.variantId || null,
+          })
+        )
+      );
+      toast.success("Order placed successfully!");
+      navigate("/orders/success");
+    } catch (error) {
       console.error("Order Error:", error);
       toast.error("Something went wrong. Please try again.");
-    });
-};
+    }
+  };
 
-
+  // ===================== Address Dropdown Logic ===================== //
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
@@ -233,17 +256,12 @@ const handleSubmit = async (e) => {
   const location = useLocation();
 
   useEffect(() => {
-    // Scroll to top whenever the route changes
     window.scrollTo(0, 0);
   }, [location]);
 
   useEffect(() => {
-    window.scrollTo({
-      top: 0, // Scroll to the top
-      behavior: "smooth", // Enables smooth scrolling
-    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
-
   return (
     <>
       <section className="section-checkout bbscontainer pt-[50px] max-[1199px]:pt-[35px]">
@@ -366,50 +384,61 @@ const handleSubmit = async (e) => {
                   </div>
                   <div className="checkout-method mb-[24px]">
                     <span className="details font-Poppins leading-[26px] tracking-[0.02rem] text-[15px] font-medium text-secondary">
-                      Please select the preferred shipping method to use on this
-                      order.
+                      Please select your preferred payment method.
                     </span>
-                    <div className="bb-del-option flex mt-[12px] max-[480px]:flex-col">
-                      <div className="inner-del w-[50%] max-[480px]:w-full max-[480px]:mb-[8px]">
-                        <span className="bb-del-head font-Poppins leading-[26px] tracking-[0.02rem] text-[15px] font-semibold text-secondary">
-                          Free Shipping
-                        </span>
+                    <div className="bb-del-option mt-[12px] flex max-[480px]:flex-col">
+                      <div className="inner-del w-[50%] max-[480px]:w-full">
                         <div className="radio-itens">
                           <input
                             type="radio"
-                            id="rate1"
-                            name="rate"
-                            className="w-full text-[14px] font-normal text-secondary border-[1px] border-solid border-[#eee] outline-[0] rounded-[10px]"
+                            id="cod"
+                            name="paymentMethod"
+                            value="COD"
+                            checked={orderData.paymentMethod === "COD"}
+                            onChange={(e) =>
+                              setOrderData({
+                                ...orderData,
+                                paymentMethod: e.target.value,
+                              })
+                            }
+                            className="w-auto mr-[5px]"
                           />
                           <label
-                            htmlFor="rate1"
-                            className="relative pl-[26px] cursor-pointer leading-[16px] inline-block text-secondary tracking-[0]"
+                            htmlFor="cod"
+                            className="relative pl-[10px] cursor-pointer leading-[16px] inline-block text-secondary tracking-[0]"
                           >
-                            Rate - Rs 0 .00
+                            Cash on Delivery
                           </label>
                         </div>
                       </div>
+
                       <div className="inner-del w-[50%] max-[480px]:w-full">
-                        <span className="bb-del-head font-Poppins leading-[26px] tracking-[0.02rem] text-[15px] font-semibold text-secondary">
-                          Flat Rate
-                        </span>
                         <div className="radio-itens">
                           <input
                             type="radio"
-                            id="rate2"
-                            name="rate"
-                            className="w-full text-[14px] font-normal text-secondary border-[1px] border-solid border-[#eee] outline-[0] rounded-[10px]"
+                            id="razorpay"
+                            name="paymentMethod"
+                            value="Razorpay"
+                            checked={orderData.paymentMethod === "Razorpay"}
+                            onChange={(e) =>
+                              setOrderData({
+                                ...orderData,
+                                paymentMethod: e.target.value,
+                              })
+                            }
+                            className="w-auto mr-[5px]"
                           />
                           <label
-                            htmlFor="rate2"
-                            className="relative pl-[26px] cursor-pointer leading-[16px] inline-block text-secondary tracking-[0]"
+                            htmlFor="razorpay"
+                            className="relative pl-[10px] cursor-pointer leading-[16px] inline-block text-secondary tracking-[0]"
                           >
-                            Rate - Rs 5.00
+                            Pay Online (Razorpay)
                           </label>
                         </div>
                       </div>
                     </div>
                   </div>
+
                   <div className="about-order">
                     <h5 className="font-quicksand tracking-[0.03rem] leading-[1.2] mb-[12px] text-[15px] font-medium text-secondary">
                       Add Comments About Your Order
