@@ -245,7 +245,7 @@ app.use("/api/users", userRoutes);
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 app.use("/api/admin/pincode-vendors", adminPincodeVendorsRoutes);
 app.use("/api/admin/vendors", adminVendorRoutes);
-app.use("/orders", orderRoutes);
+app.use("/api/orders", orderRoutes);
 app.use("/api/testimonials", testimonialRoutes);
 // ✅ Global Error Handler
 app.use((err, req, res, next) => {
