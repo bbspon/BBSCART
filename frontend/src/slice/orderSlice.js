@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import instance from "../services/axiosInstance"
-const BASE_URL = `${import.meta.env.VITE_API_URL}/api/orders`; 
+const BASE_URL = `${import.meta.env.VITE_API_URL}/orders`; 
 
 // ✅ Place Order
 // orderSlice.js
@@ -9,7 +9,7 @@ export const placeOrder = createAsyncThunk(
   async (orderData, { rejectWithValue }) => {
     try {
       const response = await instance.post(
-        `${import.meta.env.VITE_API_URL}/api/orders`,
+        `${import.meta.env.VITE_API_URL}/orders`,
         orderData,
         {
           withCredentials: true,  // ensure cookie travels
