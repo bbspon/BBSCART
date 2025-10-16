@@ -26,37 +26,66 @@ function setBbscartCookie(res, accessToken) {
     domain: ".bbscart.com",
   });
 }
+function getWithTimeout(client, key, ms = 200) {
+  return Promise.race([
+    client.get(key),
+    new Promise((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
+
 // Authentication Middleware
 const auth = async (req, res, next) => {
     try {
-        const token = req.cookies?.accessToken;
+      const token = req.cookies?.accessToken;
 
-        if (!token) {
-            return res.status(401).json({ success: false, message: "No token, authorization denied" });
-        }
-
-        // Check if token is blacklisted
-        const isBlacklisted = await client.get(token);
+      if (!token) {
+        return res
+          .status(401)
+          .json({ success: false, message: "No token, authorization denied" });
+      }
+      // Only check Redis if connected/ready
+      if (client?.isOpen) {
+        const isBlacklisted = await getWithTimeout(client, token, 200);
         if (isBlacklisted) {
-            return res.status(401).json({ success: false, message: "Token expired. Please login again" });
+          return res
+            .status(401)
+            .json({
+              success: false,
+              message: "Token expired. Please login again",
+            });
         }
+      }
+      // Check if token is blacklisted
+      const isBlacklisted = await client.get(token);
+      if (isBlacklisted) {
+        return res
+          .status(401)
+          .json({
+            success: false,
+            message: "Token expired. Please login again",
+          });
+      }
 
-        // Verify token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-           const dbUser = await User.findById(decoded.userId).select("_id role vendor_id");
-   if (!dbUser) {
-     return res.status(401).json({ success: false, message: "User not found" });
-   }
-   req.user = {
-     userId: String(dbUser._id),
-     role: dbUser.role,
-     vendor_id: dbUser.vendor_id ? String(dbUser.vendor_id) : null,
-   };
-   // ✅ Provide a consistent field for controllers that expect vendor assignment
-   if (req.user.role === "seller" && req.user.vendor_id) {
-     req.assignedVendorId = req.user.vendor_id;
-   }
-        next();
+      // Verify token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const dbUser = await User.findById(decoded.userId).select(
+        "_id role vendor_id"
+      );
+      if (!dbUser) {
+        return res
+          .status(401)
+          .json({ success: false, message: "User not found" });
+      }
+      req.user = {
+        userId: String(dbUser._id),
+        role: dbUser.role,
+        vendor_id: dbUser.vendor_id ? String(dbUser.vendor_id) : null,
+      };
+      // ✅ Provide a consistent field for controllers that expect vendor assignment
+      if (req.user.role === "seller" && req.user.vendor_id) {
+        req.assignedVendorId = req.user.vendor_id;
+      }
+      next();
     } catch (error) {
         console.error("❌ JWT Verification Error:", error.message);
         return res.status(401).json({ success: false, message: "Token is not valid" });
