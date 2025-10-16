@@ -58,6 +58,9 @@ export const login = async (dispatch, email, password, navigate) => {
       localStorage.setItem("role", user.role);
       localStorage.setItem("userId", user._id); // optional but useful later
 
+      // ✅ ADD THIS LINE — store full user object in localStorage
+      localStorage.setItem("auth_user", JSON.stringify(user));
+
       console.log("User role in production:", user.role);
       toast.success("Login successful");
 
@@ -77,6 +80,7 @@ export const login = async (dispatch, email, password, navigate) => {
     toast.error(error.response?.data?.message || "Login failed");
   }
 };
+
 
 // Logout function
 export const logout = async (dispatch) => {

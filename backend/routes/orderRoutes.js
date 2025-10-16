@@ -2,11 +2,17 @@ const express = require("express");
 const router = express.Router();
 const orderController = require("../controllers/OrderController");
 const { authUser } = require("../middleware/authMiddleware");
-
-router.post("/", orderController.createOrder);
+const requireAssignedVendor = require("../middleware/requireAssignedVendor");
+router.post("/", authUser, requireAssignedVendor,orderController.createOrder);
 router.post("/verify-payment/", authUser, orderController.verifyPayment);
 router.get("/orders/", authUser, orderController.getAllOrders);
 router.get("/orders/:id", authUser, orderController.getOrderById);
+router.post(
+  "/orders/:id/mark-paid-test",
+  authUser,
+  orderController.markPaidTest
+);
+
 router.get("/orders/seller/:seller_id", orderController.getOrdersBySellerId);
 router.get(
   "/orders/user/:user_id",
