@@ -11,11 +11,24 @@ const instance = axios.create({
 
 // If you use token-based auth, attach it here:
 instance.interceptors.request.use((config) => {
-  const token = localStorage.getItem("admin_token"); // adjust your key
-  if (token && !config.headers?.Authorization) {
+  // const token = localStorage.getItem("admin_token"); // adjust your key
+  // if (token && !config.headers?.Authorization) {
+  //   config.headers = config.headers || {};
+  //   config.headers.Authorization = `Bearer ${token}`;
+  // }
     config.headers = config.headers || {};
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  // Try common customer keys first
+  const userToken =
+    localStorage.getItem("user_token") ||
+    localStorage.getItem("customer_token") ||
+    localStorage.getItem("accessToken") ||
+    localStorage.getItem("token") ||
+    "";
+ const adminToken = localStorage.getItem("admin_token") || "";
+  const bearer = userToken || adminToken;
+  if (bearer && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${bearer}`;
+ }
   return config;
 });
 
@@ -40,33 +53,33 @@ instance.interceptors.request.use((config) => {
   // Ensure headers object exists
   config.headers = config.headers || {};
 
-  if (pin) {
-    // Header is the single source of truth for the backend
-    config.headers["X-Pincode"] = pin;
-  }
-
-  // Never leak ?pincode=... in query params (header should drive vendor assignment)
-  if (
-    config.params &&
-    Object.prototype.hasOwnProperty.call(config.params, "pincode")
-  ) {
-    delete config.params.pincode;
-  }
-
-  // --- Guest key to de-duplicate anonymous sessions ---
-  let gk = "";
-  try {
-    gk = localStorage.getItem("guestKey") || "";
-    if (!gk) {
-      gk =
-        (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)) +
-        Date.now().toString(36);
-      localStorage.setItem("guestKey", gk);
+    if (pin) {
+      // Header is the single source of truth for the backend
+      config.headers["X-Pincode"] = pin;
     }
-  } catch {
-    // ignore
-  }
-  config.headers["X-Guest-Key"] = gk;
+
+    // Never leak ?pincode=... in query params (header should drive vendor assignment)
+    if (
+      config.params &&
+      Object.prototype.hasOwnProperty.call(config.params, "pincode")
+    ) {
+      delete config.params.pincode;
+    }
+
+    // --- Guest key to de-duplicate anonymous sessions ---
+    let gk = "";
+    try {
+      gk = localStorage.getItem("guestKey") || "";
+      if (!gk) {
+        gk =
+          (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)) +
+          Date.now().toString(36);
+        localStorage.setItem("guestKey", gk);
+      }
+    } catch {
+      // ignore
+    }
+    config.headers["X-Guest-Key"] = gk;
 
   return config;
 });
