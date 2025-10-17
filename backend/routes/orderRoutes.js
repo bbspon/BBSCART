@@ -3,7 +3,16 @@ const router = express.Router();
 const orderController = require("../controllers/OrderController");
 const { authUser } = require("../middleware/authMiddleware");
 const requireAssignedVendor = require("../middleware/requireAssignedVendor");
-router.post("/", authUser, requireAssignedVendor,orderController.createOrder);
+router.post(
+  "/",
+  (req, res, next) => {
+    console.log("[ORDERS] hit", new Date().toISOString());
+    next();
+  },
+  authUser,
+  requireAssignedVendor,
+  orderController.createOrder
+);
 router.post("/verify-payment/", authUser, orderController.verifyPayment);
 router.get("/orders/", authUser, orderController.getAllOrders);
 router.get("/orders/:id", authUser, orderController.getOrderById);
