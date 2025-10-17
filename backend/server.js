@@ -58,7 +58,7 @@ const PINCODE_ENFORCE_HOSTS =
 // which API roots should ever be gated by pincode (products, cart, etc.)
 const PINCODE_ENFORCE_PATHS = (
   process.env.PINCODE_ENFORCE_PATHS ||
-  "/api/products,/api/cart,/api/wishlist,"
+  "/api/products,/api/cart"
 )
   .split(",")
   .map((s) => s.trim())

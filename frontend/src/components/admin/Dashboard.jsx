@@ -179,8 +179,6 @@ const Dashboard = () => {
           />
 
           <main>
-           
-
             <ul className="box-info">
               <li>
                 <i className="bx bxs-calendar-check" />
@@ -221,12 +219,20 @@ const Dashboard = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {orders.map((order) => (
+                    {(orders || []).map((order) => (
                       <tr key={order._id}>
                         <td>
-                          <img src="https://placehold.co/600x400/png" />
-                          <p>{order.user_id.name}</p>
+                          <img
+                            src="https://placehold.co/600x400/png"
+                            alt="user"
+                          />
+                          <p>
+                            {order?.user_id?.name ||
+                              order?.user_name ||
+                              "Guest User"}
+                          </p>
                         </td>
+
                         <td>{moment(order.created_at).format("DD-MM-YYYY")}</td>
                         <td>
                           <span className="status completed">
@@ -478,8 +484,6 @@ const Dashboard = () => {
           </div>
         </div>
       )}
-
-   
     </>
   );
 };
