@@ -14,26 +14,26 @@ router.post(
   orderController.createOrder
 );
 router.post("/verify-payment/", authUser, orderController.verifyPayment);
-router.get("/orders/", authUser, orderController.getAllOrders);
-router.get("/orders/:id", authUser, orderController.getOrderById);
+router.get("/", authUser, orderController.getAllOrders);
+router.get("/:id", authUser, orderController.getOrderById);
 router.post(
-  "/orders/:id/mark-paid-test",
+  "/:id/mark-paid-test",
   authUser,
   orderController.markPaidTest
 );
 
-router.get("/orders/seller/:seller_id", orderController.getOrdersBySellerId);
+router.get("/seller/:seller_id", orderController.getOrdersBySellerId);
 router.get(
-  "/orders/user/:user_id",
+  "/user/:user_id",
   authUser,
   orderController.getOrdersBySellerId
 );
 router.get(
-  "/orders/status/:status",
+  "/status/:status",
   authUser,
   orderController.getOrdersByStatus
 );
-router.put("/orders/:id", authUser, orderController.updateOrder);
-router.delete("/orders/:id", authUser, orderController.deleteOrder);
+router.put("/:id", authUser, orderController.updateOrder);
+router.delete("/:id", authUser, orderController.deleteOrder);
 
 module.exports = router;
