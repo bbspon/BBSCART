@@ -199,8 +199,21 @@ module.exports = async function requireAssignedVendor(req, res, next) {
     //   assignedVendorId: req.assignedVendorId,
     //   assignedVendorUserId: req.assignedVendorUserId
     // });
+console.log(
+  "[VENDOR] in",
+  new Date().toISOString(),
+  "pin=",
+  req.headers["x-delivery-pincode"]
+);
 
     return next();
+    console.log(
+      "[VENDOR] out",
+      new Date().toISOString(),
+      "assigned=",
+      req.assignedVendorId
+    );
+
   } catch (err) {
     console.error("requireAssignedVendor error:", err);
     return res

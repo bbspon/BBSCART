@@ -400,6 +400,7 @@ exports.createOrder = async (req, res) => {
       },
     });
     const saved = await orderDoc.save();
+console.log("[ORDER] in", new Date().toISOString());
 
     if (paymentMethod === "Razorpay") {
       const options = {
@@ -419,6 +420,7 @@ exports.createOrder = async (req, res) => {
           order: saved,
         });
     }
+console.log("[ORDER] out OK", new Date().toISOString());
 
     if (paymentMethod === "COD") {
       saved.payment_details.payment_status = "completed";
@@ -443,6 +445,8 @@ exports.createOrder = async (req, res) => {
       });
   } catch (error) {
     console.error("Error creating order:", error);
+    console.log("[ORDER] ERR", new Date().toISOString(), err?.message);
+
     return res.status(500).json({
       success: false,
       message: "Error creating order",

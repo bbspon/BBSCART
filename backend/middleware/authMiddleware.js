@@ -35,6 +35,7 @@ function getWithTimeout(client, key, ms = 200) {
 
 // Authentication Middleware
 const auth = async (req, res, next) => {
+  console.log("[AUTH] in", new Date().toISOString());
     try {
       const token = req.cookies?.accessToken;
 
@@ -86,6 +87,13 @@ const auth = async (req, res, next) => {
         req.assignedVendorId = req.user.vendor_id;
       }
       next();
+      console.log(
+        "[AUTH] out",
+        new Date().toISOString(),
+        "user=",
+        req.user?.role
+      );
+
     } catch (error) {
         console.error("❌ JWT Verification Error:", error.message);
         return res.status(401).json({ success: false, message: "Token is not valid" });
