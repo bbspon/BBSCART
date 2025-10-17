@@ -56,17 +56,20 @@ export default function DeliverTo({ onAssigned }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
-      <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-dark bg-opacity-40  ">
+      <div
+        className="bg-white rounded-2xl shadow-lg p-6  px-8  w-full max-w-md relative "
+        style={{ backgroundColor: "rgb(255, 174, 95)" }}
+      >
         {/* Close button */}
         <button
           onClick={() => setIsOpen(false)}
-          className="absolute top-2 right-2 text-gray-600 hover:text-black"
+          className="absolute top-4 right-8 text-gray-800 hover:text-black"
         >
           ✕
         </button>
 
-        <h2 className="text-lg font-semibold mb-4">Deliver To</h2>
+        <h2 className="text-lg font-semibold m-4 text-center">Deliver To</h2>
         <form onSubmit={handleSubmit} className="space-y-3">
           <input
             value={pincode}
@@ -77,18 +80,25 @@ export default function DeliverTo({ onAssigned }) {
             placeholder="Enter 6-digit pincode"
             className="w-full border rounded px-3 py-2"
           />
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full px-4 py-2 rounded bg-black text-white disabled:opacity-50"
-          >
-            {loading ? "Assigning…" : "Set Pincode"}
-          </button>
-          {msg ? <p className="text-sm">{msg}</p> : null}
-          <p className="text-xs text-gray-500">
+          <p className="text-sm pt-2 pb-1 text-center text-gray-800">
             Not logged in? We’ll use a guest key:{" "}
             {getGuestKey() || "(creating…)"}
           </p>
+          <div className="flex items-end justify-center w-full">
+            <button
+              type="submit"
+              disabled={loading}
+              className={`w-100 px-4 py-2 rounded-xl text-white ${
+                loading
+                  ? "bg-gray-500 cursor-not-allowed"
+                  : "bg-orange-700 hover:bg-green-800"
+              }`}
+            >
+              {loading ? "Assigning…" : "Set Pincode"}
+            </button>
+          </div>
+
+          {msg ? <p className="text-sm">{msg}</p> : null}
         </form>
       </div>
     </div>

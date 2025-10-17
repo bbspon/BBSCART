@@ -394,7 +394,7 @@ function HeaderTop() {
             <div className="flex items-center cursor-pointer">
               <RiUserShared2Fill className="text-[#6b0e13] w-6 h-6" />
             </div>
-            <div className="relative top-8 z-[99]">
+            <div className="relative text-center top-8 z-[99]">
               {/* Dropdown / menu */}
               <div
                 className="
@@ -403,10 +403,10 @@ function HeaderTop() {
       left-[165px] right-1 bottom-4 w-[30vw]  text-center
       
       /* ---------- DESKTOP (sm and up) ---------- */
-      sm:left-auto sm:right-[-82px] sm:top-[-5px] sm:bottom-auto sm:w-52 sm:text-left
+      sm:left-auto sm:right-[-82px] sm:top-[2px] sm:bottom-auto sm:w-52 sm:text-left
 
       /* common styles */
-      bg-[#6b0e13] backdrop-blur-md rounded-xl shadow-lg overflow-hidden p-0 px-2
+       backdrop-blur-md rounded-xl  overflow-hidden p-0 px-2
       transform sm:translate-y-2
       z-[99]
     "
@@ -415,7 +415,7 @@ function HeaderTop() {
               >
                 {isAuthenticated && (
                   <div className="flex flex-col sm:flex-row sm:gap-2 items-center sm:items-start justify-center sm:justify-start">
-                    <span className="bb-btn-title font-Poppins text-[11px] sm:text-[12px] text-white mb-[2px] sm:mb-[4px] capitalize">
+                    <span className="bb-btn-title font-Poppins text-[11px] sm:text-[14px] text-white mb-[2px] sm:mb-[4px] capitalize">
                       Welcome!
                     </span>
                     <span className="bb-btn-stitle font-Poppins text-[13px] sm:text-[14px] font-semibold text-white">
@@ -427,7 +427,7 @@ function HeaderTop() {
             </div>
 
             <ul
-              className="
+              className=" rounded-lg
     absolute 
      p-3 mt-2  bg-white 
      text-sm z-[99] 
@@ -442,8 +442,8 @@ function HeaderTop() {
             >
               {!isAuthenticated ? (
                 <>
-                  <div
-                    className="
+        <div
+  className="
     absolute z-[99] border-2 bg-[#6b0e13] rounded-xl shadow-md
     /* 🧱 Common padding */
     p-1
@@ -454,26 +454,27 @@ function HeaderTop() {
     /* 💻 Desktop (sm and up) */  
     sm:left-14 sm:right-auto sm:bottom-[8px] sm:w-auto sm:text-left
   "
-                  >
-                    <ul className="flex flex-col">
-                      <li>
-                        <Link
-                          to="/register"
-                          className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
-                        >
-                          Register
-                        </Link>
-                      </li>
-                      <li>
-                        <Link
-                          to="/login"
-                          className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
-                        >
-                          Login
-                        </Link>
-                      </li>
-                    </ul>
-                  </div>
+>
+  <ul className="flex flex-col">
+    <li>
+      <Link
+        to="/register"
+        className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
+      >
+        Register
+      </Link>
+    </li>
+    <li>
+      <Link
+        to="/login"
+        className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
+      >
+        Login
+      </Link>
+    </li>
+  </ul>
+</div>
+
                 </>
               ) : (
                 <>

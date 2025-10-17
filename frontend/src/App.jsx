@@ -97,6 +97,7 @@ import AcceptInvite from './components/pages/admin/AcceptInvite';
 import NavbarCart from './components/NavbarCart';
 import AllTestimonials from './components/home/WriteTestimonial';
 import WriteTestimonial from './components/home/WriteTestimonial';
+import VendorsHome from './components/pages/VendorsHome';
 function App() {
   const dispatch = useDispatch();
   const location = useLocation(); // Get the current route
@@ -262,6 +263,7 @@ function App() {
         <Route path="/grocery" element={<GroceryDetails />} />
         {/* ✅ Home>PricingPage */}
         <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/vendor-home" element={<VendorsHome />} />
 
         <Route path="/admin" element={<AdminRoutes />}>
           <Route path="dashboard" element={<AdminDashboard />} />
