@@ -14,6 +14,9 @@ router.post(
   orderController.createOrder
 );
 router.post("/verify-payment/", authUser, orderController.verifyPayment);
+router.get("/seller/:seller_id", orderController.getOrdersBySellerId);
+router.get("/user/:user_id", authUser, orderController.getOrdersBySellerId);
+router.get("/status/:status", authUser, orderController.getOrdersByStatus);
 router.get("/", authUser, orderController.getAllOrders);
 router.get("/:id", authUser, orderController.getOrderById);
 router.post(
@@ -22,17 +25,7 @@ router.post(
   orderController.markPaidTest
 );
 
-router.get("/seller/:seller_id", orderController.getOrdersBySellerId);
-router.get(
-  "/user/:user_id",
-  authUser,
-  orderController.getOrdersBySellerId
-);
-router.get(
-  "/status/:status",
-  authUser,
-  orderController.getOrdersByStatus
-);
+
 router.put("/:id", authUser, orderController.updateOrder);
 router.delete("/:id", authUser, orderController.deleteOrder);
 

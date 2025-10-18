@@ -270,7 +270,7 @@ const Variant = require("../models/Variant.js");
 const Product = require("../models/Product.js");
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
-
+const mongoose = require("mongoose");
 // Razorpay Instance
 const razorpay = new Razorpay({
   key_id: "rzp_test_5kdXsZAny3KeQZ",
@@ -541,29 +541,35 @@ exports.getOrderById = async (req, res) => {
 exports.getOrdersBySellerId = async (req, res) => {
   console.log("getOrdersBySellerId");
   try {
-    const { seller_id } = req.params;
+const { seller_id } = req.params;
+if (!seller_id) {
+  return res
+    .status(400)
+    .json({ success: false, message: "seller_id is required" });
+}
+if (!mongoose.Types.ObjectId.isValid(seller_id)) {
+  return res.status(400).json({ success: false, message: "Invalid seller_id" });
+}
+const vendorId = new mongoose.Types.ObjectId(seller_id);
 
-    // Find orders where any order item belongs to the given seller
-    const orders = await Order.find({
-      "orderItems.product": {
-        $in: await Product.find({ seller_id }).distinct("_id"),
-      },
-    })
-      .populate("user_id", "name email phone")
-      .populate({
-        path: "orderItems.product",
-        select: "name price image",
-        populate: { path: "seller_id", select: "name" },
-      })
-      .populate("orderItems.variant", "name options");
+// Find all products owned by this vendor
+const productIds = await Product.find({ seller_id: vendorId }).distinct("_id");
 
-    if (!orders.length) {
-      return res
-        .status(404)
-        .json({ success: false, message: "No orders found for this seller" });
-    }
+if (!productIds.length) {
+  return res.json({ success: true, orders: [] });
+}
 
-    res.status(200).json({ success: true, orders });
+// Orders that include any of those products
+const orders = await Order.find({
+  "orderItems.product": { $in: productIds },
+})
+  .populate("user_id", "name email phone")
+  .populate("orderItems.product", "name price image seller_id")
+  .populate("orderItems.variant", "name options")
+  .sort({ created_at: -1 });
+
+return res.json({ success: true, orders });
+
   } catch (error) {
     res.status(500).json({
       success: false,

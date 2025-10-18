@@ -6,7 +6,7 @@ import "./assets/dashboard.css";
 import Sidebar from "./layout/sidebar";
 import Navbar from "./layout/Navbar";
 import useDashboardLogic from "./hooks/useDashboardLogic";
-import { getAllOrders } from "../../slice/orderSlice";
+import { getAllOrders, getOrderBySellerId  } from "../../slice/orderSlice";
 import { useDispatch, useSelector } from "react-redux";
 import moment from "moment";
 
@@ -28,11 +28,29 @@ const Orders = () => {
   const { orders, loading, error } = useSelector((state) => state.order);
   const [searchValue, setSearchValue] = React.useState("");
 
-  useEffect(() => {
-    dispatch(getAllOrders());
-  }, [dispatch]);
+const authUser = useSelector((s) => s.auth.user);
+const role = authUser?.role || localStorage.getItem("role");
+const vendorId =
+  authUser?.vendor_id?._id ||
+  authUser?.vendor_id ||
+  (() => {
+    try {
+      const raw = localStorage.getItem("auth_user");
+      const obj = raw ? JSON.parse(raw) : {};
+      return obj?.vendor_id?._id || obj?.vendor_id || null;
+    } catch {
+      return null;
+    }
+  })();
 
-  console.log(orders);
+useEffect(() => {
+  if (!role) return;
+  if (role === "admin") {
+    dispatch(getAllOrders());
+  } else if (role === "seller" && vendorId) {
+    dispatch(getOrderBySellerId(vendorId));
+  }
+}, [role, vendorId, dispatch]);
 
   if (loading) return <p>Loading...</p>;
   if (error)
