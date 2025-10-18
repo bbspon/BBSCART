@@ -58,19 +58,17 @@ router.get('/auth/pos-sso', async (req, res) => {
       status: dbUser.status,
     };
 
-    return res
-      .status(200)
-      .set('Content-Type', 'text/html; charset=utf-8')
+    return res.status(200).set("Content-Type", "text/html; charset=utf-8")
       .send(`<!doctype html>
 <html><head><meta charset="utf-8"><title>Signing you in…</title></head>
 <body>
 <script>
 try {
   // Clear stale keys
-  localStorage.removeItem('user');
+  localStorage.removeItem('auth_user');
   localStorage.removeItem('role');
   // Write fresh values expected by your Sidebar
-  localStorage.setItem('user', ${JSON.stringify(JSON.stringify(bootstrapUser))});
+  localStorage.setItem('auth_user', ${JSON.stringify(JSON.stringify(bootstrapUser))});
   localStorage.setItem('role', ${JSON.stringify(String(dbUser.role).toLowerCase())});
 } catch (e) { /* ignore */ }
 // Now move to the correct dashboard
