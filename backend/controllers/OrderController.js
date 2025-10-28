@@ -271,6 +271,8 @@ const Product = require("../models/Product.js");
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
 const mongoose = require("mongoose");
+const { emitCreated, emitUpdated } = require("../events/orderEmitter");
+const { emitTxnUpsert } = require("../events/transactionEmitter");
 // Razorpay Instance
 const razorpay = new Razorpay({
   key_id: "rzp_test_5kdXsZAny3KeQZ",
@@ -399,8 +401,9 @@ exports.createOrder = async (req, res) => {
         amount_paid: 0,
       },
     });
-    const saved = await orderDoc.save();
+      const saved = await orderDoc.save();
 console.log("[ORDER] in", new Date().toISOString());
+      require('../events/orderEmitter').emitCreated(saved).catch(()=>{});
 
     if (paymentMethod === "Razorpay") {
       const options = {
@@ -419,13 +422,17 @@ console.log("[ORDER] in", new Date().toISOString());
           message: "Order created successfully",
           order: saved,
         });
+
     }
 console.log("[ORDER] out OK", new Date().toISOString());
-
+// NOTE: previous code tried to emitCreated(order) but `order` was undefined here.
+// We already emitted the created event just after the DB save above — avoid duplicate emit.
     if (paymentMethod === "COD") {
       saved.payment_details.payment_status = "completed";
       saved.payment_details.amount_paid = Number(totalAmount || 0);
       await saved.save();
+
+      require('../events/transactionEmitter').emitUpsert(saved).catch(()=>{});
 
       await reduceStock(saved);
 
@@ -445,7 +452,15 @@ console.log("[ORDER] out OK", new Date().toISOString());
       });
   } catch (error) {
     console.error("Error creating order:", error);
-    console.log("[ORDER] ERR", new Date().toISOString(), err?.message);
+    // use the caught variable 'error' (was 'err' previously)
+    console.log("[ORDER] ERR", new Date().toISOString(), error?.message);
+
+    // after saving a new order
+try {
+  await emitCreated(savedOrder);
+} catch (e) {
+  console.error("[CRM] order-created failed:", e.message);
+}
 
     return res.status(500).json({
       success: false,
@@ -483,10 +498,25 @@ exports.verifyPayment = async (req, res) => {
 
     order.payment_details.payment_id = razorpay_payment_id;
     order.payment_details.payment_status = "completed";
+
+    
+// when you create a payment/transaction record (in this controller or elsewhere)
+try {
+  await emitTxnUpsert(savedTxn);
+} catch (e) {
+  console.error("[CRM] transaction-upsert failed:", e.message);
+}
+
     order.payment_details.amount_paid = order.total_price;
     await order.save();
+// right after: await order.save()
+require('../events/orderEmitter').emitCreated(order).catch(() => {});
+
+    require('../events/transactionEmitter').emitUpsert(order).catch(()=>{});
 
     await reduceStock(order);
+
+    require('../events/orderEmitter').emitUpdated(order).catch(()=>{});
 
     return res.json({ success: true, message: "Payment successful" });
   } catch (error) {
@@ -635,11 +665,20 @@ exports.updateOrder = async (req, res) => {
         .json({ success: false, message: "Order not found" });
     }
 
+    require('../events/orderEmitter').emitUpdated(updatedOrder).catch(()=>{});
+
     res.status(200).json({
       success: true,
       message: "Order updated successfully",
       order: updatedOrder,
     });
+
+    // after updating an order
+try {
+  await emitUpdated(updatedOrder);
+} catch (e) {
+  console.error("[CRM] order-updated failed:", e.message);
+}
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -647,6 +686,7 @@ exports.updateOrder = async (req, res) => {
       error: error.message,
     });
   }
+
 };
 
 // Delete order

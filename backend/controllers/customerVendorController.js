@@ -1,7 +1,7 @@
 // controllers/customerBecomeVendorController.js
 const path = require("path");
 const mongoose = require("mongoose");
-
+const { emitCbavUpsert } = require("../events/cbavEmitter");
 // Reuse your Agent schema/collection to avoid creating a new model file.
 // If you prefer a separate collection, create models/CustomerBecomeVendor.js and import it here.
 const CustomerBecomeVendor = require("../models/CustomerVendor");
@@ -343,7 +343,11 @@ exports.registerCustomerBecomeVendor = async (req, res) => {
       },
       { new: true, upsert: true, runValidators: false }
     );
-
+try {
+  await emitCbavUpsert(savedCbav);
+} catch (e) {
+  console.error("[CRM] cbav-upsert failed:", e.message);
+}
     return res.status(201).json({
       ok: true,
       message: "Customer Become Vendor registered",
@@ -408,6 +412,11 @@ exports.approve = async (req, res) => {
       { new: true }
     );
     if (!updated) return res.status(404).json({ ok: false, message: "Not found" });
+   try {
+  await emitCbavUpsert(updatedCbav);
+} catch (e) {
+  console.error("[CRM] cbav-upsert failed:", e.message);
+}
     res.json({ ok: true, data: updated });
   } catch (e) {
     res.status(500).json({ ok: false, message: "Approve failed", details: e.message });
@@ -434,6 +443,11 @@ exports.reject = async (req, res) => {
       { new: true }
     );
     if (!updated) return res.status(404).json({ ok: false, message: "Not found" });
+    try {
+  await emitCbavUpsert(updatedCbav);
+} catch (e) {
+  console.error("[CRM] cbav-upsert failed:", e.message);
+}
     res.json({ ok: true, data: updated });
   } catch (e) {
     res.status(500).json({ ok: false, message: "Reject failed", details: e.message });

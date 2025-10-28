@@ -36,15 +36,39 @@ const testimonialRoutes = require("./routes/testimonialRoutes");
 const posSsoRoutes = require("./routes/posSso");
 
 const app = express();
-app.set("trust proxy", 1);
-/* =======================
-   ✅ CORS Setup (dev + prod)
-   ======================= */
-const allowedOrigins = [
-  process.env.CLIENT_URL_DEV || "http://localhost:5173",
 
-  process.env.CLIENT_URL_PROD || "https://bbscart.com",
-];
+// ===== DEV-FIRST CORS (simple & safe) =====
+const DEV = process.env.NODE_ENV !== 'production';
+
+// Always trust proxy in dev
+app.set('trust proxy', 1);
+
+// Single, permissive CORS in dev; strict in prod if you want later
+if (DEV) {
+  app.use((req, res, next) => {
+    const origin = req.headers.origin || '*';
+    // allow React dev (5173) and no-origin (server-to-server)
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers',
+      'Content-Type, Authorization, X-Requested-With, X-Idempotency-Key, X-Source-App, ' +
+      'X-Pincode, X-Guest-Key, X-Delivery-Pincode, Accept, Origin'
+    );
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    next();
+  });
+} else {
+  // (Optional) stricter allowlist in prod:
+  const allowlist = new Set(['https://bbscart.com','https://admin.bbscart.com','https://vendor.bbscart.com']);
+  app.use(cors({
+    origin: (origin, cb) => (!origin || allowlist.has(origin)) ? cb(null, true) : cb(new Error('Not allowed by CORS')),
+    credentials: true
+  }));
+  app.options('*', cors());
+}
+// ===== END CORS =====
 
 // ---- BEGIN: Scoped vendor+pincode enforcement (BBSCART Supermarket only) ----
 const assignVendorMiddleware = require("./middleware/assignVendorMiddleware");
@@ -117,83 +141,12 @@ app.use(async (req, res, next) => {
 });
 // ---- END: Scoped vendor+pincode enforcement ----
 
-
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      // Allow non-browser requests (no Origin) and known origins
-
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(new Error("Not allowed by CORS"));
-    },
-
-    credentials: true,
-
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-
-    allowedHeaders: [
-      "Content-Type",
-
-      "Authorization",
-
-      "X-Pincode",
-
-      "X-Guest-Key",
-      "X-Delivery-Pincode",
-    ],
-  })
-);
-
-// Handle preflight for all routes
-
-app.options(
-  "*",
-
-  cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin))
-        return callback(null, true);
-
-      return callback(new Error("Not allowed by CORS"));
-    },
-
-    credentials: true,
-
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-Pincode",
-      "X-Guest-Key",
-      "X-Delivery-Pincode",
-    ],
-  })
-);
-
-// (Optional) log incoming Origin for debugging
-
-app.use((req, res, next) => {
-  console.log("Request Origin:", req.headers.origin || "N/A");
-
-  next();
-});
-
-// (Optional) log incoming Origin for debugging
-app.use((req, res, next) => {
-  console.log("Request Origin:", req.headers.origin || "N/A");
-  next();
-});
-
 mongoose
   .connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => console.log("✅ Connected to bbshealthcare (Default DB)"))
+  .then(() => console.log("✅ Connected to MongoDB (BBSlivE)"))
   .catch((err) => console.error("❌ Main DB error:", err));
 
 app.use(cookieParser());
@@ -242,7 +195,13 @@ app.use("/api/subcategories", require("./routes/subcategoryRoutes"));
 app.use("/api/cart", cartRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/users", userRoutes);
-app.get("/api/health", (req, res) => res.json({ ok: true }));
+app.get("/api/health", (req, res) => {
+  res.json({
+    ok: true,
+    service: "crm-ingest",
+    time: new Date().toISOString(),
+  });
+});
 app.use("/api/admin/pincode-vendors", adminPincodeVendorsRoutes);
 app.use("/api/admin/vendors", adminVendorRoutes);
 app.use("/api/orders", orderRoutes);

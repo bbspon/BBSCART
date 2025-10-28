@@ -16,6 +16,7 @@ const ProductGroup = require("../models/ProductGroup");
 // prefer file path if present; otherwise keep a URL string from body
 const { parse } = require("csv-parse/sync");
 const Vendor = require("../models/Vendor");
+const { emitProductUpsert } = require("../events/productEmitter");
 
 const toBool = (v) => {
   if (typeof v === "boolean") return v;
@@ -865,6 +866,13 @@ exports.createProduct = async (req, res) => {
       is_global: product.is_global,
     });
 
+    require('../events/productEmitter').emitUpsert(product).catch(()=>{});
+    try {
+  await emitProductUpsert(savedProduct);
+} catch (e) {
+  console.error("[CRM] product-upsert failed:", e.message);
+}
+
     return res.status(201).json(product);
   } catch (err) {
     console.error("createProduct error:", err);
@@ -1207,6 +1215,8 @@ exports.updateProduct = async (req, res) => {
     );
     console.log("✅ Product Updated:", updatedProduct);
 
+    require('../events/productEmitter').emitUpsert(updatedProduct).catch(()=>{});
+
     if (variants) {
       const existingVariants = await Variant.find({
         product_id: updatedProduct._id,
@@ -1346,8 +1356,13 @@ exports.updateProduct = async (req, res) => {
 
       updatedProduct.variants = variantIds;
       await updatedProduct.save();
+      require('../events/productEmitter').emitUpsert(updatedProduct).catch(()=>{});
     }
-
+    try {
+  await emitProductUpsert(updatedProduct);
+} catch (e) {
+  console.error("[CRM] product-upsert failed:", e.message);
+}
     res.status(200).json({
       message: "✅ Product updated successfully",
       product: updatedProduct,
