@@ -432,7 +432,7 @@ console.log("[ORDER] out OK", new Date().toISOString());
       saved.payment_details.amount_paid = Number(totalAmount || 0);
       await saved.save();
 
-      require('../events/transactionEmitter').emitUpsert(saved).catch(()=>{});
+      require('../events/transactionEmitter').emitTxnUpsert(saved).catch(()=>{});
 
       await reduceStock(saved);
 

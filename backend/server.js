@@ -61,13 +61,40 @@ if (DEV) {
   });
 } else {
   // (Optional) stricter allowlist in prod:
-  const allowlist = new Set(['https://bbscart.com','https://admin.bbscart.com','https://vendor.bbscart.com']);
-  app.use(cors({
-    origin: (origin, cb) => (!origin || allowlist.has(origin)) ? cb(null, true) : cb(new Error('Not allowed by CORS')),
-    credentials: true
-  }));
-  app.options('*', cors());
+//   const allowlist = new Set(['https://bbscart.com','https://admin.bbscart.com','https://vendor.bbscart.com']);
+  
+//   app.use(cors({
+//     origin: (origin, cb) => (!origin || allowlist.has(origin)) ? cb(null, true) : cb(new Error('Not allowed by CORS')),
+//     credentials: true
+//   }));
+//   app.options('*', cors());
+// }
+
+const ALLOWED_ORIGINS = new Set([
+  "http://localhost:5173",       // Vite/React dev
+  "http://127.0.0.1:5173",
+  "http://localhost:3000",       // CRM dev (if any browser hits it)
+  "http://127.0.0.1:3000",
+  "http://localhost:5000",       // same-host calls
+  "http://127.0.0.1:5000",
+  "https://bbscart.com",         // production site
+  "https://www.bbscart.com"
+]);
+
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow non-browser clients (Postman, curl, PowerShell) where origin is undefined
+    if (!origin) return cb(null, true);
+    if (ALLOWED_ORIGINS.has(origin)) return cb(null, true);
+    return cb(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Idempotency-Key"]
+}));
 }
+// Handle preflight fast
+app.options("*", cors());
 // ===== END CORS =====
 
 // ---- BEGIN: Scoped vendor+pincode enforcement (BBSCART Supermarket only) ----
@@ -168,8 +195,8 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Add body-parsing middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// app.use(express.json());
+// app.use(express.urlencoded({ extended: true }));
 
 // ✅ Static File Serving
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
