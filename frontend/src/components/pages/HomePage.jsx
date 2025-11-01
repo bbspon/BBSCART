@@ -23,7 +23,7 @@ function HomePage() {
   return (
     <>
       <div>
-        <MediaPopupPage />
+        {/* <MediaPopupPage /> */}
         <HeroSection />
         <div className="homepage bbscontainer">
           <SectionCategory />

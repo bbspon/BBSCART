@@ -9,7 +9,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { placeOrder } from "../../slice/orderSlice";
 import { GetCountries, GetState, GetCity } from "react-country-state-city";
 import { removeFromCart } from "../../slice/cartSlice";
-
+ import SlotPicker from "../../components/SlotPicker";
 const loadRazorpay = () => {
   return new Promise((resolve) => {
     const script = document.createElement("script");
@@ -75,6 +75,11 @@ function CheckoutPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // require a delivery slot before placing order
+    if (!deliverySlot) {
+      toast.error("Please select a delivery slot.");
+      return;
+    }
 
     const sdkLoaded = await loadRazorpay();
 
@@ -92,6 +97,7 @@ function CheckoutPage() {
       totalAmount: Number(cartTotal) || 0,
       shippingAddress: orderData.shippingAddress,
       paymentMethod: orderData.paymentMethod || "COD",
+      deliverySlot: deliverySlot,
     };
 
     console.log("✅ Final Order Payload:", finalOrder);
@@ -192,7 +198,8 @@ function CheckoutPage() {
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
-
+   const [deliverySlot, setDeliverySlot] = useState(null);
+  const deliveryPincode = orderData?.shippingAddress?.postalCode || "";
   useEffect(() => {
     const fetchCountries = async () => {
       const countryList = await GetCountries();
@@ -702,7 +709,28 @@ function CheckoutPage() {
                               />
                             </div>
                           </div>
-
+                          {/* Delivery Slot Picker */}
+                          <div className="w-full px-[12px]">
+                            <div className="input-item mb-[24px]">
+                              <label className="block text-[14px] font-medium text-secondary mb-[8px]">
+                                Delivery time slot *
+                              </label>
+                              <div className="p-[10px] border border-[#eee] rounded-[10px]">
+                                <SlotPicker
+                                  pincode={deliveryPincode}
+                                  value={deliverySlot}
+                                  onChange={setDeliverySlot}
+                                />
+                              </div>
+                              {deliverySlot && (
+                                <div className="mt-[6px] text-[12px] text-secondary">
+                                  Selected: {deliverySlot.label} (
+                                  {deliverySlot.start}–{deliverySlot.end}) on{" "}
+                                  {deliverySlot.date}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                           {/* Place Order Button */}
                           <div className="w-full px-[12px]">
                             <div className="input-button">

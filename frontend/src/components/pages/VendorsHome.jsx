@@ -5,7 +5,7 @@ import Territory from "../../assets/territory.png";
 import Vendor from "../../assets/vendor.png";
 import Agent from "../../assets/delivery.png";
 import Delivery from "../../assets/delivery.png";
-import CBAV from "../../assets/cbv.png";
+import CBAV from "../../assets/delivery.png";
 function VendorsHome() {
   const [activeSection, setActiveSection] = useState(null);
 
