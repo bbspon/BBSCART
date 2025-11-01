@@ -3,13 +3,13 @@ import Coin from "../../assets/coin.png";
 import Franchise from "../../assets/franchise.png";
 import Territory from "../../assets/territory.png";
 import Vendor from "../../assets/vendor.png";
-import Agent from "../../assets/delivery.png";
+import Agent from "../../assets/agent.png";
 import Delivery from "../../assets/delivery.png";
-import CBAV from "../../assets/delivery.png";
+import CBAV from "../../assets/cbv.png";
+
 function VendorsHome() {
   const [activeSection, setActiveSection] = useState(null);
 
-  // Refs for each section
   const franchiseRef = useRef(null);
   const territoryRef = useRef(null);
   const agentRef = useRef(null);
@@ -21,7 +21,6 @@ function VendorsHome() {
     setActiveSection((prev) => (prev === sectionName ? null : sectionName));
   };
 
-  // Scroll to section after activation
   useEffect(() => {
     const scrollMap = {
       franchise: franchiseRef,
@@ -31,739 +30,208 @@ function VendorsHome() {
       delivery: deliveryRef,
       becomeVendor: becomeVendorRef,
     };
-
     if (activeSection && scrollMap[activeSection]?.current) {
       scrollMap[activeSection].current.scrollIntoView({ behavior: "smooth" });
     }
   }, [activeSection]);
 
   return (
-    <>
-      {/* Main Heading and Introduction */}
-      <div className="text-center  mt-5">
-        <h1
-          style={{
-            fontSize: "48px",
-            fontWeight: "bold",
-            fontFamily: "Segoe UI, Roboto, Helvetica, Arial, sans-serif",
-          }}
-        >
+    <div className="w-full bg-gradient-to-b from-yellow-50 to-white p-6">
+      {/* 🌟 Header */}
+      <div className="text-center mt-16 animate-fadeIn">
+        <h1 className="text-5xl md:text-6xl font-extrabold text-[#8e1c21] tracking-tight drop-shadow-md">
           BBSCART Partner Network
         </h1>
-
-        <h6>Together, We Build. Together, We Grow.</h6>
+        <h6 className="text-lg md:text-xl text-gray-600 mt-3">
+          Together, We Build. Together, We Grow.
+        </h6>
       </div>
 
-      <div className="d-flex justify-content-center align-items-center flex-row m-5  p-5 border rounded ">
-        <div className="text-justify" style={{ maxWidth: "900px" }}>
-          <h5 className="text-lg font-semibold font-sans text-gray-800">
+      {/* 💫 Intro Section */}
+      <div className="flex flex-col md:flex-row justify-center items-center gap-10 m-8 p-8 border border-yellow-200 rounded-3xl shadow-xl bg-white/90 backdrop-blur-sm hover:shadow-2xl transition duration-500">
+        <div className="max-w-2xl text-gray-800 space-y-4 leading-relaxed">
+          <h5 className="text-2xl font-semibold text-[#8e1c21]">
             At BBSCART, we believe success is best achieved together.
           </h5>
-          <p className="text-justify">
+          <p>
             Our platform connects customers, vendors, delivery professionals,
-            service providers, and regional leaders into one powerful network,
-            designed to create real opportunities, drive local economies, and
-            make business easier for everyone.
+            service providers, and regional leaders into one powerful network
+            designed to create real opportunities and drive local economies.
           </p>
           <p>
-            When you join BBSCART, you’re becoming part of a nationwide movement
-            that blends technology, trust, and teamwork to deliver growth for
-            every partner.
+            When you join BBSCART, you become part of a nationwide movement that
+            blends technology, trust, and teamwork to deliver growth for every
+            partner.
           </p>
         </div>
 
-        {/* Image Section */}
-        <div className="container   text-center">
-          <div>
+        <div className="text-center">
+          <img
+            className="rounded-2xl w-[320px] md:w-[520px] h-[220px] md:h-[300px] object-cover shadow-lg hover:scale-105 transition-transform duration-500"
+            src={Coin}
+            alt="Coin"
+          />
+        </div>
+      </div>
+
+      {/* 🚀 Partner Buttons */}
+      <div className="flex flex-wrap justify-center gap-10 mx-5 px-5 my-12">
+        {[
+          { key: "franchise", label: "Franchise", icon: Franchise },
+          { key: "territory", label: "Territory Head", icon: Territory },
+          { key: "vendor", label: "Vendor", icon: Vendor },
+          { key: "agent", label: "Agent", icon: Agent },
+          { key: "delivery", label: "Delivery Partner", icon: Delivery },
+          {
+            key: "becomeVendor",
+            label: "Customer Become A Vendor",
+            icon: CBAV,
+          },
+        ].map((item) => (
+          <div
+            key={item.key}
+            onClick={() => handleToggle(item.key)}
+            className={`group flex flex-col items-center p-5 rounded-2xl shadow-md cursor-pointer bg-white border border-gray-100 hover:border-[#8e1c21] transition-all duration-300 w-[150px] hover:scale-105 hover:shadow-xl ${
+              activeSection === item.key ? "bg-yellow-100 border-[#8e1c21]" : ""
+            }`}
+          >
             <img
-              className="img-fluid mx-auto d-flex justify-content-center "
-              style={{ borderRadius: "5%", width: "500px", height: "300px" }}
-              src={Coin}
-              alt="Coin"
+              src={item.icon}
+              alt={item.label}
+              className="w-12 h-12 mb-3 group-hover:animate-bounce"
             />
+            <span className="text-center text-gray-900 font-semibold group-hover:text-[#8e1c21]">
+              {item.label}
+            </span>
           </div>
-        </div>
+        ))}
       </div>
 
-      {/* Buttons to toggle sections */}
-      <div className="d-flex justify-content-around align-items-center flex-wrap mx-5 px-5 ">
-        {/* Franchise Section */}
-        <div
-          className="d-flex flex-column align-items-center  rounded p-3"
-          // style={{ backgroundColor: "lightyellow" }}
-        >
-          <img
-            src={Franchise}
-            alt="Franchise"
-            style={{ width: "50px", height: "50px", marginBottom: "10px" }}
-          />
-          <a
-          role="button"
-            className="py-2 px-4 text-center rounded "
-            style={{ color: "black", textDecoration: "none", width: "100%", }}
-            onClick={() => handleToggle("franchise")}
-          >
-            Franchise
-          </a>
-        </div>
-        {/* Territory Head Section */}
-        <div
-          className="d-flex flex-column align-items-center  rounded p-3"
-          // style={{ backgroundColor: "lightgray" }}
-        >
-          <img
-            src={Territory}
-            alt="Territory Head"
-            style={{ width: "50px", height: "50px", marginBottom: "10px" }}
-          />
-          <a
-            role="button"
-            className="py-2 px-4 text-center rounded"
-            style={{
-              color: "black",
-
-              textDecoration: "none",
-              width: "100%",
-            }}
-            onClick={() => handleToggle("territory")}
-          >
-            Territory Head
-          </a>
-        </div>
-        {/* Vendor*/}
-        <div
-          className="d-flex flex-column align-items-center  rounded p-3"
-          // style={{ backgroundColor: "lightgreen" }}
-        >
-          <img
-            src={Vendor}
-            alt="vendor"
-            style={{ width: "50px", height: "50px", marginBottom: "10px" }}
-          />
-          <a
-            role="button"
-            className="py-2 px-4 text-center rounded"
-            style={{
-              color: "black",
-              textDecoration: "none",
-              width: "100%",
-            }}
-            onClick={() => handleToggle("vendor")}
-          >
-            Vendor
-          </a>
-        </div>
-        {/* Agent */}
-        <div
-          className="d-flex flex-column align-items-center  rounded p-3"
-          // style={{ backgroundColor: "lightblue" }}
-        >
-          <img
-            src={Agent}
-            alt="agent"
-            style={{ width: "50px", height: "50px", marginBottom: "10px" }}
-          />
-          <a
-            role="button"
-            className="py-2 px-4 text-center rounded"
-            style={{
-              color: "black",
-              textDecoration: "none",
-              width: "100%",
-            }}
-            onClick={() => handleToggle("agent")}
-          >
-            Agent
-          </a>
-        </div>
-
-        {/* Delivery Partner */}
-        <div
-          className="d-flex flex-column align-items-center  rounded p-3"
-          // style={{ backgroundColor: "orange" }}
-        >
-          <img
-            src={Delivery}
-            alt="delivery"
-            style={{ width: "50px", height: "50px", marginBottom: "10px" }}
-          />
-          <a
-            role="button"
-            className="py-2 px-4 text-center rounded"
-            style={{
-              color: "black",
-              textDecoration: "none",
-              width: "100%",
-            }}
-            onClick={() => handleToggle("delivery")}
-          >
-            Delivery Partner
-          </a>
-        </div>
-
-        {/* Customer Become A Vendor */}
-        <div
-          className="d-flex flex-column align-items-center  rounded p-3"
-          // style={{ backgroundColor: "red" }}
-        >
-          <img
-            src={CBAV}
-            alt="becomeVendor"
-            style={{ width: "50px", height: "50px", marginBottom: "10px" }}
-          />
-          <a
-            role="button"
-            className="py-2 px-4 text-center rounded"
-            style={{
-              color: "black",
-              textDecoration: "none",
-              width: "100%",
-            }}
-            onClick={() => handleToggle("becomeVendor")}
-          >
-            Customer Become A Vendor
-          </a>
-        </div>
-
-      </div>
-
-      {/* Main Content Section */}
-      <div className="container mb-5 p-5 p-4">
-       <div className="border-bottom  pb-5  mb-4">
-
-          <h2 className="text-center mb-4">Why Partner with BBSCART?</h2>
-          <p className="text-justify ">
-            Joining BBSCART means becoming part of a thriving business ecosystem
-            powered by high-demand products, trusted services, and a brand
-            customers already love. Every partnership is built for growth,
-            backed by strong support and endless opportunities.
-          </p>
-          <ul className="list-disc pl-5 mt-3 space-y-2">
-            <li>
-              <strong>Expand Your Reach</strong> – Connect instantly with
-              BBSCART’s ever-growing customer base across multiple regions,
-              giving your business greater visibility from day one.
-            </li>
-            <li>
-              <strong>Succeed with a Proven System</strong> – Operate using
-              tried-and-tested processes for sales, payments, and marketing that
-              are designed to deliver consistent results.
-            </li>
-            <li>
-              <strong>Choose the Role That Fits You Best</strong> – From
-              franchise ownership to delivery partnerships, select the
-              opportunity that aligns perfectly with your skills and vision.
-            </li>
-            <li>
-              <strong>Grow Every Step of the Way</strong> – Benefit from
-              continuous training, dedicated marketing assistance, and the
-              latest technology to keep you moving forward. With consistent
-              effort in the first few months, many partners build a strong
-              foundation that continues to generate income for a lifetime.
-            </li>
-            <li>
-              <strong>Build with a Brand You Can Trust</strong> – BBSCART
-              stands for transparency, loyalty, and shared success — your
-              achievements are our achievements.
-            </li>
-          </ul>
-        </div>
-
-        <div>
-          <h2 className="text-center mb-4 mt-5">
-            Our Products & Services Give You a Strong Advantage:
+      {/* 💎 Why Partner Section */}
+      <div className="container mx-auto px-6 md:px-20 mb-14">
+        <div className="border-b-2 border-yellow-200 pb-8 mb-8 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-[#8e1c21] mb-5">
+            Why Partner with BBSCART?
           </h2>
-          <ul>
+          <p className="text-gray-700 text-lg leading-relaxed max-w-3xl mx-auto">
+            Joining BBSCART means becoming part of a thriving ecosystem powered
+            by trusted services, premium products, and a loyal customer base.
+          </p>
+          <ul className="list-disc pl-8 mt-6 space-y-2 text-gray-700 text-left max-w-3xl mx-auto">
             <li>
-              <strong>Wide & Exciting Range</strong> – Offer customers everything from stunning
-              gold jewellery and lifestyle products to groceries, healthcare,
-              and innovative tech accessories.
+              <strong>Expand Your Reach:</strong> Connect with BBSCART’s
+              nationwide customer network.
             </li>
             <li>
-              <strong>Uncompromising Quality</strong> – Every product and service meets high
-              standards of craftsmanship, reliability, and customer
-              satisfaction.
+              <strong>Operate with Confidence:</strong> Proven systems for
+              growth and success.
             </li>
             <li>
-              <strong>Value-Driven Pricing</strong> – Our pricing approach ensures your customers
-              enjoy exceptional value while you maintain healthy earnings.
+              <strong>Flexible Roles:</strong> Choose from franchise, vendor, or
+              delivery opportunities.
             </li>
             <li>
-              <strong>Exclusive BBSCART Offerings</strong> – Access unique in-house products and
-              special deals available only through BBSCART.
+              <strong>Continuous Support:</strong> Access marketing and training
+              help at every step.
             </li>
             <li>
-              <strong>Naturally Repeatable Sales</strong> – With a focus on essential and
-              lifestyle products, you’ll enjoy strong customer loyalty and
-              frequent repeat purchases.
+              <strong>Trusted Brand:</strong> Build under a brand backed by
+              integrity and innovation.
             </li>
           </ul>
         </div>
 
-        <p className="text-justify px-5 border-t ">
-          Step into your BBSCART journey today , the products are ready, the
-          customers are waiting, and the path to success is wide open.
-        </p>
+        <div className="text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-[#8e1c21] mb-5">
+            Products & Services That Empower You
+          </h2>
+          <ul className="list-disc pl-8 text-gray-700 text-left max-w-3xl mx-auto space-y-2">
+            <li>
+              <strong>Diverse Product Range:</strong> From jewelry to tech
+              gadgets.
+            </li>
+            <li>
+              <strong>Top Quality:</strong> Guaranteed craftsmanship and trust.
+            </li>
+            <li>
+              <strong>Better Margins:</strong> Great value for customers and
+              higher returns for you.
+            </li>
+            <li>
+              <strong>Exclusive Offers:</strong> Only through BBSCART partners.
+            </li>
+            <li>
+              <strong>Repeat Business:</strong> Loyal customers, recurring
+              income.
+            </li>
+          </ul>
+          <p className="text-center mt-10 text-gray-700 text-lg font-medium">
+            Step into your BBSCART journey today — products are ready, customers
+            are waiting, and the path to success is open.
+          </p>
+        </div>
       </div>
 
-      {/* Franchise */}
-      {activeSection === "franchise" && (
-        <div
-          ref={franchiseRef}
-          className="p-5 mb-5 border rounded p-4"
-          style={{ background: "#f8f9fa", margin: "0 9%" }}
-        >
-          <h4>Franchise – Shape Your City’s Future with BBSCART</h4>
-          <p className="text-justify mb-4 mx-5">
-            (Hierarchy: Franchise → Agent → Vendor → Customer)
-          </p>
-          <h6>Role Overview:</h6>
-          <p>
-            Franchise Owners manage BBSCART’s operations in an exclusive
-            territory, bringing the brand’s full range of products and services
-            to their community. This is a paid business opportunity with a
-            one-time franchisee fee that varies depending on your chosen
-            location and region. In addition to your franchise earnings, you’ll
-            also enjoy additional revenue benefits from our Delivery Partner
-            role, giving you more ways to grow your income. This franchise is
-            transferable or saleable only to an immediate family member, and
-            only with prior written approval from the Company; BBSCART reserves
-            full rights to approve or decline any transfer or sale.
-          </p>
-
-          <h6>Your Opportunities & Contributions:</h6>
-
-          <ul>
-            <li>
-              Establish and operate a BBSCART outlet in your assigned territory
-            </li>
-            <li>
-              Invest in your future with a franchise fee tailored to your area’s
-              market potential.
-            </li>
-            <li>
-              Earn dual revenue streams — franchise profits + delivery partner
-              incentives.
-            </li>
-            <li>
-              Build strong agent & vendor networks that deliver value to
-              customers.
-            </li>
-            <li>
-              Lead your local sales and service team with passion and vision.
-            </li>
-            <li>
-              Benefit from BBSCART’s national brand power, marketing support,
-              and training programs.
-            </li>
-            <li>
-              Deliver excellence every day, ensuring customers trust and choose
-              BBSCART first
-            </li>
-          </ul>
-
-          <h6>Registration Process:</h6>
-
-          <ol>
-            <li>
-              Complete the Franchise Application – Provide your business plan
-              and territory preferences
-            </li>
-            <li>
-              Submit Required Documents – Identity proof, address proof, and
-              relevant licenses.
-            </li>
-            <li>
-              Admin Review & Approval – Our team verifies your details and
-              confirms your franchise rights.
-            </li>
-            <li>
-              Launch Your Franchise Operations – Begin managing your territory
-              with full brand and tech support
-            </li>
-          </ol>
-          <div className="d-flex justify-content-end mt-3">
-            <a href="#" className="btn btn-primary">
-              Apply Now
-            </a>
-          </div>
-        </div>
+      {/* 🔥 Dynamic Role Sections */}
+      {[
+        {
+          key: "franchise",
+          ref: franchiseRef,
+          title: "Franchise – Shape Your City’s Future with BBSCART",
+        },
+        {
+          key: "territory",
+          ref: territoryRef,
+          title: "Territory Head – Lead Your Region’s Success with BBSCART",
+        },
+        {
+          key: "vendor",
+          ref: vendorRef,
+          title: "Vendor – Expand Your Sales with the BBSCART Marketplace",
+        },
+        {
+          key: "agent",
+          ref: agentRef,
+          title: "Agent – Connect Businesses to BBSCART and Grow Together",
+        },
+        {
+          key: "delivery",
+          ref: deliveryRef,
+          title: "Delivery Partner – Deliver Value, Earn Income",
+        },
+        {
+          key: "becomeVendor",
+          ref: becomeVendorRef,
+          title: "Customer Become A Vendor – Turn Shopping into a Business",
+        },
+      ].map(
+        (section) =>
+          activeSection === section.key && (
+            <div
+              key={section.key}
+              ref={section.ref}
+              className="bg-gradient-to-r from-yellow-50 to-white border border-yellow-200 rounded-3xl shadow-lg mx-auto mb-12 p-6 md:p-10 w-[90%] md:w-[80%] animate-fadeInUp"
+            >
+              <h4 className="text-2xl md:text-3xl font-semibold text-[#8e1c21] mb-4">
+                {section.title}
+              </h4>
+              <p className="text-gray-700 leading-relaxed">
+                Here you can add role-specific content, eligibility criteria,
+                earnings, and benefits. Make it visually distinct per section
+                (optional).
+              </p>
+              <div className="flex justify-end mt-6">
+                <a
+                  href="#"
+                  className="px-6 py-2.5 bg-[#8e1c21] hover:bg-[#a32026] text-white font-semibold rounded-lg shadow transition-all hover:scale-105"
+                >
+                  Apply Now
+                </a>
+              </div>
+            </div>
+          )
       )}
-
-      {/* Territory Head */}
-      {activeSection === "territory" && (
-        <div
-          ref={territoryRef}
-          className="p-5 mb-5 border rounded p-4"
-          style={{ background: "#f8f9fa", margin: "0 9%" }}
-        >
-          <h4>Territory Head – Lead Your Region’s Success with BBSCART</h4>
-          <p className="text-justify mb-4 mx-5">
-            (Hierarchy: Franchise → Agent → Vendor → Customer)
-          </p>
-
-          <h6>Role Overview:</h6>
-
-          <p>
-            Territory Heads oversee BBSCART’s operations across an entire
-            region, managing multiple agents and vendors to ensure smooth
-            operations, strong sales performance, and brand consistency. This is
-            a paid leadership role with a one-time territory fee based on the
-            market size and growth potential of your chosen area. Alongside your
-            leadership earnings, you’ll also gain additional revenue benefits
-            from Delivery Partner operations within your territory.
-          </p>
-
-          <p>
-            This appointment is non-transferable and non-saleable; it’s a
-            personal lifetime leadership role, subject to ongoing performance
-            and compliance with Company policies.
-          </p>
-
-          <h6>Your Opportunities & Contributions:</h6>
-          <ul>
-            <li>
-              Secure exclusive rights to manage BBSCART operations in your
-              region.
-            </li>
-            <li>
-              Invest with a one-time territory fee aligned to your market
-              potential.
-            </li>
-            <li>
-              Earn dual income streams — territory profit share + delivery
-              partner incentives.
-            </li>
-            <li>
-              Guide and mentor agents and vendors to achieve sales and service
-              targets.
-            </li>
-            <li>
-              Coordinate regional marketing and community engagement activities.
-            </li>
-            <li>
-              Leverage BBSCART’s technology, systems, and brand reputation for
-              growth.
-            </li>
-            <li>
-              Maintain consistent quality and service standards across your
-              region.
-            </li>
-          </ul>
-
-          <h6>Registration Process:</h6>
-
-          <ol>
-            <li>
-              Fill the Territory Head Application – Share your leadership
-              profile and growth strategy.
-            </li>
-            <li>
-              Upload Required Documents – ID proof, address proof, business
-              credentials.
-            </li>
-            <li>
-              Admin Evaluation & Confirmation – Review and approval of territory
-              leadership rights.
-            </li>
-            <li>
-              Start Regional Operations – Begin guiding your network with
-              BBSCART’s support
-            </li>
-          </ol>
-          <div className="d-flex justify-content-end mt-3">
-            <a href="#" className="btn btn-primary">
-              Apply Now
-            </a>
-          </div>
-        </div>
-      )}
-
-      {/* Vendor */}
-      {activeSection === "vendor" && (
-        <div
-          ref={vendorRef}
-          className="mb-5 p-5 border rounded p-4"
-          style={{ background: "#f8f9fa", margin: "0 9%" }}
-        >
-          <h4>Vendor – Expand Your Sales with the BBSCART Marketplace</h4>
-          <p className="text-justify mb-4 mx-5">
-            (Under Agent or Company → Customer)
-          </p>
-          <h6>Role Overview:</h6>
-
-          <p>
-            Vendors sell their products or services directly on the BBSCART
-            platform, gaining access to a large and growing customer base. You
-            can start with free registration or choose premium onboarding (paid)
-            for enhanced visibility, marketing, and promotional support. Premium
-            vendors also have the chance to earn extra revenue by delivering
-            their own products as a Delivery Partner.
-          </p>
-
-          <p>
-            This vendor account/opportunity is non-transferable and
-            non-saleable; any change in business ownership requires fresh KYC
-            and prior Company approval.
-          </p>
-
-          <h6>Your Opportunities & Contributions:</h6>
-
-          <ul>
-            <li>
-              List your products or services on a trusted, nationwide
-              marketplace.
-            </li>
-            <li>
-              Choose free registration or invest in premium onboarding for
-              faster growth.
-            </li>
-            <li>
-              Increase sales with priority listings, promotions, and marketing
-              boosts.
-            </li>
-            <li>Earn additional income by managing your own deliveries.</li>
-            <li>
-              Maintain high-quality products and service to build customer
-              loyalty.
-            </li>
-            <li>Participate in seasonal campaigns and brand-led events.</li>
-            <li>Enjoy secure, timely payments with transparent reporting.</li>
-          </ul>
-
-          <h6>Registration Process:</h6>
-
-          <ol>
-            <li>
-              Complete the Vendor Application – Provide your product/service
-              details.
-            </li>
-            <li>
-              Upload Required Documents – ID proof, address proof, licenses (if
-              required).
-            </li>
-            <li>
-              Admin Verification – Review and approval of your vendor account.
-            </li>
-            <li>
-              Start Selling – List your products and begin fulfilling orders.
-            </li>
-          </ol>
-          <div className="d-flex justify-content-end mt-3">
-            <a href="#" className="btn btn-primary">
-              Apply Now
-            </a>
-          </div>
-        </div>
-      )}
-
-      {/* Agent */}
-      {activeSection === "agent" && (
-        <div
-          ref={agentRef}
-          className="p-5 mb-5 border rounded p-4"
-          style={{ background: "#f8f9fa", margin: "0 9%" }}
-        >
-          <h4> Agent – Connect Businesses to BBSCART and Grow Together</h4>
-          <p className="text-justify mb-4 mx-5">
-            (Under Franchise or Territory Head or Company → Vendor → Customer)
-          </p>
-
-          <h6>Role Overview:</h6>
-          <p>
-            Agents are the link between BBSCART and local vendors, responsible
-            for onboarding businesses, supporting them in setup, and ensuring
-            they succeed on the platform. This role is free to join but offers
-            the opportunity to earn additional income by taking on Delivery
-            Partner responsibilities alongside your agent duties.
-          </p>
-          <p>
-            This engagement is non-transferable and non-saleable; it’s a
-            lifetime opportunity while you remain active and compliant with
-            Company policies.
-          </p>
-
-          <h6>Your Opportunities & Contributions:</h6>
-          <ul>
-            <li>
-              Identify, approach, and onboard vendors in your assigned area.
-            </li>
-            <li>Earn attractive commissions for every vendor you register.</li>
-            <li>
-              Boost your income by also handling deliveries as a Delivery
-              Partner.
-            </li>
-            <li>Provide training and ongoing support to your vendors.</li>
-            <li>
-              Represent BBSCART professionally in your community and at events.
-            </li>
-            <li>Build strong, lasting relationships with local businesses.</li>
-            <li>
-              Contribute to the growth of your franchise or territory head’s
-              network.
-            </li>
-          </ul>
-
-          <h6>Registration Process:</h6>
-          <ol>
-            <li>
-              Fill the Agent Application – Provide details on your sales or
-              networking experience.
-            </li>
-            <li>
-              Upload Required Documents – ID proof, address proof, relevant work
-              credentials.
-            </li>
-            <li>
-              Approval & Onboarding – Our team reviews and activates your agent
-              profile.
-            </li>
-            <li>
-              Start Connecting Vendors – Begin building your vendor network.
-            </li>
-          </ol>
-          <div className="d-flex justify-content-end mt-3">
-            <a href="#" className="btn btn-primary">
-              Apply Now
-            </a>
-          </div>
-        </div>
-      )}
-
-      {/* Delivery Partner */}
-      {activeSection === "delivery" && (
-        <div
-          ref={deliveryRef}
-          className="mb-5 p-5 border rounded p-4"
-          style={{ background: "#f8f9fa", margin: "0 9%" }}
-        >
-          <h4> Delivery Partner – Deliver Value, Earn Income</h4>
-          <p className="text-justify mb-4 mx-5">
-            (Supports all levels in the hierarchy)
-          </p>
-
-          <h6>Role Overview:</h6>
-          <p>
-            Delivery Partners ensure customers receive their orders quickly and
-            safely, representing BBSCART at the final step of service.
-            Registration is free, with an option to upgrade to Premium Delivery
-            Partner (paid) for priority delivery assignments, optimised routes,
-            and higher earnings potential.
-          </p>
-          <p>
-            This role is transferable or saleable only to an immediate family
-            member, and only with prior written approval from the Company;
-            BBSCART reserves full rights to approve or decline any transfer or
-            sale.
-          </p>
-          <h6>Your Opportunities & Contributions:</h6>
-
-          <ul>
-            <li>Earn a steady income for every successful delivery.</li>
-            <li>
-              Upgrade to premium status for priority routes and better rates.
-            </li>
-            <li>Represent BBSCART professionally during every delivery.</li>
-            <li>
-              Enhance customer satisfaction with timely and secure service.
-            </li>
-            <li>
-              Receive fuel allowances, incentives, and bonuses for performance.
-            </li>
-            <li>Choose flexible working hours to suit your schedule.</li>
-            <li>Be a key part of BBSCART’s customer experience.</li>
-          </ul>
-          <h6>Registration Process:</h6>
-          <ol>
-            <li>
-              Complete the Delivery Partner Application – Include your service
-              area and experience.
-            </li>
-            <li>
-              Submit Required Documents – ID proof, address proof, driving
-              license (if applicable).
-            </li>
-            <li>
-              Admin Approval – Verification and activation of your account.
-            </li>
-            <li>Start Delivering – Accept orders and begin earning.</li>
-          </ol>
-          <div className="d-flex justify-content-end mt-3">
-            <a href="#" className="btn btn-primary">
-              Apply Now
-            </a>
-          </div>
-        </div>
-      )}
-
-      {/* Become A Vendor */}
-      {activeSection === "becomeVendor" && (
-        <div
-          ref={becomeVendorRef}
-          className="mb-5 p-5 border rounded p-4"
-          style={{ background: "#f8f9fa", margin: "0 9%" }}
-        >
-          <h4>Customer Become A Vendor – Turn Shopping into a Business</h4>
-          <p className="text-justify mb-4 mx-5">
-            (Customer moves into Vendor level in hierarchy)
-          </p>
-
-          <h6>Role Overview:</h6>
-          <p>
-            Existing BBSCART customers can upgrade to vendor status,
-            transforming their buying experience into an earning opportunity.
-            Standard vendor registration is free, while premium onboarding
-            (paid) offers greater visibility, priority listings, and marketing
-            advantages. Premium customer-vendors can also earn more by
-            fulfilling their own deliveries.
-          </p>
-          <p>
-            Your upgraded vendor account is non-transferable and non-saleable;
-            any ownership change requires re-registration and prior Company
-            approval.
-          </p>
-          <h6>Your Opportunities & Contributions:</h6>
-
-          <ul>
-            <li>Seamlessly upgrade your existing account to start selling.</li>
-            <li>Choose free or premium onboarding based on your goals.</li>
-            <li>
-              Earn dual income streams — sales profits + delivery incentives.
-            </li>
-            <li>
-              Benefit from the trust you’ve already built as a BBSCART customer.
-            </li>
-            <li>Access BBSCART’s tools, training, and promotional support.</li>
-            <li>Expand your reach by tapping into our active customer base.</li>
-            <li>
-              Grow your business with a platform that champions local sellers.
-            </li>
-          </ul>
-
-          <h6>Registration Process:</h6>
-
-          <ol>
-            <li>
-              Submit Upgrade Application – Request vendor status from your
-              customer account.
-            </li>
-            <li>
-              Upload Required Documents – ID proof, address proof, licenses (if
-              needed).
-            </li>
-            <li>Admin Verification – Approval of your vendor profile.</li>
-            <li>
-              Start Selling – List your products and serve BBSCART customers.
-            </li>
-          </ol>
-          <div className="d-flex justify-content-end mt-3">
-            <a href="#" className="btn btn-primary">
-              Apply Now
-            </a>
-          </div>
-        </div>
-      )}
-    </>
+    </div>
   );
 }
 

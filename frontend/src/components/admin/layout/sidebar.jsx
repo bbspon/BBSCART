@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { NavLink, useLocation } from "react-router-dom";
 import { logout } from "../../../services/authService";
-
+import { RiAdminLine } from "react-icons/ri";
 const Sidebar = ({ isSidebarHidden, toggleSidebar }) => {
   const location = useLocation();
   const dispatch = useDispatch();
@@ -50,13 +50,15 @@ const Sidebar = ({ isSidebarHidden, toggleSidebar }) => {
 
   return (
     <section id="sidebar" className={isSidebarHidden ? "hide" : "show"}>
-      <NavLink className="brand" to="/">
+      <NavLink className="flex flex-col items-center justify-center m-2" to="/">
         <img
           src="/img/logo/favicon.png"
-          className="bx bxs-smile bx-lg"
+          className="bx bxs-smile bx-lg "
+          style={{ width: "70px", height: "70px" }}
           alt="logo"
         />
-        <span className="text">BBSCart</span>
+
+        <span className="font-semibold text-xs tracking-tight ">BBSCART</span>
       </NavLink>
 
       <ul className="side-menu top">
@@ -296,6 +298,21 @@ const Sidebar = ({ isSidebarHidden, toggleSidebar }) => {
                   </NavLink>
                 </li>
               </ul>
+            </li>
+
+            {/* Settings */}
+            <li
+              className={
+                location.pathname === "/admin/settings" ? "active" : ""
+              }
+            >
+              <NavLink
+                to="/admin-partners"
+                className="flex items-center gap-2  rounded-md hover:bg-gray-100 text-gray-700"
+              >
+                <RiAdminLine className="text-lg bx bxs-shopping-bag-alt bx-sm" />
+                <span className="text">Admin Partners</span>
+              </NavLink>
             </li>
           </>
         )}
