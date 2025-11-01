@@ -100,6 +100,7 @@ import WriteTestimonial from './components/home/WriteTestimonial';
 import VendorsHome from './components/pages/VendorsHome';
 import CustomerOrderTrack from './components/pages/CustomerOrderTrack';
 import ReturnRequestForm from './components/pages/ReturnRequestForm';
+import AdminPartnersPage from './components/AdminPartners';
 function App() {
   const dispatch = useDispatch();
   const location = useLocation(); // Get the current route
@@ -209,6 +210,7 @@ function App() {
         <Route path="/admin/vendors" element={<AdminVendorsPage />} />
         <Route path="/admin/franchisees" element={<AdminFranchiseesPage />} />
         <Route path="/returnRequest" element={<ReturnRequestForm />} />
+        <Route path="/admin-partners" element={<AdminPartnersPage />} />
 
         <Route
           path="/customertracking/:trackingId"
