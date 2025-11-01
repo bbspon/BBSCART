@@ -13,7 +13,6 @@ import Services from "../home/Services";
 import CallToActionSection from "../home/CallToActionSection";
 import { useLocation } from "react-router-dom";
 import AppDownloadCTA from "../layout/AppDownloadCTA";
-import MediaPopupPage from "../home/MediaPopupPage";
 function HomePage() {
   const location = useLocation();
   useEffect(() => {
@@ -23,7 +22,6 @@ function HomePage() {
   return (
     <>
       <div>
-        {/* <MediaPopupPage /> */}
         <HeroSection />
         <div className="homepage bbscontainer">
           <SectionCategory />
