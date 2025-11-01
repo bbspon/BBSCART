@@ -149,7 +149,7 @@ const Register = () => {
                       onChange={handleChange}
                       value={userData.password}
                     />
-                    <button
+                    `<button
                       type="button"
                       onClick={() => setShowPassword((prev) => !prev)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 dark:text-gray-300"
@@ -159,7 +159,7 @@ const Register = () => {
                           showPassword ? "ri-eye-off-line" : "ri-eye-line"
                         }
                       ></i>
-                    </button>
+                    </button>`
                   </div>
                   {errors.password && <div className="text-red-800">{errors.password}</div>}
                 </div>

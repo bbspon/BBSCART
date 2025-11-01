@@ -34,7 +34,9 @@ const adminVendorRoutes = require("./routes/adminVendorRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const testimonialRoutes = require("./routes/testimonialRoutes");
 const posSsoRoutes = require("./routes/posSso");
-
+const deliveryWebhookRoutes = require("./routes/deliveryWebhookRoutes");
+const returnRoutes = require("./routes/returnRoutes");
+const webhookRoutes = require("./routes/webhookRoutes");
 const app = express();
 app.set("trust proxy", 1);
 /* =======================
@@ -116,6 +118,11 @@ app.use(async (req, res, next) => {
   return assignVendorMiddleware(req, res, next);
 });
 // ---- END: Scoped vendor+pincode enforcement ----
+console.log("[ENV] DELIVERY_BASE_URL:", process.env.DELIVERY_BASE_URL);
+console.log(
+  "[ENV] DELIVERY_INGEST_TOKEN:",
+  process.env.DELIVERY_INGEST_TOKEN ? "set" : "missing"
+);
 
 
 app.use(
@@ -247,6 +254,9 @@ app.use("/api/admin/pincode-vendors", adminPincodeVendorsRoutes);
 app.use("/api/admin/vendors", adminVendorRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/testimonials", testimonialRoutes);
+app.use("/api/delivery/webhooks", deliveryWebhookRoutes);
+app.use("/api", returnRoutes);
+app.use("/api/webhooks", webhookRoutes);
 // ✅ Global Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -254,5 +264,5 @@ app.use((err, req, res, next) => {
 });
 
 // ✅ Start Server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

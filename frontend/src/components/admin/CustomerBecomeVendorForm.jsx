@@ -4,6 +4,9 @@ import { Form, Button, Spinner, Row, Col } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import Select from "react-select";
 import { toast } from "react-hot-toast";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { IoIosArrowRoundBack } from "react-icons/io";
 const constitutionOptions = [
   { value: "proprietorship", label: "Proprietorship" },
   { value: "partnership", label: "Partnership" },
@@ -16,7 +19,24 @@ const constitutionOptions = [
 
 export default function CustomerBecomeVendorForm() {
   const navigate = useNavigate();
+  const [dobValue, setDobValue] = useState(null);
+  const [pickerMode, setPickerMode] = useState("idle");
 
+  const handleChange = (date) => {
+    if (pickerMode === "year") {
+      // Switch to month view after year selection
+      setPickerMode("month");
+      setDobValue(date);
+    } else if (pickerMode === "month") {
+      // Switch to date view after month selection
+      setPickerMode("date");
+      setDobValue(date);
+    } else {
+      // Final selection (day picked)
+      setPickerMode("idle");
+      setDobValue(date);
+    }
+  };
   const [step, setStep] = useState(1);
   const [customerBecomeVendorId, setCustomerBecomeVendorId] = useState(
     () => localStorage.getItem("customerBecomeVendorId") || ""
@@ -446,6 +466,10 @@ export default function CustomerBecomeVendorForm() {
             borderColor: "#008080", // teal border
           }}
         >
+          <a href="/" className="flex items-center gap-1 ">
+            <IoIosArrowRoundBack size={24} />
+          </a>
+
           <h5 className="fw-bold mb-4 text-center">Step 1: PAN Card Details</h5>
 
           <Row>
@@ -480,18 +504,23 @@ export default function CustomerBecomeVendorForm() {
           </Row>
 
           <Row>
-            <Col md={6} className="mb-3">
-              <Form.Label>DOB (DD/MM/YYYY)</Form.Label>
-              <Form.Control
-                value={formData.dob}
-                onChange={(e) =>
-                  setFormData((p) => ({ ...p, dob: e.target.value }))
-                }
-                className="border border-dark rounded-lg my-3"
-                style={{
-                  border: "0.1px solid #333", // solid black border
-                  boxShadow: "none",
-                }}
+            <Col md={6} className="mb-3 flex flex-col">
+              <Form.Label>Date of Birth</Form.Label>
+
+              <DatePicker
+                key={pickerMode}
+                selected={dobValue}
+                onChange={handleChange}
+                onInputClick={() => setPickerMode("year")}
+                dateFormat="dd/MM/yyyy"
+                placeholderText="Select Date of Birth"
+                className="form-control border border-dark rounded-lg my-3 p-2"
+                showYearPicker={pickerMode === "year"}
+                showMonthYearPicker={pickerMode === "month"}
+                minDate={new Date(1950, 0, 1)}
+                maxDate={new Date()}
+                popperPlacement="auto"
+                showPopperArrow={false}
               />
             </Col>
             <Col md={6} className="mb-3">
@@ -552,6 +581,14 @@ export default function CustomerBecomeVendorForm() {
             borderColor: "#008080", // teal border
           }}
         >
+          <button
+            onClick={() => setStep(1)}
+            className="flex items-center gap-1 text-teal-700 hover:text-teal-900"
+            style={{ background: "none", border: "none", cursor: "pointer" }}
+          >
+            <IoIosArrowRoundBack size={24} />
+          </button>
+
           <h5 className="mb-3 text-center">Step 2: Aadhaar Details</h5>
 
           <Form.Group className="mb-3">
@@ -691,6 +728,14 @@ export default function CustomerBecomeVendorForm() {
             borderColor: "#008080", // teal border
           }}
         >
+          <button
+            onClick={() => setStep(2)}
+            className="flex items-center gap-1 text-teal-700 hover:text-teal-900"
+            style={{ background: "none", border: "none", cursor: "pointer" }}
+          >
+            <IoIosArrowRoundBack size={24} />
+          </button>
+
           <h5 className="mb-3 text-center">Step 3: GST Details</h5>
           <div className="mb-3">
             <label>Upload GST Certificate (PDF/JPG/PNG)</label>
@@ -784,6 +829,13 @@ export default function CustomerBecomeVendorForm() {
                 setFormData((p) => ({ ...p, gst_district: e.target.value }))
               }
             />
+            <label>State</label>
+            <input
+              value={formData.gst_district}
+              onChange={(e) =>
+                setFormData((p) => ({ ...p, gst_district: e.target.value }))
+              }
+            />
           </div>
 
           <div className="flex justify-end">
@@ -807,6 +859,14 @@ export default function CustomerBecomeVendorForm() {
             borderColor: "#008080", // teal border
           }}
         >
+          <button
+            onClick={() => setStep(3)}
+            className="flex items-center gap-1 text-teal-700 hover:text-teal-900"
+            style={{ background: "none", border: "none", cursor: "pointer" }}
+          >
+            <IoIosArrowRoundBack size={24} />
+          </button>
+
           <h5 className="mb-3 text-center ">Step 4: Bank Details</h5>
 
           <Form.Group className="mb-3">
@@ -911,6 +971,14 @@ export default function CustomerBecomeVendorForm() {
             borderColor: "#008080", // teal border
           }}
         >
+          <button
+            onClick={() => setStep(4)}
+            className="flex items-center gap-1 text-teal-700 hover:text-teal-900"
+            style={{ background: "none", border: "none", cursor: "pointer" }}
+          >
+            <IoIosArrowRoundBack size={24} />
+          </button>
+
           <h5 className="mb-3 text-center ">Step 5: Outlet Details</h5>
 
           <Row className="mb-3">

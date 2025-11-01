@@ -1,7 +1,6 @@
 // HomePosterPopup.jsx
 import React, { useState } from "react";
 import { FaTimes } from "react-icons/fa";
-import Ad from "../../../public/videos/ad.mp4";
 import Poster from "../../../public/img/ad/E-Delivery1.jpg";
 
 const mockMedia = { type: "video", src: Ad };
