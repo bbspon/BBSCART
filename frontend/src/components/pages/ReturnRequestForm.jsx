@@ -1,16 +1,67 @@
 import { useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 import axios from "axios";
-import SlotPicker from "../../components/SlotPicker"; // adjust path if needed
+import SlotPicker from "../../components/SlotPicker"; // keep your path
 import { toast } from "react-hot-toast";
 
 export default function ReturnRequestForm({ order, onClose, onSubmitted }) {
-  const items = order?.orderItems || [];
+  // If the parent passed an order, use it. Otherwise fetch by :orderId from URL.
+  const { orderId } = useParams();
+  const [loadedOrder, setLoadedOrder] = useState(order || null);
+  const [loading, setLoading] = useState(!orderId && !order ? false : !order);
+  const [loadErr, setLoadErr] = useState("");
+const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
-  // UI state
-  const [reason, setReason] = useState("");
-  const [sel, setSel] = useState({}); // { [orderItemId]: true }
+  useEffect(() => {
+    let alive = true;
+    // Fetch only if there is no order prop or it has no items
+    const needsFetch =
+      (!order && orderId) ||
+      (order &&
+        !Array.isArray(order.orderItems) &&
+        !Array.isArray(order.items));
+
+    if (!needsFetch) return;
+
+    (async () => {
+      try {
+        setLoading(true);
+        setLoadErr("");
+        const res = await axios.get(`${apiBase}/api/orders/${orderId}`, {
+          withCredentials: true,
+          timeout: 15000,
+        });
+        const o = res?.data?.data?.order || res?.data?.order || null;
+        if (alive) setLoadedOrder(o);
+      } catch (e) {
+        if (alive)
+          setLoadErr(e?.response?.data?.message || "Could not load order");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [order, orderId]);
+
+  // Use whichever we have: prop takes priority, else fetched
+  const current = order || loadedOrder || {};
+
+  // Tolerate both shapes: orderItems[] (new) or items[] (legacy)
+  const items = Array.isArray(current?.orderItems)
+    ? current.orderItems
+    : Array.isArray(current?.items)
+    ? current.items
+    : [];
+
+  // ===== UI state (unchanged visuals/labels) =====
+const [reasonType, setReasonType] = useState(""); // Damaged / Wrong item / Other
+const [reasonText, setReasonText] = useState(""); // only when "Other"
+const reasonValue = reasonType === "Other" ? reasonText.trim() : reasonType;  const [sel, setSel] = useState({}); // { [orderItemId]: true }
   const [addr, setAddr] = useState(() => {
-    const s = order?.shipping_address || {};
+    const s = current?.shipping_address || {};
     return {
       name: s?.name || "",
       phone: s?.phone || "",
@@ -24,40 +75,78 @@ export default function ReturnRequestForm({ order, onClose, onSubmitted }) {
   const [slot, setSlot] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // If the order loads later, refresh default address once
+  useEffect(() => {
+    if (!current?._id) return;
+    const s = current?.shipping_address || {};
+    setAddr((prev) => {
+      // don't overwrite if the user already typed something
+      const userTyped =
+        prev.name ||
+        prev.phone ||
+        prev.line1 ||
+        prev.line2 ||
+        prev.city ||
+        prev.state ||
+        prev.postalCode;
+      if (userTyped) return prev;
+      return {
+        name: s?.name || "",
+        phone: s?.phone || "",
+        line1: s?.address || s?.line1 || "",
+        line2: s?.landmark || s?.line2 || "",
+        city: s?.city || "",
+        state: s?.state || "",
+        postalCode: s?.postalCode || s?.pincode || "",
+      };
+    });
+  }, [current?._id]); // run once when order becomes available
+
   const allChecked = useMemo(
-    () => items.length > 0 && items.every((i) => !!sel[i._id]),
+    () =>
+      items.length > 0 && items.every((i) => !!sel[i?._id ?? i?.id ?? i?.sku]),
     [items, sel]
   );
+
+  function keyOf(it) {
+    return (
+      it?._id ??
+      it?.id ??
+      it?.sku ??
+      `${it?.product || it?.sku || "line"}-${it?.quantity || it?.qty || 1}`
+    );
+  }
 
   function toggleAll(e) {
     const v = e.target.checked;
     const next = {};
-    if (v) items.forEach((i) => (next[i._id] = true));
+    if (v) items.forEach((i) => (next[keyOf(i)] = true));
     setSel(v ? next : {});
   }
 
-  function toggleOne(id) {
-    setSel((prev) => ({ ...prev, [id]: !prev[id] }));
+  function toggleOne(k) {
+    setSel((prev) => ({ ...prev, [k]: !prev[k] }));
   }
 
   async function submit() {
     try {
-      const chosen = items.filter((i) => sel[i._id]);
+      if (!current?._id) return toast.error("Order not loaded yet.");
+      const chosen = items.filter((i) => sel[keyOf(i)]);
       if (!chosen.length) return toast.error("Select at least one item.");
-      if (!reason.trim()) return toast.error("Choose a return reason.");
-      if (!slot) return toast.error("Choose a pickup slot.");
-      if (!addr?.postalCode || String(addr.postalCode).length < 6) {
-        return toast.error("Enter a valid pickup pincode.");
-      }
+// if (!reasonValue) return toast.error("Choose a return reason.");
+//       if (!slot) return toast.error("Choose a pickup slot.");
+//       if (!addr?.postalCode || String(addr.postalCode).length < 6) {
+//         return toast.error("Enter a valid pickup pincode.");
+//       }
       setSubmitting(true);
 
       const payload = {
         items: chosen.map((i) => ({
-          orderItemId: i._id,
-          sku: i.sku || i.product || "",
-          qty: Number(i.quantity || 1),
+          orderItemId: i?._id ?? null, // may be null for legacy lines
+          sku: i?.sku || i?.product || "",
+          qty: Number(i?.quantity ?? i?.qty ?? 1),
         })),
-        reason,
+        // reason: reasonValue,
         pickupAddress: {
           name: addr.name,
           phone: addr.phone,
@@ -71,11 +160,9 @@ export default function ReturnRequestForm({ order, onClose, onSubmitted }) {
       };
 
       const res = await axios.post(
-        `/api/orders/${order._id}/returns`,
+        `${apiBase}/api/orders/${current._id}/returns`,
         payload,
-        {
-          timeout: 20000,
-        }
+        { timeout: 20000, withCredentials: true }
       );
 
       if (res?.data?.success) {
@@ -104,33 +191,44 @@ export default function ReturnRequestForm({ order, onClose, onSubmitted }) {
             Select all
           </label>
         </div>
-        <div className="grid gap-2">
-          {items.map((it) => (
-            <label
-              key={it._id}
-              className="flex items-center gap-3 p-2 border rounded-md"
-            >
-              <input
-                type="checkbox"
-                checked={!!sel[it._id]}
-                onChange={() => toggleOne(it._id)}
-              />
-              <div className="flex-1">
-                <div className="text-[14px] font-medium">
-                  {it.title || it.name || it.sku || it._id}
-                </div>
-                <div className="text-[12px] opacity-70">
-                  Qty: {it.quantity} • Price: ₹{it.price}
-                </div>
+
+        {loading ? (
+          <div className="text-[13px] opacity-70">Loading order…</div>
+        ) : loadErr ? (
+          <div className="text-[13px] text-red-600">{loadErr}</div>
+        ) : (
+          <div className="grid gap-2">
+            {items.map((it) => {
+              const k = keyOf(it);
+              return (
+                <label
+                  key={k}
+                  className="flex items-center gap-3 p-2 border rounded-md"
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!sel[k]}
+                    onChange={() => toggleOne(k)}
+                  />
+                  <div className="flex-1">
+                    <div className="text-[14px] font-medium">
+                      {it.title || it.name || it.sku || k}
+                    </div>
+                    <div className="text-[12px] opacity-70">
+                      Qty: {it?.quantity ?? it?.qty ?? 1} • Price: ₹
+                      {Number(it?.price || 0)}
+                    </div>
+                  </div>
+                </label>
+              );
+            })}
+            {items.length === 0 && !loading && !loadErr && (
+              <div className="text-[13px] opacity-70">
+                No items on this order.
               </div>
-            </label>
-          ))}
-          {items.length === 0 && (
-            <div className="text-[13px] opacity-70">
-              No items on this order.
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Reason */}
@@ -138,8 +236,12 @@ export default function ReturnRequestForm({ order, onClose, onSubmitted }) {
         <h3 className="font-semibold text-[15px] mb-2">Reason</h3>
         <select
           className="w-full border rounded-md px-3 py-2 text-[14px]"
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
+          value={reasonType}
+          onChange={(e) => {
+            const v = e.target.value;
+            setReasonType(v);
+            if (v !== "Other") setReasonText(""); // clear custom text when switching away
+          }}
         >
           <option value="">Select a reason</option>
           <option value="Damaged">Damaged</option>
@@ -148,12 +250,14 @@ export default function ReturnRequestForm({ order, onClose, onSubmitted }) {
           <option value="Not as described">Not as described</option>
           <option value="Other">Other</option>
         </select>
-        {reason === "Other" && (
+
+        {reasonType === "Other" && (
           <textarea
             className="w-full border rounded-md px-3 py-2 text-[14px] mt-2"
             placeholder="Describe the issue"
             rows={3}
-            onChange={(e) => setReason(e.target.value)}
+            value={reasonText}
+            onChange={(e) => setReasonText(e.target.value)}
           />
         )}
       </div>

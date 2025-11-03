@@ -1,10 +1,12 @@
 // services/deliveryEmitter.js
+const axios = require("axios");
+
 const fetch = (...args) =>
   import("node-fetch").then(({ default: fetch }) => fetch(...args));
+
 const User = require("../models/User");
 const BASE = process.env.DELIVERY_BASE_URL; // http://localhost:5000/api/assigned-orders
 const TOKEN = process.env.DELIVERY_INGEST_TOKEN;
-
 async function getUserNamePhone(userId) {
   try {
     if (!userId) return { name: "", phone: "" };
@@ -103,27 +105,27 @@ async function emitCreateDeliveryJob(orderDoc) {
 
   // Augment the original response with convenience fields.
   // Keeps backward compatibility (original json is still returned).
-const json = await res.json(); // { ok, data: {...} } OR legacy flat
-const d = json?.data && typeof json.data === "object" ? json.data : json;
+  const json = await res.json(); // { ok, data: {...} } OR legacy flat
+  const d = json?.data && typeof json.data === "object" ? json.data : json;
 
-const deliveryOrderId = d?._id ?? d?.id ?? d?.deliveryOrderId ?? null;
+  const deliveryOrderId = d?._id ?? d?.id ?? d?.deliveryOrderId ?? null;
 
-const trackingId =
-  d?.trackingId ??
-  d?.trackingID ??
-  d?.tracking_id ??
-  d?.trackId ??
-  d?.trackID ??
-  null;
+  const trackingId =
+    d?.trackingId ??
+    d?.trackingID ??
+    d?.tracking_id ??
+    d?.trackId ??
+    d?.trackID ??
+    null;
 
-if (!deliveryOrderId || !trackingId) {
-  console.warn(
-    "[deliveryEmitter] missing fields in response:",
-    JSON.stringify(json)
-  );
-}
+  if (!deliveryOrderId || !trackingId) {
+    console.warn(
+      "[deliveryEmitter] missing fields in response:",
+      JSON.stringify(json)
+    );
+  }
 
-return { ...json, deliveryOrderId, trackingId };
+  return { ...json, deliveryOrderId, trackingId };
 }
 
 module.exports = { emitCreateDeliveryJob, createReturnPickup };
