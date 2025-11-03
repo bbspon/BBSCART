@@ -5,16 +5,19 @@ const dotenv = require("dotenv");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
+const { getRedis } = require('./config/redisClient');
+const connectDB = require('./config/db');
 
 // Load environment variables
 dotenv.config();
-mongoose
-  .connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => console.log("✅ Connected toMongoDBcare (Default DB)"))
-  .catch((err) => console.error("❌ Main DB error:", err));
+connectDB();
+// mongoose
+//   .connect(process.env.MONGO_URI, {
+//     useNewUrlParser: true,
+//     useUnifiedTopology: true,
+//   })
+//   .then(() => console.log("✅ Connected toMongoDBcare (Default DB)"))
+//   .catch((err) => console.error("❌ Main DB error:", err));
 
 // ✅ Route imports
 const authRoutes = require("./routes/authRoutes");
@@ -169,12 +172,12 @@ app.use(async (req, res, next) => {
 // ---- END: Scoped vendor+pincode enforcement ----
 
 mongoose
-  .connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => console.log("✅ Connected to MongoDB (BBSlivE)"))
-  .catch((err) => console.error("❌ Main DB error:", err));
+//   .connect(process.env.MONGO_URI, {
+//     useNewUrlParser: true,
+//     useUnifiedTopology: true,
+//   })
+//   .then(() => console.log("✅ Connected to MongoDB (BBSlive)"))
+//   .catch((err) => console.error("❌ Main DB error:", err));
 
 app.use(cookieParser());
 // ✅ Session & Cookie

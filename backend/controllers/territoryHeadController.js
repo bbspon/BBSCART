@@ -79,8 +79,26 @@ exports.saveStepByKey = async (req, res) => {
       }
     );
 
-    return res.json({ ok: true, data: doc, territoryHeadId: doc._id });
-    try { await emitTerritoryUpsert(doc); } catch (e) { console.error("[CRM] territory-upsert failed:", e.message); }
+    // return res.json({ ok: true, data: doc, territoryHeadId: doc._id });
+    // try { await emitTerritoryUpsert(doc); } catch (e) { console.error("[CRM] territory-upsert failed:", e.message); }
+
+
+
+
+  try {
+    const fullPayload = {
+      ...doc.toObject(),
+      links: doc.links || {},
+      updatedAt: new Date(),
+    };
+    await emitTerritoryUpsert(fullPayload);
+  } catch (e) {
+    console.error("[CRM] territory-upsert failed:", e?.message || e);
+  }
+  return res.json({ ok: true, data: doc, territoryHeadId: doc._id });
+
+
+
   } catch (e) {
     console.error("territoryHead.saveStepByKey error:", e);
     return res
@@ -102,8 +120,19 @@ exports.saveStep = async (req, res) => {
       { new: true, runValidators: false }
     );
     if (!doc) return res.status(404).json({ ok: false, message: "Not found" });
-    try { await emitTerritoryUpsert(doc); } catch (e) { console.error("[CRM] territory-upsert failed:", e.message); }
-    res.json({ ok: true, data: doc });
+    // try { await emitTerritoryUpsert(doc); } catch (e) { console.error("[CRM] territory-upsert failed:", e.message); }
+
+try {
+  const fullPayload = {
+    ...doc.toObject(),
+    links: doc.links || {},
+    updatedAt: new Date(),
+  };
+  await emitTerritoryUpsert(fullPayload); 
+ } catch (e) {
+   console.error("[CRM] territory-upsert failed:", e?.message || e);
+ }
+ return res.json({ ok: true, data: doc });
   } catch (e) {
     console.error("territoryHead.saveStep error:", e);
     res
@@ -155,8 +184,25 @@ exports.updateGst = async (req, res) => {
     );
     if (!updated)
       return res.status(404).json({ ok: false, message: "Not found" });
-   try { await emitTerritoryUpsert(updated); } catch (e) { console.error("[CRM] territory-upsert failed:", e.message); }
-    return res.json({ ok: true, data: updated });
+  //  try { await emitTerritoryUpsert(updated); } catch (e) { console.error("[CRM] territory-upsert failed:", e.message); }
+
+
+   try {
+   const fullPayload = {
+     ...updated.toObject(),
+     links: updated.links || {},
+     updatedAt: new Date(),
+   };
+   await emitTerritoryUpsert(fullPayload);
+ } catch (e) {
+   console.error("[CRM] territory-upsert failed:", e?.message || e);
+ }
+
+
+
+
+
+  return res.json({ ok: true, data: updated });
   } catch (e) {
     console.error("territoryHead.updateGst error:", e);
     return res
@@ -195,7 +241,26 @@ exports.updateBankDetails = async (req, res) => {
     );
     if (!updated)
       return res.status(404).json({ ok: false, message: "Not found" });
-    try { await emitTerritoryUpsert(updated); } catch (e) { console.error("[CRM] territory-upsert failed:", e.message); }
+    // try { await emitTerritoryUpsert(updated); } catch (e) { console.error("[CRM] territory-upsert failed:", e.message); }
+
+
+     try {
+   const fullPayload = {
+     ...updated.toObject(),
+     links: updated.links || {},
+     updatedAt: new Date(),
+   };
+   await emitTerritoryUpsert(fullPayload);
+} catch (e) {
+   console.error("[CRM] territory-upsert failed:", e?.message || e);
+ }
+
+
+
+
+
+
+
     return res.json({ ok: true, data: updated });
   } catch (e) {
     console.error("territoryHead.updateBank error:", e);
@@ -260,7 +325,26 @@ exports.updateOutlet = async (req, res) => {
     );
     if (!updated)
       return res.status(404).json({ ok: false, message: "Not found" });
-    try { await emitTerritoryUpsert(updated); } catch (e) { console.error("[CRM] territory-upsert failed:", e.message); }
+    // try { await emitTerritoryUpsert(updated); } catch (e) { console.error("[CRM] territory-upsert failed:", e.message); }
+
+
+ try {
+   const fullPayload = {
+     ...updated.toObject(),
+     links: updated.links || {},
+     updatedAt: new Date(),
+   };
+   await emitTerritoryUpsert(fullPayload);
+ } catch (e) {
+  console.error("[CRM] territory-upsert failed:", e?.message || e);
+ }
+
+
+
+
+
+
+
     return res.json({ ok: true, data: updated });
   } catch (e) {
     console.error("territoryHead.updateOutlet error:", e);
@@ -287,43 +371,45 @@ exports.validateGeolocation = (req, res, next) => {
 };
 
 // POST /register – finalize
-exports.registerTerritoryHead = async (req, res) => {
-  try {
-    const id =
-      req.body.territoryHeadId || req.body.franchiseeId || req.body.vendorId;
-    if (!id)
-      return res
-        .status(400)
-        .json({ ok: false, message: "territoryHeadId required" });
+// exports.registerTerritoryHead = async (req, res) => {
+//   try {
+//     const id =
+//       req.body.territoryHeadId || req.body.franchiseeId || req.body.vendorId;
+//     if (!id)
+//       return res
+//         .status(400)
+//         .json({ ok: false, message: "territoryHeadId required" });
 
-    const updated = await TerritoryHead.findByIdAndUpdate(
-      id,
-      {
-        $set: { status: "submitted", updated_at: new Date() },
-        $setOnInsert: { role: "territory_head_owner" },
-      },
-      { new: true, upsert: true, runValidators: false }
-    );
-    try { await emitTerritoryUpsert(updated); } catch (e) { console.error("[CRM] territory-upsert failed:", e.message); }
-    res
-      .status(201)
-      .json({
-        ok: true,
-        message: "Territory Head registered",
-        territoryHead: updated,
-      });
-  } catch (error) {
-    console.error("territoryHead.register error:", error);
-    res
-      .status(500)
-      .json({
-        ok: false,
-        message: "Error registering territory head",
-        error: error.message,
-      });
-  }
+//     const updated = await TerritoryHead.findByIdAndUpdate(
+//       id,
+//       {
+//         $set: { status: "submitted", updated_at: new Date() },
+//         $setOnInsert: { role: "territory_head_owner" },
+//       },
+//       { new: true, upsert: true, runValidators: false }
+//     );
+//     try { await emitTerritoryUpsert(updated); } catch (e) { console.error("[CRM] territory-upsert failed:", e.message); }
+//     res
+//       .status(201)
+//       .json({
+//         ok: true,
+//         message: "Territory Head registered",
+//         territoryHead: updated,
+//       });
+//   } catch (error) {
+//     console.error("territoryHead.register error:", error);
+//     res
+//       .status(500)
+//       .json({
+//         ok: false,
+//         message: "Error registering territory head",
+//         error: error.message,
+//       });
+//   }
 
-};
+// };
+
+
 // POST /register – finalize submit for review
 exports.registerTerritoryHead = async (req, res) => {
   try {
@@ -338,7 +424,19 @@ exports.registerTerritoryHead = async (req, res) => {
       },
       { new: true, upsert: true, runValidators: false }
     );
-    try { await emitTerritoryUpsert(updated); } catch (e) { console.error("[CRM] territory-upsert failed:", e.message); }
+    // try { await emitTerritoryUpsert(updated); } catch (e) { console.error("[CRM] territory-upsert failed:", e.message); }
+
+ try {
+  const fullPayload = {
+     ...updated.toObject(),
+    links: updated.links || {},
+     updatedAt: new Date(),
+   };
+   await emitTerritoryUpsert(fullPayload);
+ } catch (e) {
+   console.error("[CRM] territory-upsert failed:", e?.message || e);
+ }
+
     res.status(201).json({ ok: true, message: "Territory Head submitted for review", territoryHead: updated });
   } catch (error) {
     console.error("territoryHead.register error:", error);
@@ -455,8 +553,24 @@ exports.decideTerritory = async (req, res) => {
     );
     if (!updated)
       return res.status(404).json({ ok: false, message: "Not found" });
-   try { await emitTerritoryUpsert(updated); } catch (e) { console.error("[CRM] territory-upsert failed:", e.message); }
-    res.json({ ok: true, data: updated });
+  //  try { await emitTerritoryUpsert(updated); } catch (e) { console.error("[CRM] territory-upsert failed:", e.message); }
+
+
+ try {
+   const fullPayload = {
+     ...updated.toObject(),
+    links: updated.links || {},
+     updatedAt: new Date(),
+   };
+   await emitTerritoryUpsert(fullPayload);
+ } catch (e) {
+   console.error("[CRM] territory-upsert failed:", e?.message || e);
+ }
+
+
+
+
+  res.json({ ok: true, data: updated });
   } catch (e) {
     console.error("territoryHead.decide error:", e);
     res
