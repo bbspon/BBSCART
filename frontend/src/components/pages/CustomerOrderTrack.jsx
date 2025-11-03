@@ -24,7 +24,7 @@ const CustomerOrderTrack = () => {
 
   // Delivery backend base; no spaces around '=' in .env
   const API_BASE =
-    import.meta.env.VITE_DELIVERY_PUBLIC_BASE || "http://localhost:5000";
+    import.meta.env.VITE_DELIVERY_PUBLIC_BASE || "http://localhost:5001";
 
   useEffect(() => {
     if (!trackingId) return;

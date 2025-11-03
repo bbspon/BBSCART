@@ -101,6 +101,7 @@ import VendorsHome from './components/pages/VendorsHome';
 import CustomerOrderTrack from './components/pages/CustomerOrderTrack';
 import ReturnRequestForm from './components/pages/ReturnRequestForm';
 import AdminPartnersPage from './components/AdminPartners';
+import OrdersPage from './components/pages/OrdersPage';
 function App() {
   const dispatch = useDispatch();
   const location = useLocation(); // Get the current route
@@ -203,19 +204,20 @@ function App() {
         <Route path="/bank-cashback-policy" element={<BankCashbackPolicy />} />
         <Route path="/contact" element={<ContactUs />} />
         <Route path="/orders" element={<CustomerOrders />} />
+        <Route path="/orders-list" element={<OrdersPage />} />
         <Route path="/thia" element={<ThiaPage />} />
         <Route path="/vendor-success" element={<VendorSuccess />} />
         <Route path="/agent-head-success" element={<AgentSuccess />} />
         <Route path="/franchisee-success" element={<FranchiseSuccess />} />
         <Route path="/admin/vendors" element={<AdminVendorsPage />} />
         <Route path="/admin/franchisees" element={<AdminFranchiseesPage />} />
-        <Route path="/returnRequest" element={<ReturnRequestForm />} />
         <Route path="/admin-partners" element={<AdminPartnersPage />} />
 
         <Route
           path="/customertracking/:trackingId"
           element={<CustomerOrderTrack />}
         />
+        <Route path="/returnRequest/:orderId" element={<ReturnRequestForm />} />
 
         <Route
           path="/admin/requests/territories"
