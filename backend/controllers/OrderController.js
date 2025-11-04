@@ -61,7 +61,12 @@ exports.createOrder = async (req, res) => {
       req.headers["x-pincode"]
   );
   console.log("assignedVendorId:", req.assignedVendorId);
-
+ const allowMixedVendors =
+   String(process.env.ALLOW_MIXED_VENDOR_CARTS || "false").toLowerCase() ===
+   "true";
+    const enforceTodaysVendor =
+      String(process.env.ENFORCE_TODAYS_VENDOR || "false").toLowerCase() ===
+      "true";
   // #1 Add a tiny, non-invasive validator for deliverySlot (kept local)
   function _isValidSlot(slot) {
     if (!slot) return false;
@@ -110,35 +115,40 @@ exports.createOrder = async (req, res) => {
     }));
 
     // vendor check
-    for (const line of items) {
-      let productId = line.product;
-      if (!productId && line.variant) {
-        const v = await Variant.findById(line.variant).select("product").lean();
-        if (!v?.product)
-          return res.status(400).json({
-            success: false,
-            message: "Variant not linked to a product",
-          });
-        productId = v.product;
-      }
-      const prod = await Product.findById(productId)
-        .select("seller_id is_global")
-        .lean();
-      if (!prod)
-        return res
-          .status(404)
-          .json({ success: false, message: "Product not found" });
-      if (
-        !prod.is_global &&
-        String(prod.seller_id) !== String(req.assignedVendorId)
-      ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Cart contains items from a different vendor than today's assignment",
-        });
-      }
-    }
+    // vendor check (guarded by env flags)
+ if (!allowMixedVendors) {
+   for (const line of items) {
+     let productId = line.product;
+     if (!productId && line.variant) {
+       const v = await Variant.findById(line.variant).select("product").lean();
+       if (!v?.product) {
+         return res.status(400).json({
+           success: false,
+           message: "Variant not linked to a product",
+         });
+       }
+       productId = v.product;
+     }
+     const prod = await Product.findById(productId)
+       .select("seller_id is_global")
+       .lean();
+     if (!prod) {
+       return res
+         .status(404)
+         .json({ success: false, message: "Product not found" });
+     }
+     // enforce per-vendor only when product is not global AND we actually want the "today" rule
+     if (!prod.is_global && enforceTodaysVendor) {
+       if (String(prod.seller_id) !== String(req.assignedVendorId)) {
+         return res.status(400).json({
+           success: false,
+           message:
+             "Cart contains items from a different vendor than today's assignment",
+         });
+       }
+     }
+   }
+ }
 
     // save order first (pending)
     const provisionalId =
@@ -339,7 +349,7 @@ exports.verifyPayment = async (req, res) => {
         .json({ success: false, message: "Order not found" });
 
     const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
-    hmac.update(razorpay_order_id + "|"  + razorpay_payment_id);
+    hmac.update(razorpay_order_id  + "|" +  razorpay_payment_id);
     const generated = hmac.digest("hex");
 
     if (generated !== razorpay_signature) {
