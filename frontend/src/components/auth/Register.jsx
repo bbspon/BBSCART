@@ -20,18 +20,46 @@ const Register = () => {
 
   const validateRegister = () => {
     let formErrors = {};
-    if (!userData.name) formErrors.name = "Name is required";
-    if (!userData.email) formErrors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(userData.email))
-      formErrors.email = "Email is invalid";
-    if (!userData.phone) formErrors.phone = "Phone is required";
-    if (!userData.password) formErrors.password = "Password is required";
-    else if (userData.password.length < 6)
-      formErrors.password = "Password must be at least 6 characters";
-    if (!userData.confirmPassword)
+
+    // Name: required, only alphabets and spaces
+    if (!userData.name.trim()) {
+      formErrors.name = "Name is required";
+    } else if (!/^[A-Za-z\s]+$/.test(userData.name)) {
+      formErrors.name = "Name must contain only letters";
+    }
+
+    // Email: required, valid pattern
+    if (!userData.email.trim()) {
+      formErrors.email = "Email is required";
+    } else if (
+      !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(userData.email)
+    ) {
+      formErrors.email = "Enter a valid email address";
+    }
+
+    // Phone: required, exactly 10 digits
+    if (!userData.phone.trim()) {
+      formErrors.phone = "Phone number is required";
+    } else if (!/^\d{10}$/.test(userData.phone)) {
+      formErrors.phone = "Phone number must be 10 digits";
+    }
+    if (!userData.password) {
+      formErrors.password = "Password is required";
+    } else if (
+      !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/.test(
+        userData.password
+      )
+    ) {
+      formErrors.password =
+        "Min 8 chars: uppercase, lowercase, number & special.";
+    }
+
+    // Confirm password: must match
+    if (!userData.confirmPassword) {
       formErrors.confirmPassword = "Confirm password is required";
-    else if (userData.confirmPassword !== userData.password)
+    } else if (userData.confirmPassword !== userData.password) {
       formErrors.confirmPassword = "Passwords do not match";
+    }
 
     return formErrors;
   };
@@ -149,7 +177,7 @@ const Register = () => {
                       onChange={handleChange}
                       value={userData.password}
                     />
-                    `<button
+                    <button
                       type="button"
                       onClick={() => setShowPassword((prev) => !prev)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 dark:text-gray-300"
@@ -159,7 +187,7 @@ const Register = () => {
                           showPassword ? "ri-eye-off-line" : "ri-eye-line"
                         }
                       ></i>
-                    </button>`
+                    </button>
                   </div>
                   {errors.password && <div className="text-red-800">{errors.password}</div>}
                 </div>
