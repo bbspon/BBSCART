@@ -127,7 +127,7 @@ export default function CategoryMegaMenu() {
       <button
         ref={btnRef}
         onMouseEnter={() => setOpen(true)}
-        className="rounded  text-zinc-950 hover:bg-zinc-100 px-4 py-2 font-semibold  hover:text-black"
+        className="rounded  text-zinc-950 hover:bg-zinc-100 px-4 py-2   hover:text-black"
       >
         Shop by Category
       </button>

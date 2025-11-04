@@ -3,19 +3,41 @@ import { ProductService } from "../../services/ProductService";
 import { useSelector } from "react-redux";
 import ReactDOM from "react-dom";
 import CategoryMegaMenu from "../../storefront/components/CategoryMegaMenu";
+import { FaBars, FaTimes } from "react-icons/fa";
 
+// ✅ Detect mobile width
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
   return isMobile;
 };
+
+// ✅ Mock All Products Data
+export const allProductsData = [
+  { title: "User Name", items: ["Account Settings", "Orders", "Wishlist"] },
+  { title: "Trending", items: ["Top Sellers", "New Launches", "Offers"] },
+  {
+    title: "Digital Content & Devices",
+    items: ["MX Player", "Music", "Games"],
+  },
+  {
+    title: "Shop by Category",
+    items: ["Mobiles", "Fashion", "Groceries", "Electronics"],
+  },
+  {
+    title: "Programs & Features",
+    items: ["Prime", "Membership", "Deals Zone"],
+  },
+  {
+    title: "Help & Settings",
+    items: ["Customer Service", "Returns", "Language"],
+  },
+];
 
 const MegaMenu = ({ menuType }) => {
   const [activeMenu, setActiveMenu] = useState(null);
@@ -25,26 +47,34 @@ const MegaMenu = ({ menuType }) => {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [activeSidebarMenu, setActiveSidebarMenu] = useState(null);
   const [isTablet, setIsTablet] = useState(false);
+  const [showAllProducts, setShowAllProducts] = useState(false);
+  const [openAllProductsMobile, setOpenAllProductsMobile] = useState(false);
 
+  const handleToggle = () => setShowAllProducts(!showAllProducts);
+
+  const topLinks = ["Fresh", "Trending", "Best Sellers"];
+
+  // ✅ Handle tablet screen detection
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
-      setIsTablet(width >= 768 && width < 1024); 
+      setIsTablet(width >= 768 && width < 1024);
     };
-
-    handleResize(); // set initial values
+    handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // ✅ Fetch dynamic categories
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         let response = null;
-        if (user && user.role === "seller") {
+        if (user?.role === "seller") {
           response = await ProductService.getCategorySellerID(user._id);
-        } else if (user && user.role === "admin") {
+        } else if (user?.role === "admin") {
           response = await ProductService.getCategories();
-        } else if (user && user.role === "user") {
+        } else if (user?.role === "user") {
           response = await ProductService.getCategoriesNearbySeller();
         } else {
           response = await ProductService.getCategories();
@@ -57,17 +87,17 @@ const MegaMenu = ({ menuType }) => {
     fetchCategories();
   }, [user]);
 
+  // ✅ Offers ticker
   const offers = [
     "2% Instant Discount on HDFC Credit Cards Only",
     "No Wastage (VA) On Gold Coin",
   ];
-
   const [currentIndex, setCurrentIndex] = useState(0);
-
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % offers.length);
-    }, 3000);
+    const interval = setInterval(
+      () => setCurrentIndex((prev) => (prev + 1) % offers.length),
+      3000
+    );
     return () => clearInterval(interval);
   }, [offers.length]);
 
@@ -88,11 +118,8 @@ const MegaMenu = ({ menuType }) => {
 
   return (
     <>
-      <div
-        className="w-full bg-gradient-to-r from-[#4d060a] via-[#6b0e13] to-[#141414]
-                text-white py-2 text-center overflow-hidden sticky top-0 z-50 shadow-neutral-950 shadow-2xl"
-        style={{ boxShadow: "1px 1px 6px rgba(79, 50, 103, 0.2)" }}
-      >
+      {/* === Offer Bar === */}
+      <div className="w-full bg-gradient-to-r from-[#4d060a] via-[#6b0e13] to-[#141414] text-white py-2 text-center overflow-hidden sticky top-0 z-50 shadow-neutral-950 shadow-2xl">
         <ul className="offer-msg list-none m-0 p-0">
           <li
             key={currentIndex}
@@ -103,6 +130,7 @@ const MegaMenu = ({ menuType }) => {
         </ul>
       </div>
 
+      {/* === Navbar === */}
       <nav className="relative bg-white shadow-md border-b border-gray-100 z-30">
         <div className="container mx-auto px-2 flex items-center justify-between">
           <button
@@ -110,51 +138,91 @@ const MegaMenu = ({ menuType }) => {
             onClick={() => setMobileSidebarOpen(true)}
             aria-label="Open menu"
           >
-            <svg
-              className="w-7 h-7"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M4 6h16M4 12h16M4 18h16"
-              />
-            </svg>
+            <FaBars className="w-7 h-7" />
           </button>
+        </div>
+      </nav>
 
-          <ul className="hidden lg:flex overflow-x-auto no-scrollbar justify-center space-x-2 lg:space-x-8 py-2 w-full">
-            {/* Render Category MegaMenu here */}
-            <li className="relative group flex-shrink-0">
-              <CategoryMegaMenu />
-            </li>
+      {/* === Main Nav Row === */}
+      <nav className="w-full  text-black shadow-lg">
+        <div className="hidden md:flex justify-start flex-wrap gap-4 text-sm font-medium">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleToggle}
+              className="flex items-center justify-between w-[150px] gap-2  px-4 py-2 rounded-lg text-sm hover:bg-gray-200 transition"
+            >
+              <FaBars />
+              <span className=" text-black">All Products</span>
+            </button>
+          </div>
 
-            {/* Keep other external links */}
-            {fullMenuData
-              .filter((item) => item.id !== "grocery-1") // remove supermarket
-              .map((item) => (
+          <div className="flex justify-between items-center px-1 py-1 md:px-10">
+            <ul className="hidden lg:flex overflow-x-auto no-scrollbar justify-center space-x-2 lg:space-x-8 py-2 w-full">
+              <li className="relative group flex-shrink-0">
+                <CategoryMegaMenu />
+              </li>
+
+              {fullMenuData.map((item) => (
                 <li
                   key={item.id}
                   className="relative group flex-shrink-0"
                   onMouseEnter={() => setActiveMenu(item.id)}
                   onMouseLeave={() => setActiveMenu(null)}
                 >
-                  {item.externalLink ? (
-                    <a
-                      href={item.externalLink}
-                      className="flex items-center gap-1 px-4 py-2 rounded-md font-semibold text-zinc-950 hover:bg-zinc-100 text-semibold transition"
-                    >
-                      {item.title}
-                    </a>
-                  ) : null}
+                  <a
+                    href={item.externalLink}
+                    className="flex items-center gap-1 px-4 py-2 rounded-md  text-black hover:bg-gray-200 transition"
+                  >
+                    {item.title}
+                  </a>
                 </li>
               ))}
-          </ul>
+            </ul>
+          </div>
+
+          {topLinks.map((item, idx) => (
+            <div className="flex justify-between items-center px-1 py-1 md:px-1">
+              <button
+                key={idx}
+                className=" transition-all duration-200  text-black hover:bg-gray-200  flex items-center gap-1 px-4 py-2"
+              >
+                {item}
+              </button>
+            </div>
+          ))}
         </div>
+
+        {/* === All Products Dropdown (Desktop) === */}
+        {showAllProducts && (
+          <div className="absolute left-0 top-[85px] w-full bg-white text-black shadow-xl border-t-4 border-[#8e1c21] z-[99] animate-fadeIn">
+            <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 p-6 text-sm">
+              {allProductsData.map((section, idx) => (
+                <div key={idx}>
+                  <h3 className="font-bold mb-2 text-[#6b0e13]">
+                    {section.title}
+                  </h3>
+                  <ul className="space-y-1">
+                    {section.items.map((item, itemIdx) => (
+                      <li key={itemIdx}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              <div className="flex justify-end col-span-full">
+                <button
+                  onClick={handleToggle}
+                  className="flex items-center gap-2 bg-[#6b0e13] text-white px-4 py-2 rounded-lg hover:bg-[#8e1c21] transition mt-4"
+                >
+                  <FaTimes />
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </nav>
 
+      {/* === Mobile Sidebar === */}
       {isMobile &&
         mobileSidebarOpen &&
         ReactDOM.createPortal(
@@ -167,148 +235,109 @@ const MegaMenu = ({ menuType }) => {
               <button
                 className="absolute top-3 right-3 text-gray-400 hover:text-[#cf1717] text-2xl z-10"
                 onClick={() => setMobileSidebarOpen(false)}
-                aria-label="Close"
               >
-                <svg
-                  className="w-7 h-7"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
+                <FaTimes />
               </button>
-              <div className="flex-1 overflow-y-auto pt-8 pb-4 px-4">
+
+              <div className="flex-1 overflow-y-auto pt-8 pb-4 px-4 custom-scrollbar">
                 <ul className="space-y-2">
                   <li className="relative group flex-shrink-0">
                     <CategoryMegaMenu />
                   </li>
+
+                  {/* Mobile All Products Section */}
+                  <button
+                    onClick={() => setOpenAllProductsMobile(true)}
+                    className="block w-full text-left px-3 py-2 font-semibold text-gray-800 hover:bg-[#f7eaea] hover:text-[#cf1717] transition"
+                  >
+                    All Products
+                  </button>
+
                   {fullMenuData.map((item) => (
                     <li key={item.id}>
-                      {item.externalLink ? (
-                        <a
-                          href={item.externalLink}
-                          className="block w-full px-3 py-2 rounded-md font-semibold text-gray-800 hover:bg-[#f7eaea] hover:text-[#cf1717] transition"
-                          onClick={() => setMobileSidebarOpen(false)}
-                        >
-                          {item.title}
-                        </a>
-                      ) : (
-                        <>
-                          <button
-                            className={cn(
-                              "w-full flex items-center justify-between px-3 py-2 rounded-md font-semibold text-gray-800 hover:bg-[#f7eaea] hover:text-[#cf1717] transition",
-                              activeSidebarMenu === item.id
-                                ? "bg-[#f7eaea] text-[#cf1717]"
-                                : ""
-                            )}
-                            onClick={() =>
-                              setActiveSidebarMenu(
-                                activeSidebarMenu === item.id ? null : item.id
-                              )
-                            }
-                          >
-                            <span>{item.title}</span>
-                            <svg
-                              className={cn(
-                                "w-4 h-4 ml-2 transition-transform",
-                                activeSidebarMenu === item.id ? "rotate-90" : ""
-                              )}
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M9 5l7 7-7 7"
-                              />
-                            </svg>
-                          </button>
-                          {activeSidebarMenu === item.id && item.submenu && (
-                            <div className="pl-4 mt-1 border-l-2 border-[#cf1717]">
-                              {item.submenu.map((submenu) => (
-                                <div key={submenu.id} className="mb-2">
-                                  <h3 className="text-base font-bold text-[#cf1717] mb-1 mt-2">
-                                    {submenu.title}
-                                  </h3>
-                                  <ul className="space-y-1">
-                                    {submenu.items.map((subItem) => (
-                                      <li key={subItem.id}>
-                                        <a
-                                          href={subItem.link}
-                                          className="block py-1.5 text-sm text-gray-700 hover:text-[#cf1717]"
-                                        >
-                                          {subItem.title}
-                                        </a>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </>
-                      )}
+                      <a
+                        href={item.externalLink}
+                        className="block w-full px-3 py-2 rounded-md font-semibold text-gray-800 hover:bg-[#f7eaea] hover:text-[#cf1717] transition"
+                        onClick={() => setMobileSidebarOpen(false)}
+                      >
+                        {item.title}
+                      </a>
                     </li>
                   ))}
                 </ul>
               </div>
             </div>
+
+            {/* === Slide-in All Products Panel (Mobile) === */}
+            {openAllProductsMobile && (
+              <div className="relative w-[80%] max-w-sm h-full bg-white shadow-2xl animate-slideInRight flex flex-col overflow-y-auto custom-scrollbar">
+                <div className="sticky top-0 flex justify-between items-center bg-[#6b0e13] text-white px-4 py-3 shadow-md">
+                  <h2 className="font-bold text-lg">All Products</h2>
+                  <button
+                    onClick={() => setOpenAllProductsMobile(false)}
+                    className="p-2 rounded-full hover:bg-[#8e1c21] transition"
+                  >
+                    <FaTimes className="text-xl" />
+                  </button>
+                </div>
+
+                <div className="p-5 space-y-6">
+                  {allProductsData.map((section, idx) => (
+                    <div key={idx}>
+                      <h3 className="font-semibold text-[#6b0e13] mb-2">
+                        {section.title}
+                      </h3>
+                      <ul className="space-y-1 text-gray-700">
+                        {section.items.map((item, itemIdx) => (
+                          <li
+                            key={itemIdx}
+                            className="py-1 px-2 rounded hover:bg-[#f7eaea] hover:text-[#8e1c21] transition"
+                          >
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="p-5 border-t mt-auto">
+                  <button
+                    onClick={() => setOpenAllProductsMobile(false)}
+                    className="w-full flex items-center justify-center gap-2 bg-[#6b0e13] text-white py-2 rounded-md hover:bg-[#8e1c21] transition"
+                  >
+                    <FaTimes />
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
           </div>,
           document.body
         )}
 
+      {/* === Tablet View === */}
       {isTablet && (
         <div className="hidden md:flex flex-row border h-full w-full">
-          {/* Wrapper that lays its <li> children in a row */}
           <ul className="flex flex-row w-full">
             <li className="flex-1 px-4">
               <CategoryMegaMenu />
             </li>
-
-            {fullMenuData.slice(0, 3).map(
-              (
-                item // show first 3 as example
-              ) => (
-                <li key={item.id} className="flex-1 px-4">
-                  {item.externalLink ? (
-                    <a
-                      href={item.externalLink}
-                      className="block w-full text-center px-3 py-2 rounded-md font-semibold text-gray-800 hover:bg-[#f7eaea] hover:text-[#cf1717] transition"
-                    >
-                      {item.title}
-                    </a>
-                  ) : (
-                    <button
-                      className={cn(
-                        "w-full text-center px-3 py-2 rounded-md font-semibold text-gray-800 hover:bg-[#f7eaea] hover:text-[#cf1717] transition",
-                        activeSidebarMenu === item.id
-                          ? "bg-[#f7eaea] text-[#cf1717]"
-                          : ""
-                      )}
-                      onClick={() =>
-                        setActiveSidebarMenu(
-                          activeSidebarMenu === item.id ? null : item.id
-                        )
-                      }
-                    >
-                      {item.title}
-                    </button>
-                  )}
-                </li>
-              )
-            )}
+            {fullMenuData.slice(0, 3).map((item) => (
+              <li key={item.id} className="flex-1 px-4">
+                <a
+                  href={item.externalLink}
+                  className="block w-full text-center px-3 py-2 rounded-md font-semibold text-gray-800 hover:bg-[#f7eaea] hover:text-[#cf1717] transition"
+                >
+                  {item.title}
+                </a>
+              </li>
+            ))}
           </ul>
         </div>
       )}
 
+      {/* === Styles === */}
       <style>{`
         .bounce-text {
           animation: bounceIn 0.6s ease-in-out;
@@ -322,12 +351,19 @@ const MegaMenu = ({ menuType }) => {
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .custom-scrollbar::-webkit-scrollbar { width: 8px; background: #f7eaea; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cf1717; border-radius: 8px; }
-        @media (max-width: 1023px) {
-          .animate-slideInLeft { animation: slideInLeft 0.3s cubic-bezier(0.4,0,0.2,1) both; }
-          @keyframes slideInLeft {
-            from { transform: translateX(-100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-          }
+        @keyframes slideInLeft {
+          from { transform: translateX(-100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        .animate-slideInLeft {
+          animation: slideInLeft 0.3s cubic-bezier(0.4,0,0.2,1) both;
+        }
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        .animate-slideInRight {
+          animation: slideInRight 0.3s ease-out forwards;
         }
       `}</style>
     </>
