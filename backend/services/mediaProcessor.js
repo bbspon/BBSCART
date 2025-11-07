@@ -4,7 +4,7 @@ const fs = require("fs");
 const sharp = require("sharp");
 const ffmpeg = require("fluent-ffmpeg");
 
-const BASE_ASSETS_URL = process.env.VITE_API_URL || "http://localhost:5001";
+const BASE_ASSETS_URL = process.env.BASE_ASSETS_URL || "http://localhost:5001";
 const UPLOAD_ROOT =
   process.env.UPLOAD_ROOT || path.join(__dirname, "..", "uploads");
 
