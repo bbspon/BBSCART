@@ -17,7 +17,7 @@ const ProductGroup = require("../models/ProductGroup");
 const { parse } = require("csv-parse/sync");
 const Vendor = require("../models/Vendor");
  const Media = require("../models/Media");
- const BASE_ASSETS_URL = process.env.BASE_ASSETS_URL || "http://localhost:5001";
+ const BASE_ASSETS_URL = process.env.VITE_API_URL || "http://localhost:5001";
  const PUBLIC_UPLOAD_PREFIX = "/uploads";
  const pathMod = require("path");
 const toUrl = (fn) =>
