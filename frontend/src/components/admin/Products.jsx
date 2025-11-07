@@ -192,7 +192,7 @@ const Products = () => {
     form.append("file", file);
     try {
       const res = await instance.post(
-        `${import.meta.env.VITE_API_URL}/products/import-csv`,
+        `${import.meta.env.VITE_API_URL}/api/products/import-csv`,
         form,
         {
           headers: { "Content-Type": "multipart/form-data" },
@@ -221,7 +221,7 @@ const Products = () => {
     try {
       const url = `${
         import.meta.env.VITE_API_URL
-      }/products/import-all?dryRun=${
+      }/api/products/import-all?dryRun=${
         iaDryRun ? "true" : "false"
       }&mode=${iaMode}`;
       const res = await instance.post(url, form, {

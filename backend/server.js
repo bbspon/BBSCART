@@ -37,8 +37,12 @@ const posSsoRoutes = require("./routes/posSso");
 const deliveryWebhookRoutes = require("./routes/deliveryWebhookRoutes");
 const returnRoutes = require("./routes/returnRoutes");
 const webhookRoutes = require("./routes/webhookRoutes");
+const mediaRoutes = require("./routes/mediaRoutes");
 const app = express();
-app.set("trust proxy", 1);
+ // Static /uploads
+// server.js
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 /* =======================
    ✅ CORS Setup (dev + prod)
    ======================= */
@@ -257,6 +261,7 @@ app.use("/api/testimonials", testimonialRoutes);
 app.use("/api/delivery/webhooks", deliveryWebhookRoutes);
 app.use("/api", returnRoutes);
 app.use("/api/webhooks", webhookRoutes);
+ app.use("/api/media", mediaRoutes);
 // ✅ Global Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);

@@ -102,6 +102,8 @@ import CustomerOrderTrack from './components/pages/CustomerOrderTrack';
 import ReturnRequestForm from './components/pages/ReturnRequestForm';
 import AdminPartnersPage from './components/AdminPartners';
 import OrdersPage from './components/pages/OrdersPage';
+import MediaLibrary from "./components/pages/admin/MediaLibrary";
+
 function App() {
   const dispatch = useDispatch();
   const location = useLocation(); // Get the current route
@@ -298,6 +300,7 @@ function App() {
         <Route path="/thia-jewellery-cms" element={<ThiaJewelleryCMS />}>
           <Route path="dashboard" element={<BBSCARTCMSPage />} />
         </Route>
+        <Route path="/admin/media" element={<MediaLibrary />} />
 
         {/*260925*/}
         <Route path="/cart" element={<NavbarCart />} />

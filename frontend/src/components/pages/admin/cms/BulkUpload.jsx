@@ -42,26 +42,27 @@ export default function BulkUpload() {
     setStatus(`Sub-categories upserted: ${data.upserts}`);
   }
 async function uploadProducts() {
-  const fd = new FormData();
-  fd.append("csv", prodCSV);
-  if (prodZIP) fd.append("images", prodZIP);
   try {
-    const { data, status } = await API.post("/api/products/import/csv", fd);
-    console.log("import response:", data);
-    setStatus(
-      status === 207
-        ? `Upserts: ${data.upserts}. Some rows failed: ${data.errors
-            .slice(0, 3)
-            .map((e) => `#${e.row} ${e.message}`)
-            .join("; ")}`
-        : `Products upserted: ${data.upserts}`
-    );
-  } catch (err) {
-    console.error(err);
-    setStatus(err.response?.data?.message || "Import failed");
+    if (!prodCSV) {
+      toast.error("Pick the products CSV");
+      return;
+    }
+    const fd = new FormData();
+    fd.append("file", prodCSV);              // CSV -> "file"
+    if (prodZIP) fd.append("images", prodZIP); // optional ZIP
+
+   const { data } = await API.post("/api/products/import-all", fd, {
+      withCredentials: true,
+      maxBodyLength: Infinity,
+      timeout: 120000,
+    });
+    const { created = 0, updated = 0, note } = data || {};
+   toast.success(`Import done. Created: ${created}, Updated: ${updated}${note ? " — " + note : ""}`);
+  } catch (e) {
+    console.error("Bulk import error:", e);
+    toast.error(e?.response?.data?.message || "Import failed");
   }
 }
-
 
   function downloadTemplate(kind) {
     const templates = {

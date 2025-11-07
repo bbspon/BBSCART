@@ -18,13 +18,19 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
-const norm = (u) => {
-  if (!u) return "";
-  const s = String(u);
-  return s.startsWith("/uploads/") ? `${API_BASE}${s}` : s;
-};
-
+const API_BASE = import.meta.env.VITE_API_URL;
+ const STATIC_PREFIX = "/uploads";
+ const norm = (u) => {
+   if (!u) return "";
+  const s = String(u).trim();
+  // already absolute URL
+ if (/^https?:\/\//i.test(s)) return s;
+   // already a static path
+   if (s.startsWith("/uploads/") || s.startsWith("/uploads/"))
+   return `${API_BASE}${s}`;
+  // bare filename from DB → build full URL
+   return `${API_BASE}${STATIC_PREFIX}/${encodeURIComponent(s)}`;
+ };
 export default function ProductDetails() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -74,26 +80,23 @@ useEffect(() => {
       const { data } = await instance.get(`/products/public/${id}`);
 
       // --- Build normalized arrays ---
-      const galleryMain = Array.isArray(data?.gallery_imgs)
-        ? data.gallery_imgs.map(norm).filter(Boolean)
-        : [];
+  const galleryMain = Array.isArray(data?.gallery_imgs)
+    ? data.gallery_imgs.map(norm).filter(Boolean)
+    : [];
 
-      const subs = [
-        Array.isArray(data?.product_img)
-          ? data.product_img[0]
-          : data?.product_img,
-        Array.isArray(data?.product_img2)
-          ? data.product_img2[0]
-          : data?.product_img2,
-      ]
-        .map(norm)
-        .filter(Boolean);
+     const subs = [
+       Array.isArray(data?.product_img)
+         ? data.product_img[0]
+         : data?.product_img,
+       Array.isArray(data?.product_img2)
+         ? data.product_img2[0]
+         : data?.product_img2,
+     ]
+       .map(norm)
+       .filter(Boolean);
 
-      // default main image = first gallery image, then fallbacks
-      const primary = galleryMain[0] || subs[0] || "/img/placeholder.png";
-
-      setP({ ...data, _norm: { galleryMain, subs } });
-      setImg(primary);
+     const primary = galleryMain[0] || subs[0] || "/img/placeholder.png";
+     setImg(primary);
     } catch (e) {
       console.error("load product failed", e?.response?.data || e.message);
       setP(null);
