@@ -17,7 +17,7 @@ const Register = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [showPassword, setShowPassword] = useState(false);
-
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const validateRegister = () => {
     let formErrors = {};
 
@@ -92,51 +92,58 @@ const Register = () => {
           <div
             id="back-div"
             className="bg-gradient-to-r from-logoSecondary to-logoPrimary rounded-[26px] m-4"
+            style={{ minWidth: "700px" }}
           >
             <div className="border-[20px] border-transparent rounded-[20px] dark:bg-gray-900 bg-white shadow-lg xl:p-5 2xl:p-5 lg:p-5 md:p-5 sm:p-2 m-2">
               <h1 className="pt-8 pb-6 font-bold dark:text-gray-400 text-3xl text-center cursor-default">
                 Sign up
               </h1>
               <form className="space-y-4" onSubmit={handleRegisterSubmit}>
-                <div>
-                  <label
-                    htmlFor="name"
-                    className="mb-2  dark:text-gray-400 text-md"
-                  >
-                    Name
-                  </label>
-                  <input
-                    id="name"
-                    name="name"
-                    className={`border p-3 dark:bg-indigo-700 dark:text-gray-300  dark:border-gray-700 shadow-md placeholder:text-base focus:scale-105 ease-in-out duration-300 border-gray-300 rounded-lg w-full placeholder-gray-300 ${
-                      errors.name ? "border-red-700" : ""
-                    }`}
-                    type="text"
-                    placeholder="John Deo"
-                    onChange={handleChange}
-                    value={userData.name}
-                  />
-                  {errors.name && <div className="text-red-800">{errors.name}</div>}
-                </div>
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="mb-2  dark:text-gray-400 text-md"
-                  >
-                    Email
-                  </label>
-                  <input
-                    id="email"
-                    name="email"
-                    className={`border p-3 dark:bg-indigo-700 dark:text-gray-300  dark:border-gray-700 shadow-md placeholder:text-base focus:scale-105 ease-in-out duration-300 border-gray-300 rounded-lg w-full placeholder-gray-300 ${
-                      errors.email ? "border-red-700" : ""
-                    }`}
-                    type="email"
-                    placeholder="example@abc.com"
-                    onChange={handleChange}
-                    value={userData.email}
-                  />
-                  {errors.email && <div className="text-red-800">{errors.email}</div>}
+                <div className="flex gap-4">
+                  <div className="w-1/2">
+                    <label
+                      htmlFor="name"
+                      className="mb-2  dark:text-gray-400 text-md"
+                    >
+                      Name
+                    </label>
+                    <input
+                      id="name"
+                      name="name"
+                      className={`border p-3 dark:bg-indigo-700 dark:text-gray-300  dark:border-gray-700 shadow-md placeholder:text-base focus:scale-105 ease-in-out duration-300 border-gray-300 rounded-lg w-full placeholder-gray-300 ${
+                        errors.name ? "border-red-700" : ""
+                      }`}
+                      type="text"
+                      placeholder="John Deo"
+                      onChange={handleChange}
+                      value={userData.name}
+                    />
+                    {errors.name && (
+                      <div className="text-red-800">{errors.name}</div>
+                    )}
+                  </div>
+                  <div className="w-1/2">
+                    <label
+                      htmlFor="email"
+                      className="mb-2  dark:text-gray-400 text-md"
+                    >
+                      Email
+                    </label>
+                    <input
+                      id="email"
+                      name="email"
+                      className={`border p-3 dark:bg-indigo-700 dark:text-gray-300  dark:border-gray-700 shadow-md placeholder:text-base focus:scale-105 ease-in-out duration-300 border-gray-300 rounded-lg w-full placeholder-gray-300 ${
+                        errors.email ? "border-red-700" : ""
+                      }`}
+                      type="email"
+                      placeholder="example@abc.com"
+                      onChange={handleChange}
+                      value={userData.email}
+                    />
+                    {errors.email && (
+                      <div className="text-red-800">{errors.email}</div>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label
@@ -156,7 +163,9 @@ const Register = () => {
                     onChange={handleChange}
                     value={userData.phone}
                   />
-                  {errors.phone && <div className="text-red-800">{errors.phone}</div>}
+                  {errors.phone && (
+                    <div className="text-red-800">{errors.phone}</div>
+                  )}
                 </div>
                 <div>
                   <label
@@ -169,11 +178,12 @@ const Register = () => {
                     <input
                       id="password"
                       name="password"
-                      className={`border p-3 shadow-md dark:bg-indigo-700 dark:text-gray-300 dark:border-gray-700 placeholder:text-base focus:scale-105 ease-in-out duration-300 border-gray-300 rounded-lg w-full placeholder-gray-300 ${
-                        errors.password ? "border-red-700" : ""
-                      }`}
+                      className={`border p-3 shadow-md dark:bg-indigo-700 dark:text-gray-300 dark:border-gray-700
+                         placeholder:text-base focus:scale-105 ease-in-out duration-300 border-gray-300 rounded-lg w-full placeholder-gray-300 ${
+                           errors.password ? "border-red-700" : ""
+                         }`}
                       type={showPassword ? "text" : "password"}
-                      placeholder="********"
+                      placeholder="Password"
                       onChange={handleChange}
                       value={userData.password}
                     />
@@ -189,7 +199,9 @@ const Register = () => {
                       ></i>
                     </button>
                   </div>
-                  {errors.password && <div className="text-red-800">{errors.password}</div>}
+                  {errors.password && (
+                    <div className="text-red-800">{errors.password}</div>
+                  )}
                 </div>
                 <div>
                   <label
@@ -198,18 +210,35 @@ const Register = () => {
                   >
                     Confirm Password
                   </label>
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    className={`border p-3 shadow-md dark:bg-indigo-700 dark:text-gray-300 dark:border-gray-700 placeholder:text-base focus:scale-105 ease-in-out duration-300 border-gray-300 rounded-lg w-full placeholder-gray-300 ${
-                      errors.confirmPassword ? "border-red-700" : ""
-                    }`}
-                    type="password"
-                    placeholder="********"
-                    onChange={handleChange}
-                    value={userData.confirmPassword}
-                  />
-                  {errors.confirmPassword && <div className="text-red-800">{errors.confirmPassword}</div>}
+                  <div className="relative">
+                    <input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      className={`border p-3 shadow-md dark:bg-indigo-700 dark:text-gray-300 dark:border-gray-700 placeholder:text-base focus:scale-105 ease-in-out duration-300 border-gray-300 rounded-lg w-full placeholder-gray-300 ${
+                        errors.confirmPassword ? "border-red-700" : ""
+                      }`}
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="confirm password"
+                      onChange={handleChange}
+                      value={userData.confirmPassword}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 dark:text-gray-300"
+                    >
+                      <i
+                        className={
+                          showConfirmPassword
+                            ? "ri-eye-off-line"
+                            : "ri-eye-line"
+                        }
+                      ></i>
+                    </button>
+                  </div>
+                  {errors.confirmPassword && (
+                    <div className="text-red-800">{errors.confirmPassword}</div>
+                  )}
                 </div>
 
                 <button

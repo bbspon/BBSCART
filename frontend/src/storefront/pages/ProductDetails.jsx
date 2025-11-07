@@ -18,13 +18,19 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
-const norm = (u) => {
-  if (!u) return "";
-  const s = String(u);
-  return s.startsWith("/uploads/") ? `${API_BASE}${s}` : s;
-};
-
+const API_BASE = import.meta.env.VITE_API_URL;
+ const STATIC_PREFIX = "/uploads";
+ const norm = (u) => {
+   if (!u) return "";
+  const s = String(u).trim();
+  // already absolute URL
+ if (/^https?:\/\//i.test(s)) return s;
+   // already a static path
+   if (s.startsWith("/uploads/") || s.startsWith("/uploads/"))
+   return `${API_BASE}${s}`;
+  // bare filename from DB → build full URL
+   return `${API_BASE}${STATIC_PREFIX}/${encodeURIComponent(s)}`;
+ };
 export default function ProductDetails() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -70,30 +76,26 @@ useEffect(() => {
     try {
       setLoading(true);
       setP(null);
+const { data } = await instance.get(`/products/public/${id}`);
 
-      const { data } = await instance.get(`/products/public/${id}`);
+// Normalize gallery + sub images
+const galleryMain = Array.isArray(data?.gallery_imgs)
+  ? data.gallery_imgs.map(norm).filter(Boolean)
+  : [];
 
-      // --- Build normalized arrays ---
-      const galleryMain = Array.isArray(data?.gallery_imgs)
-        ? data.gallery_imgs.map(norm).filter(Boolean)
-        : [];
+const subs = [data?.product_img, data?.product_img2].map(norm).filter(Boolean);
 
-      const subs = [
-        Array.isArray(data?.product_img)
-          ? data.product_img[0]
-          : data?.product_img,
-        Array.isArray(data?.product_img2)
-          ? data.product_img2[0]
-          : data?.product_img2,
-      ]
-        .map(norm)
-        .filter(Boolean);
+const primary = galleryMain[0] || subs[0] || "/img/placeholder.png";
 
-      // default main image = first gallery image, then fallbacks
-      const primary = galleryMain[0] || subs[0] || "/img/placeholder.png";
+// ✅ Save normalized structure in _norm
+setP({
+  ...data,
+  _norm: { galleryMain, subs },
+});
 
-      setP({ ...data, _norm: { galleryMain, subs } });
-      setImg(primary);
+// ✅ Set main image for display
+setImg(primary);
+
     } catch (e) {
       console.error("load product failed", e?.response?.data || e.message);
       setP(null);
@@ -196,25 +198,27 @@ const thumbs = useMemo(() => {
             </div>
 
             <div className="flex gap-2 flex-wrap">
-              {thumbs.map((g, i) => (
-                <button
-                  key={i}
-                  onClick={() => setImg(g)}
-                  className={`w-20 h-20 rounded-lg overflow-hidden border-2 ${
-                    img === g ? "border-blue-500" : "border-transparent"
-                  }`}
-                  title="Preview"
-                >
-                  <img
-                    src={g}
-                    alt=""
-                    className="w-full h-full object-cover"
-                    onError={(e) =>
-                      (e.currentTarget.style.visibility = "hidden")
-                    }
-                  />
-                </button>
-              ))}
+              <div className="flex gap-2 flex-wrap">
+                {thumbs.map((g, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setImg(g)}
+                    className={`w-20 h-20 rounded-lg overflow-hidden border-2 ${
+                      img === g ? "border-blue-500" : "border-transparent"
+                    }`}
+                    title="Preview"
+                  >
+                    <img
+                      src={g}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onError={(e) =>
+                        (e.currentTarget.style.visibility = "hidden")
+                      }
+                    />
+                  </button>
+                ))}
+              </div>
             </div>
 
             {highlights.length > 0 && (

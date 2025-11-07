@@ -16,7 +16,7 @@ export default function SubcategoryPage() {
     localStorage.getItem("deliveryPincode") ||
     localStorage.getItem("bb_pincode") ||
     localStorage.getItem("user_pincode") ||
-    localStorage.getItem("pincode") 
+    localStorage.getItem("pincode");
 
   // --- products (kept) ---
   const [itemsRaw, setItemsRaw] = useState([]);
@@ -520,6 +520,18 @@ export default function SubcategoryPage() {
       filtered.length
     );
     setItems(filtered);
+    // after you set the 'items' state (wherever you do that)
+    console.log(
+      "IMG DEBUG",
+      items.slice(0, 5).map((p) => ({
+        name: p.name,
+        product_img: p.product_img,
+        gallery_imgs: p.gallery_imgs,
+        product_img_url: p.product_img_url,
+        gallery_img_urls: p.gallery_img_urls,
+        picked: pickImage(p),
+      }))
+    );
   }, [
     itemsRaw,
     q,
@@ -555,17 +567,58 @@ export default function SubcategoryPage() {
   const priceBandsFinal = generatedPriceBands.length
     ? generatedPriceBands
     : fallback.priceBands;
+  // put this near the top of SubcategoryPage.jsx, below API_BASE
+  const STATIC_PREFIXES = ["/uploads"]; // support both roots
 
+  function norm(u) {
+    if (!u) return "";
+    const s = String(u).trim();
+    // absolute URLs as-is
+    if (/^https?:\/\//i.test(s)) return s;
+
+    // server static paths: allow /uploads and /uploads-bbscart (and nested images/YYYY/MM)
+    if (STATIC_PREFIXES.some((pre) => s.startsWith(pre + "/"))) {
+      return `${API_BASE}${s}`;
+    }
+
+    // bare filename: fall back to the preferred products folder under /uploads
+    return `${API_BASE}/uploads/${encodeURIComponent(s)}`;
+  }
+
+  // REPLACE existing pickImage(p) with this
   function pickImage(p) {
-    const firstSingle =
-      (Array.isArray(p.product_img) ? p.product_img[0] : p.product_img) || "";
-    const firstGallery = Array.isArray(p.gallery_imgs)
+    // 1) Prefer explicit, already-built URLs from backend
+    if (p.product_img_url) return p.product_img_url;
+    if (Array.isArray(p.gallery_img_urls) && p.gallery_img_urls[0]) {
+      return p.gallery_img_urls[0];
+    }
+
+    // 2) Fallback to stored fields that might be arrays OR pipe-joined strings
+    const firstSingleRaw = Array.isArray(p.product_img)
+      ? p.product_img[0]
+      : p.product_img;
+    const firstGalleryRaw = Array.isArray(p.gallery_imgs)
       ? p.gallery_imgs[0]
-      : p.gallery_imgs || "";
-    const raw = firstSingle || firstGallery || "";
-    if (!raw) return "";
-    if (raw.startsWith("/uploads/")) return `${API_BASE}${raw}`;
-    return raw;
+      : p.gallery_imgs;
+
+    // handle pipe-joined strings like "a.webp|b.webp"
+    const splitFirst = (val) => {
+      if (!val) return "";
+      const t = String(val).trim();
+      return t.includes("|")
+        ? t
+            .split("|")
+            .map((s) => s.trim())
+            .filter(Boolean)[0]
+        : t;
+    };
+
+    const chosen =
+      splitFirst(firstSingleRaw) || splitFirst(firstGalleryRaw) || "";
+    if (!chosen) return "";
+
+    // 3) Normalize into a usable URL (handles absolute, /uploads, /uploads-bbscart, bare filename)
+    return norm(chosen);
   }
 
   // ------ UI ------
@@ -1016,27 +1069,17 @@ export default function SubcategoryPage() {
                 className="rounded border p-3 hover:bg-gray-50"
               >
                 <img
-                  src={(() => {
-                    const firstSingle =
-                      (Array.isArray(p.product_img)
-                        ? p.product_img[0]
-                        : p.product_img) || "";
-                    const firstGallery = Array.isArray(p.gallery_imgs)
-                      ? p.gallery_imgs[0]
-                      : p.gallery_imgs || "";
-                    const raw = firstSingle || firstGallery || "";
-                    if (!raw) return "";
-                    if (raw.startsWith("/uploads/")) return `${API_BASE}${raw}`;
-                    return raw;
-                  })()}
+                  src={pickImage(p)}
                   alt=""
                   className="mb-2 h-32 w-full rounded object-cover"
+                  onError={(e) =>
+                    (e.currentTarget.src = "/img/placeholder.png")
+                  }
                 />
+
                 <div className="line-clamp-2 text-sm">{p.name}</div>
                 <div className="text-xs text-gray-500">{p.brand || ""}</div>
-                <div className="text-sm font-semibold">
-                  ₹{ p.price}
-                </div>
+                <div className="text-sm font-semibold">₹{p.price}</div>
               </Link>
             ))}
           </div>
