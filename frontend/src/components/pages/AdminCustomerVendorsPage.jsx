@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
 export default function AdminCustomerVendorsPage() {
-
   const [status, setStatus] = useState("approved"); // approved | submitted | rejected
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -117,17 +116,15 @@ export default function AdminCustomerVendorsPage() {
   };
 
   return (
-    <div style={{ padding: 16 }}>
-      <h2>Customer Become Vendor</h2>
+    <div className=" m-8  rounded-lg border border-black">
+      <div className="bg-slate-300 pt-3 rounded-t-lg  border-b-0">
+        <h2 className="text-2xl font-semibold text-gray-700 flex items-center justify-center gap-2 border-b border-black pb-2">
+          Customer Become Vendor
+        </h2>
+      </div>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          alignItems: "center",
-          margin: "12px 0",
-        }}
-      >
+      <div className="flex flex-row  justify-center items-center gap-3 m-4">
+        <label htmlFor="">Search :</label>
         <input
           placeholder="Search name / PAN / GST / City / State"
           value={q}
@@ -135,7 +132,7 @@ export default function AdminCustomerVendorsPage() {
             setPage(1);
             setQ(e.target.value);
           }}
-          style={{ padding: 8, minWidth: 360 }}
+          className=" pl-10 pr-3 py-2 border rounded-md placeholder-gray-400 text-sm focus:ring-2 focus:ring-red-200 w-[500px]"
         />
         <select
           value={status}
@@ -153,6 +150,8 @@ export default function AdminCustomerVendorsPage() {
           onChange={(e) => {
             setPage(1);
             setLimit(parseInt(e.target.value, 10));
+            className =
+              " pl-10 pr-3 py-2 border rounded-md placeholder-gray-400 text-sm focus:ring-2 focus:ring-red-200 w-[500px]";
           }}
         >
           <option value={10}>10</option>
@@ -222,21 +221,21 @@ export default function AdminCustomerVendorsPage() {
         </table>
       </div>
 
-      <div
-        style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12 }}
-      >
+      <div className="flex flex-row justify-between items-center px-3 m-4">
         <button
           disabled={page <= 1}
           onClick={() => setPage((p) => Math.max(1, p - 1))}
+          className="bg-neutral-500 hover:bg-neutral-800 text-white px-3 rounded-xl"
         >
           Prev
         </button>
-        <div>
+        <div className="bg-neutral-500 hover:bg-neutral-800 text-white px-3 rounded-xl">
           Page {page} / {totalPages}
         </div>
         <button
           disabled={page >= totalPages}
           onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          className="bg-neutral-500 hover:bg-neutral-800 text-white px-3 rounded-xl"
         >
           Next
         </button>

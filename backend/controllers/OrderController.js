@@ -1,268 +1,3 @@
-// const Order = require('../models/Order.js');
-// const Variant = require('../models/Variant.js');
-// const Product = require('../models/Product.js');
-// const Razorpay = require("razorpay");
-// const crypto = require("crypto");
-
-// // Razorpay Instance
-// const razorpay = new Razorpay({
-//   key_id: 'rzp_test_5kdXsZAny3KeQZ',
-//   key_secret: 'h80tjW16ilIw9HDIBXIcEuj7'
-// });
-
-// exports.createOrder = async (req, res) => {
-//   console.log("createOrder Request Body:", req.user); // Debugging step
-//   try {
-//     const { orderItems, totalAmount, shippingAddress, paymentMethod, payment_details } = req.body;
-
-//     console.log("Request Body:", req.body); // Debugging step
-
-//     if (!orderItems || orderItems.length === 0) {
-//       return res.status(400).json({ success: false, message: "Order items cannot be empty" });
-//     }
-
-//     const user_id = req.user ? req.user.userId : null;
-
-//     console.log("user_id:", user_id);
-
-//     // Format order items
-//     const formattedOrderItems = orderItems.map(item => ({
-//       product: item?.product || null,
-//       variant: item?.variant || null,
-//       quantity: item?.quantity || 1,
-//       price: item?.price || 0,
-//     }));
-
-//     // Update stock for each order item
-//     for (const item of formattedOrderItems) {
-//       if (item.variant) {
-//         const variant = await Variant.findById(item.variant);
-//         if (!variant) {
-//           return res.status(400).json({ success: false, message: "Variant not found" });
-//         }
-//         if (variant.stock < item.quantity) {
-//           return res.status(400).json({ success: false, message: "Insufficient stock for variant" });
-//         }
-//         variant.stock -= item.quantity;
-//         await variant.save();
-//       } else {
-//         const product = await Product.findById(item.product);
-//         if (!product) {
-//           return res.status(400).json({ success: false, message: "Product not found" });
-//         }
-//         if (product.stock < item.quantity) {
-//           return res.status(400).json({ success: false, message: "Insufficient stock for product" });
-//         }
-//         product.stock -= item.quantity;
-//         await product.save();
-//       }
-//     }
-
-//     const options = {
-//       amount: totalAmount * 100, // Convert to paise
-//       currency: "INR",
-//       receipt: `receipt_${Date.now()}`
-//     };
-
-//     console.log("Creating Razorpay order with options:", options); // Debugging log
-
-//     const order = await razorpay.orders.create(options);
-
-//     console.log("Razorpay order created successfully:", order); // Debugging log
-
-//     // Create new order in DB
-//     const newOrder = new Order({
-//       order_id: order.id,
-//       user_id,
-//       orderItems: formattedOrderItems,
-//       total_price: totalAmount,
-//       shipping_address: shippingAddress,
-//       status: 'pending',
-//       payment_method: paymentMethod,
-//       payment_details,
-//     });
-
-//     const savedOrder = await newOrder.save();
-//     res.status(201).json({ success: true, message: 'Order created successfully', order: savedOrder });
-
-//   } catch (error) {
-//     console.error("Error creating order:", error); // Full error object
-
-//     if (error.statusCode) {
-//       console.error("Error Status Code:", error.statusCode);
-//     }
-//     if (error.error) {
-//       console.error("Error Code:", error.error.code);
-//       console.error("Error Description:", error.error.description);
-//     }
-
-//     res.status(500).json({
-//       success: false,
-//       message: 'Error creating order',
-//       error: {
-//         statusCode: error.statusCode || 500,
-//         code: error.error?.code || "UNKNOWN_ERROR",
-//         description: error.error?.description || error.message || "Something went wrong"
-//       }
-//     });
-//   }
-// };
-
-// exports.verifyPayment = async (req, res) => {
-//   try {
-//       const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-//       const order = await Order.findOne({ order_id: razorpay_order_id });
-
-//       if (!order) {
-//           return res.status(400).json({ success: false, message: "Order not found" });
-//       }
-
-//       const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
-//       hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
-//       const generatedSignature = hmac.digest("hex");
-
-//       if (generatedSignature === razorpay_signature) {
-//           order.payment_details.payment_id = razorpay_payment_id;
-//           order.payment_details.payment_status = "completed";
-//           await order.save();
-//           res.json({ success: true, message: "Payment successful" });
-//       } else {
-//           res.status(400).json({ success: false, message: "Invalid signature" });
-//       }
-//   } catch (error) {
-//       res.status(500).json({ success: false, message: error.message });
-//   }
-// }
-
-// // Get all orders with user and product details
-// exports.getAllOrders = async (req, res) => {
-//   try {
-//     const orders = await Order.find()
-//       .populate("user_id", "name email phone") // ✅ Populate user details
-//       .populate("orderItems.product", "name price image") // ✅ Populate product details
-//       .populate("orderItems.variant", "name options") // ✅ Populate variant details (if exists)
-//       .sort({ created_at: -1 });
-
-//     res.status(200).json({ success: true, orders });
-//   } catch (error) {
-//     res.status(500).json({
-//       success: false,
-//       message: "Error fetching orders",
-//       error: error.message
-//     });
-//   }
-// };
-
-// // Get order by ID
-// exports.getOrderById = async (req, res) => {
-//   try {
-//     const order = await Order.findById(req.params.id)
-//       .populate("user_id", "name email phone")
-//       .populate("orderItems.product", "name price image")
-//       .populate("orderItems.variant", "name options");
-
-//     if (!order) {
-//       return res.status(404).json({ success: false, message: 'Order not found' });
-//     }
-//     res.status(200).json({ success: true, order });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: 'Error fetching order', error: error.message });
-//   }
-// };
-
-// // Get order by SellerID
-// exports.getOrdersBySellerId = async (req, res) => {
-//   console.log('getOrdersBySellerId');
-//   try {
-//     const { seller_id } = req.params;
-
-//     // Find orders where any order item belongs to the given seller
-//     const orders = await Order.find({
-//       'orderItems.product': { $in: await Product.find({ seller_id }).distinct('_id') }
-//     })
-//       .populate("user_id", "name email phone")
-//       .populate({
-//         path: "orderItems.product",
-//         select: "name price image",
-//         populate: { path: "seller_id", select: "name" }
-//       })
-//       .populate("orderItems.variant", "name options");
-
-//     if (!orders.length) {
-//       return res.status(404).json({ success: false, message: 'No orders found for this seller' });
-//     }
-
-//     res.status(200).json({ success: true, orders });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: 'Error fetching orders', error: error.message });
-//   }
-// };
-
-// // Get orders by status
-// exports.getOrdersByUserId = async (req, res) => {
-//   try {
-//     const { user_id } = req.params;
-//     const orders = await Order.find({ user_id })
-//       .populate("user_id", "name email phone")
-//       .populate("orderItems.product", "name price image")
-//       .populate("orderItems.variant", "name options");
-
-//     res.status(200).json({ success: true, orders });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: 'Error fetching orders', error: error.message });
-//   }
-// };
-
-// // Get orders by status
-// exports.getOrdersByStatus = async (req, res) => {
-//   try {
-//     const { status } = req.params;
-//     const orders = await Order.find({ status })
-//       .populate("user_id", "name email phone")
-//       .populate("orderItems.product", "name price image")
-//       .populate("orderItems.variant", "name options");
-
-//     res.status(200).json({ success: true, orders });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: 'Error fetching orders', error: error.message });
-//   }
-// };
-
-// // Update order details (including payment details and status)
-// exports.updateOrder = async (req, res) => {
-//   try {
-//     const updatedOrder = await Order.findByIdAndUpdate(
-//       req.params.id,
-//       { $set: req.body, updated_at: Date.now() },
-//       { new: true }
-//     ).populate("user_id", "name email phone")
-//       .populate("orderItems.product", "name price image")
-//       .populate("orderItems.variant", "name options");
-
-//     if (!updatedOrder) {
-//       return res.status(404).json({ success: false, message: 'Order not found' });
-//     }
-
-//     res.status(200).json({ success: true, message: 'Order updated successfully', order: updatedOrder });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: 'Error updating order', error: error.message });
-//   }
-// };
-
-// // Delete order
-// exports.deleteOrder = async (req, res) => {
-//   try {
-//     const deletedOrder = await Order.findByIdAndDelete(req.params.id);
-//     if (!deletedOrder) {
-//       return res.status(404).json({ success: false, message: 'Order not found' });
-//     }
-
-//     res.status(200).json({ success: true, message: 'Order deleted successfully' });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: 'Error deleting order', error: error.message });
-//   }
-// };
-
 // controllers/OrderController.js
 
 const Order = require("../models/Order.js");
@@ -306,7 +41,15 @@ async function reduceStock(orderDoc) {
     }
   }
 }
-
+function isValidSlot(slot) {
+  if (!slot) return false;
+  const hasFields =
+    slot.id && slot.label && slot.start && slot.end && slot.date;
+  const dateOk = /^\d{4}-\d{2}-\d{2}$/.test(slot.date);
+  const timeOk =
+    /^\d{2}:\d{2}$/.test(slot.start) && /^\d{2}:\d{2}$/.test(slot.end);
+  return !!(hasFields && dateOk && timeOk);
+}
 exports.createOrder = async (req, res) => {
   console.log("order user:", req.user);
   console.log(
@@ -317,8 +60,31 @@ exports.createOrder = async (req, res) => {
       req.headers["x-pincode"]
   );
   console.log("assignedVendorId:", req.assignedVendorId);
+ const allowMixedVendors =
+   String(process.env.ALLOW_MIXED_VENDOR_CARTS || "false").toLowerCase() ===
+   "true";
+    const enforceTodaysVendor =
+      String(process.env.ENFORCE_TODAYS_VENDOR || "false").toLowerCase() ===
+      "true";
+  // #1 Add a tiny, non-invasive validator for deliverySlot (kept local)
+  function _isValidSlot(slot) {
+    if (!slot) return false;
+    const okId = typeof slot.id === "string" && slot.id.trim().length > 0;
+    const okLabel =
+      typeof slot.label === "string" && slot.label.trim().length > 0;
+    const okStart =
+      typeof slot.start === "string" && /^\d{2}:\d{2}$/.test(slot.start);
+    const okEnd =
+      typeof slot.end === "string" && /^\d{2}:\d{2}$/.test(slot.end);
+    const okDate =
+      typeof slot.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(slot.date);
+    return okId && okLabel && okStart && okEnd && okDate;
+  }
 
   try {
+    // #2 Capture deliverySlot from checkout payload (no schema assumptions)
+    const deliverySlot = req.body?.deliverySlot || req.body?.slot || null;
+
     const {
       orderItems,
       totalAmount,
@@ -348,39 +114,40 @@ exports.createOrder = async (req, res) => {
     }));
 
     // vendor check
-    for (const line of items) {
-      let productId = line.product;
-      if (!productId && line.variant) {
-        const v = await Variant.findById(line.variant).select("product").lean();
-        if (!v?.product)
-          return res
-            .status(400)
-            .json({
-              success: false,
-              message: "Variant not linked to a product",
-            });
-        productId = v.product;
-      }
-      const prod = await Product.findById(productId)
-        .select("seller_id is_global")
-        .lean();
-      if (!prod)
-        return res
-          .status(404)
-          .json({ success: false, message: "Product not found" });
-      if (
-        !prod.is_global &&
-        String(prod.seller_id) !== String(req.assignedVendorId)
-      ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "Cart contains items from a different vendor than today's assignment",
-          });
-      }
-    }
+    // vendor check (guarded by env flags)
+ if (!allowMixedVendors) {
+   for (const line of items) {
+     let productId = line.product;
+     if (!productId && line.variant) {
+       const v = await Variant.findById(line.variant).select("product").lean();
+       if (!v?.product) {
+         return res.status(400).json({
+           success: false,
+           message: "Variant not linked to a product",
+         });
+       }
+       productId = v.product;
+     }
+     const prod = await Product.findById(productId)
+       .select("seller_id is_global")
+       .lean();
+     if (!prod) {
+       return res
+         .status(404)
+         .json({ success: false, message: "Product not found" });
+     }
+     // enforce per-vendor only when product is not global AND we actually want the "today" rule
+     if (!prod.is_global && enforceTodaysVendor) {
+       if (String(prod.seller_id) !== String(req.assignedVendorId)) {
+         return res.status(400).json({
+           success: false,
+           message:
+             "Cart contains items from a different vendor than today's assignment",
+         });
+       }
+     }
+   }
+ }
 
     // save order first (pending)
     const provisionalId =
@@ -436,20 +203,20 @@ console.log("[ORDER] out OK", new Date().toISOString());
 
       await reduceStock(saved);
 
+      const freshCOD = await Order.findById(saved._id);
       return res.status(201).json({
         success: true,
         message: "COD order placed successfully",
-        order: saved,
+        order: freshCOD || saved,
       });
     }
 
-    return res
-      .status(201)
-      .json({
-        success: true,
-        message: "Order created successfully",
-        order: saved,
-      });
+    const fresh = await Order.findById(saved._id);
+    return res.status(201).json({
+      success: true,
+      message: "Order created successfully",
+      order: fresh || saved,
+    });
   } catch (error) {
     console.error("Error creating order:", error);
     // use the caught variable 'error' (was 'err' previously)
@@ -461,6 +228,7 @@ try {
 } catch (e) {
   console.error("[CRM] order-created failed:", e.message);
 }
+    console.log("[ORDER] ERR", new Date().toISOString(), error?.message);
 
     return res.status(500).json({
       success: false,
@@ -487,7 +255,7 @@ exports.verifyPayment = async (req, res) => {
         .json({ success: false, message: "Order not found" });
 
     const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
-    hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
+    hmac.update(razorpay_order_id  + "|" +  razorpay_payment_id);
     const generated = hmac.digest("hex");
 
     if (generated !== razorpay_signature) {
@@ -523,7 +291,6 @@ require('../events/orderEmitter').emitCreated(order).catch(() => {});
     return res.status(500).json({ success: false, message: error.message });
   }
 };
-
 
 // Get all orders with user and product details
 exports.getAllOrders = async (req, res) => {
@@ -571,35 +338,38 @@ exports.getOrderById = async (req, res) => {
 exports.getOrdersBySellerId = async (req, res) => {
   console.log("getOrdersBySellerId");
   try {
-const { seller_id } = req.params;
-if (!seller_id) {
-  return res
-    .status(400)
-    .json({ success: false, message: "seller_id is required" });
-}
-if (!mongoose.Types.ObjectId.isValid(seller_id)) {
-  return res.status(400).json({ success: false, message: "Invalid seller_id" });
-}
-const vendorId = new mongoose.Types.ObjectId(seller_id);
+    const { seller_id } = req.params;
+    if (!seller_id) {
+      return res
+        .status(400)
+        .json({ success: false, message: "seller_id is required" });
+    }
+    if (!mongoose.Types.ObjectId.isValid(seller_id)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid seller_id" });
+    }
+    const vendorId = new mongoose.Types.ObjectId(seller_id);
 
-// Find all products owned by this vendor
-const productIds = await Product.find({ seller_id: vendorId }).distinct("_id");
+    // Find all products owned by this vendor
+    const productIds = await Product.find({ seller_id: vendorId }).distinct(
+      "_id"
+    );
 
-if (!productIds.length) {
-  return res.json({ success: true, orders: [] });
-}
+    if (!productIds.length) {
+      return res.json({ success: true, orders: [] });
+    }
 
-// Orders that include any of those products
-const orders = await Order.find({
-  "orderItems.product": { $in: productIds },
-})
-  .populate("user_id", "name email phone")
-  .populate("orderItems.product", "name price image seller_id")
-  .populate("orderItems.variant", "name options")
-  .sort({ created_at: -1 });
+    // Orders that include any of those products
+    const orders = await Order.find({
+      "orderItems.product": { $in: productIds },
+    })
+      .populate("user_id", "name email phone")
+      .populate("orderItems.product", "name price image seller_id")
+      .populate("orderItems.variant", "name options")
+      .sort({ created_at: -1 });
 
-return res.json({ success: true, orders });
-
+    return res.json({ success: true, orders });
   } catch (error) {
     res.status(500).json({
       success: false,

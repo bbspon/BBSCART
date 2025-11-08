@@ -917,7 +917,8 @@ exports.getAllProducts = async (req, res) => {
           : null,
     }));
 
-    return res.status(200).json({ products });
+       const decorated = await Promise.all(products.map(decorateProduct));
+  return res.status(200).json({ products: decorated });
   } catch (e) {
     console.error("getAllProducts error", e);
     return res.status(200).json({ products: [] });
@@ -963,8 +964,8 @@ exports.getProductById = async (req, res) => {
       }
     }
 
-    res.status(200).json(product);
-  } catch (err) {
+const decorated = await decorateProduct(product);
+  res.status(200).json(decorated);  } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
@@ -2111,220 +2112,223 @@ exports.importSubcategoriesCSV = async (req, res) => {
 // 3) Import Products from CSV (+ optional images ZIP)
 exports.importProductsCSV = async (req, res) => {
   try {
-    const csvFile = findFile(req, "csv");
-    if (!csvFile) return res.status(400).json({ message: "csv file required" });
+    // ---------- tiny inline helpers (no external files) ----------
+    const toFilename = (input) => {
+      if (!input && input !== 0) return "";
+      try {
+        const s = String(input).trim();
+        if (!s) return "";
+        const slash = Math.max(s.lastIndexOf("/"), s.lastIndexOf("\\"));
+        return slash >= 0 ? s.slice(slash + 1) : s;
+      } catch {
+        return "";
+      }
+    };
 
-    const imagesZip = findFile(req, "images");
+    const splitList = (raw) => {
+      if (!raw) return [];
+      if (Array.isArray(raw))
+        return raw.map((x) => toFilename(x)).filter(Boolean);
+      const s = String(raw).trim();
+      if (!s) return [];
+      return s
+        .split("|")
+        .join(",")
+        .split(",")
+        .map((v) => toFilename(v))
+        .filter(Boolean);
+    };
+
+    // best-effort CSV parser: prefer existing project parser if available
+    const parseCsvFile = async (absPath) => {
+      try {
+        const fs = require("fs");
+        const { parse } = require("csv-parse/sync");
+        const raw = fs.readFileSync(absPath, "utf8");
+        const records = parse(raw, {
+          columns: true,
+          skip_empty_lines: true,
+          relax_quotes: true,
+          bom: true,
+          trim: true,
+        });
+        return records;
+      } catch {
+        const fs = require("fs");
+        const raw = fs.readFileSync(absPath, "utf8");
+        const lines = raw.split(/\r?\n/).filter(Boolean);
+        if (!lines.length) return [];
+        const headers = lines[0].split(",").map((h) => h.trim());
+        const rows = [];
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(",");
+          const obj = {};
+          headers.forEach((h, idx) => (obj[h] = (cols[idx] || "").trim()));
+          rows.push(obj);
+        }
+        return rows;
+      }
+    };
+
+    // ---------- get CSV and optional images ZIP from request ----------
+    // Route uses uploadImport.single("file") → file is in req.file (not req.files)
+    // backend/routes/productRoutes.js → uploadImport.single("file") for /import-csv. :contentReference[oaicite:2]{index=2}
+    const csvFileExisting =
+      typeof findFile === "function" ? findFile(req, "csv") : null;
+    const csvFileAlt =
+      (req.files && (req.files.csv || req.files.file || req.files["csv"])) ||
+      null;
+    const csvSingle = req.file || null; // <— NEW: accept single-file multer
+    const csvFileObj = csvFileExisting || csvFileAlt || csvSingle;
+
+    if (!csvFileObj) {
+      return res.status(400).json({ ok: false, message: "csv file required" });
+    }
+
+    const imagesZipFile =
+      (req.files && (req.files.images || req.files["images"])) || null;
+
+    // ---------- optional ZIP extraction → build name→relative path map ----------
     const imagesMap = new Map();
-    if (imagesZip) {
-      const zip = new AdmZip(imagesZip.path);
-      const outDir = path.join(process.cwd(), "uploads", "products");
+    if (imagesZipFile && (imagesZipFile.path || imagesZipFile.buffer)) {
+      const AdmZip = require("adm-zip");
+      const path = require("path");
+      const fs = require("fs");
+
+      const zip = new AdmZip(imagesZipFile.path || imagesZipFile.buffer);
+      const now = new Date();
+      const year = String(now.getFullYear());
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+
+      // store under backend/uploads/products/YYYY/MM
+      const outDir = path.join(
+        process.cwd(),
+        "backend",
+        "uploads",
+        "products",
+        year,
+        month
+      );
       fs.mkdirSync(outDir, { recursive: true });
-      zip.getEntries().forEach((e) => {
-        if (e.isDirectory) return;
-        const name = e.entryName.split("/").pop();
-        const dest = path.join(outDir, name);
-        fs.writeFileSync(dest, e.getData());
-        imagesMap.set(name.toLowerCase(), `/uploads/products/${name}`);
+
+      zip.getEntries().forEach((entry) => {
+        if (entry.isDirectory) return;
+        const base = toFilename(entry.entryName);
+        const stamped =
+          `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${base}`.replace(
+            /\s+/g,
+            "-"
+          );
+        const target = path.join(outDir, stamped);
+        fs.writeFileSync(target, entry.getData());
+        // keep a relative path (from uploads root) so Express static can serve it
+        // final URL becomes /uploads-bbscart/<relative> on the UI
+        const rel = ["products", year, month, stamped].join("/");
+        imagesMap.set(base.toLowerCase(), rel);
       });
     }
 
-    const rows = parseCsvSync(fs.readFileSync(csvFile.path), {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true,
-    });
-
-    console.log(`[importProductsCSV] rows=${rows.length}`);
-
-    let upserts = 0;
-    const errors = [];
-
-    for (let idx = 0; idx < rows.length; idx++) {
-      const r = rows[idx];
-      try {
-        // Resolve category + subcategory (id/name/slug; case-insensitive)
-        const categoryId = getVal(r, "categoryId", "CategoryId", "category_id");
-        const categoryName = getVal(
-          r,
-          "categoryName",
-          "CategoryName",
-          "category"
-        );
-        const categorySlug = getVal(
-          r,
-          "categorySlug",
-          "CategorySlug",
-          "category_slug"
-        );
-
-        const subcategoryId = getVal(
-          r,
-          "subcategoryId",
-          "SubcategoryId",
-          "subCategoryId",
-          "subcategory_id"
-        );
-        const subcategoryName = getVal(
-          r,
-          "subcategoryName",
-          "SubcategoryName",
-          "subCategoryName",
-          "subcategory"
-        );
-        const subcategorySlug = getVal(
-          r,
-          "subcategorySlug",
-          "SubcategorySlug",
-          "subCategorySlug"
-        );
-
-        const cat = await ensureCategory({
-          categoryId,
-          categoryName,
-          slug: categorySlug,
-        });
-        const sub = await ensureSubcategory({
-          subcategoryId,
-          subcategoryName,
-          category_id: cat._id,
-          slug: subcategorySlug,
-        });
-
-        // Images mapping
-        let product_img = getVal(r, "product_img", "productImage", "image");
-        const imageFile = getVal(r, "imageFile", "ImageFile", "mainImageFile");
-        if (
-          !product_img &&
-          imageFile &&
-          imagesMap.has(imageFile.toLowerCase())
-        ) {
-          product_img = imagesMap.get(imageFile.toLowerCase());
-        }
-        const gallery = [];
-        const galleryRaw = getVal(
-          r,
-          "gallery_imgs",
-          "gallery",
-          "galleryImages"
-        );
-        const galleryFiles = galleryRaw
-          .split(/[;,|]/)
-          .map((s) => s.trim())
-          .filter(Boolean);
-        for (const gf of galleryFiles) {
-          if (imagesMap.has(gf.toLowerCase()))
-            gallery.push(imagesMap.get(gf.toLowerCase()));
-          else if (/^https?:\/\//i.test(gf) || gf.startsWith("/uploads/"))
-            gallery.push(gf);
-        }
-
-        const price = asNum(getVal(r, "price", "Price"));
-        const mrp = asNum(getVal(r, "mrp", "MRP"));
-        const sale = asNum(getVal(r, "sale", "SalePrice"));
-        const _rawSku = getVal(r, "SKU", "sku", "eanNumber");
-        const _normSku = _rawSku && String(_rawSku).trim();
-        const doc = {
-          name: getVal(r, "name", "Name", "productName"),
-          SKU: getVal(
-            r,
-            "SKU",
-            "sku",
-            "eanNumber",
-            _normSku ? { SKU: _normSku } : {}
-          ),
-          brand: getVal(r, "brand", "Brand"),
-          description: getVal(r, "description", "Description"),
-          price: price ?? undefined,
-          priceInfo: {
-            mrp: mrp ?? undefined,
-            sale: sale ?? undefined,
-            exchangeOffer: getVal(r, "exchangeOffer"),
-            gstInvoice: asBool(getVal(r, "gstInvoice")),
-            deliveryIn1Day: asBool(getVal(r, "deliveryIn1Day")),
-            assured: asBool(getVal(r, "assured")),
-            bestseller: asBool(getVal(r, "bestseller")),
-          },
-          stock: asNum(getVal(r, "stock", "Stock")),
-          weight: asNum(getVal(r, "weight", "Weight")),
-          dimensions: {
-            length: asNum(getVal(r, "length", "Length")),
-            width: asNum(getVal(r, "width", "Width")),
-            height: asNum(getVal(r, "height", "Height")),
-          },
-          tags: getVal(r, "tags", "Tags")
-            .split(/[;,|]/)
-            .map((s) => s.trim())
-            .filter(Boolean),
-          product_img,
-          gallery_imgs: gallery,
-          category_id: cat._id,
-          subcategory_id: sub._id,
-          is_variant: asBool(getVal(r, "is_variant", "isVariant")),
-          is_review: asBool(getVal(r, "is_review", "isReview")),
-          seller_id: getVal(r, "seller_id", "sellerId") || undefined,
-          rating_avg: asNum(getVal(r, "rating_avg")),
-          rating_count: asNum(getVal(r, "rating_count")),
-          groceries: {
-            usedFor: getVal(r, "usedFor", "suitableFor"),
-            processingType: getVal(r, "processingType", "type"),
-            fssaiNumber: getVal(r, "fssaiNumber"),
-            maxShelfLifeDays: asNum(
-              getVal(r, "maxShelfLifeDays", "maxShelfLife")
-            ),
-            foodPreference: getVal(r, "foodPreference"),
-            containerType: getVal(r, "containerType"),
-            organic: asBool(getVal(r, "organic")),
-            addedPreservatives: asBool(getVal(r, "addedPreservatives")),
-            ingredients: getVal(r, "ingredients", "baseIngredient"),
-            nutrientContent: getVal(r, "nutrientContent"),
-            netQuantity: parseNetQty(
-              getVal(r, "netQuantityRaw"),
-              getVal(r, "netQuantityValue"),
-              getVal(r, "netQuantityUnit")
-            ),
-            packOf: asNum(getVal(r, "packOf")),
-            additives: getVal(r, "additives"),
-            usageInstructions: getVal(r, "usageInstructions"),
-          },
-        };
-
-        // Upsert key: prefer product id, else SKU, else (name+cat+sub)
-        const prodIdRaw = getVal(r, "id", "_id");
-        const prodOid = mongoose.Types.ObjectId.isValid(prodIdRaw)
-          ? new mongoose.Types.ObjectId(prodIdRaw)
-          : null;
-
-        const filter = prodOid
-          ? { _id: prodOid }
-          : doc.SKU
-            ? { SKU: doc.SKU }
-            : { name: doc.name, category_id: cat._id, subcategory_id: sub._id };
-
-        await Product.updateOne(
-          filter,
-          { $setOnInsert: prodOid ? { _id: prodOid } : {}, $set: doc },
-          { upsert: true, strict: false, setDefaultsOnInsert: true } // NEW strict:false
-        );
-
-        upserts++;
-      } catch (rowErr) {
-        console.error(
-          `[importProductsCSV] row ${idx + 1} error:`,
-          rowErr.message
-        );
-        errors.push({ row: idx + 1, message: rowErr.message });
-        // continue to next row
-      }
+    // ---------- parse CSV ----------
+    const csvPath = csvFileObj.path || null;
+    const rows = csvPath ? await parseCsvFile(csvPath) : [];
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return res.json({
+        ok: true,
+        created: 0,
+        updated: 0,
+        note: "CSV parsed but no rows",
+      });
     }
 
-    const payload = { ok: errors.length === 0, upserts, errors };
-    return res.status(errors.length ? 207 : 200).json(payload);
-  } catch (e) {
-    console.error("importProductsCSV fatal:", e);
-    return res.status(500).json({ message: e.message });
+    // ---------- upsert products (filenames-only in DB) ----------
+    let created = 0,
+      updated = 0;
+    const nowMs = Date.now();
+
+    for (const r of rows) {
+      // adapt these to your CSV column names if needed
+      const sku = String(r.sku || r.SKU || r.Sku || "").trim();
+      if (!sku) continue;
+
+      // Primary image fields
+      let f1 = toFilename(r.product_img || r.image || r.Image || "");
+      let f2 = toFilename(r.product_img2 || r.image2 || r.Image2 || "");
+
+      // Collect gallery from simple fields
+      const rawGallery =
+        r.gallery_imgs || r.gallery || r.images || r.Gallery || r.Images || [];
+      let galleryList = splitList(rawGallery);
+
+      // NEW: also collect any indexed columns like gallery_imgs[0], gallery_imgs[1], ...
+      const indexed = Object.keys(r)
+        .filter((k) => /^gallery_imgs\[\d+\]$/i.test(k))
+        .map((k) => toFilename(r[k]))
+        .filter(Boolean);
+
+      // Merge and uniq while preserving order
+      const seen = new Set();
+      galleryList = [...galleryList, ...indexed].filter((x) => {
+        const key = x.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      // ZIP remap: if images were provided via ZIP, map same-named files to extracted relative paths
+      const resolveViaZip = (fn) => {
+        if (!fn) return "";
+        const key = fn.toLowerCase();
+        return imagesMap.get(key) || fn;
+      };
+
+      let product_img = resolveViaZip(f1);
+      let product_img2 = resolveViaZip(f2);
+      let gallery_resolved = galleryList.map(resolveViaZip).filter(Boolean);
+
+      // NEW fallbacks: seed product_img and product_img2 from gallery if missing
+      if (!product_img && gallery_resolved.length >= 1)
+        product_img = gallery_resolved[0];
+      if (!product_img2 && gallery_resolved.length >= 2)
+        product_img2 = gallery_resolved[1];
+
+      // final gallery: if still empty but product_img exists, seed it
+      const gallery_final = gallery_resolved.length
+        ? gallery_resolved
+        : product_img
+          ? [product_img]
+          : [];
+
+      // build update doc (filenames only in DB)
+      const updateDoc = {
+        name: r.name || r.title || r.product_name || sku,
+        sku,
+        product_img,
+        product_img2,
+        gallery_imgs: gallery_final,
+        // keep your other mappings here if needed (category, price, vendorId, etc.)
+      };
+
+      const doc = await Product.findOneAndUpdate(
+        { sku },
+        { $set: updateDoc },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+
+      const createdLikely =
+        doc &&
+        doc.createdAt &&
+        nowMs - new Date(doc.createdAt).getTime() < 5000;
+      if (createdLikely) created++;
+      else updated++;
+    }
+
+    return res.json({ ok: true, created, updated });
+  } catch (err) {
+    console.error("importProductsCSV error:", err);
+    return res.status(500).json({ ok: false, message: "Server error" });
   }
 };
+
 exports.listProducts = async (req, res) => {
   try {
     if (req.noVendorForPincode) {
@@ -2915,148 +2919,253 @@ exports.downloadProductRow = async (req, res) => {
 // ---------- CSV IMPORT (no images; idempotent upsert) ----------
 exports.importProductsCSV = async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    const fs = require("fs");
+    const path = require("path");
+    const AdmZip = require("adm-zip");
+    const { parse } = require("csv-parse/sync");
+    const mongoose = require("mongoose");
+    const Product = require("../models/Product");
+    let Media = null;
+    try {
+      Media = require("../models/Media");
+    } catch (_) {}
 
-    const csvText = fs.readFileSync(req.file.path, "utf8");
-    const rows = parseCsvSync(csvText, {
-      columns: true,
-      skip_empty_lines: true,
-    });
+    // ---------- helpers ----------
+    const toFilename = (v) => {
+      if (v === undefined || v === null) return "";
+      const s = String(v).trim();
+      if (!s) return "";
+      const i = Math.max(s.lastIndexOf("/"), s.lastIndexOf("\\"));
+      return i >= 0 ? s.slice(i + 1) : s;
+    };
 
-    let created = 0,
-      updated = 0,
-      skipped = 0;
-    const upserted = [],
-      errors = [];
+    const splitList = (raw) => {
+      if (!raw) return [];
+      const s = String(raw).trim();
+      if (!s) return [];
+      const delim = s.includes("|") ? "|" : ",";
+      return s
+        .split(delim)
+        .map((x) => toFilename(x))
+        .filter(Boolean);
+    };
 
-    for (const raw of rows) {
-      // tolerant getters (aliases + BOM-safe)
-      const name = getVal(raw, "name", "productname");
-      const description = getVal(raw, "description");
-      const sku = getVal(raw, "sku", "SKU");
-      const brand = getVal(raw, "brand");
-      const price = asNum(getVal(raw, "price"));
-      const stock = asNum(getVal(raw, "stock"));
-      const isVariant = asBool(getVal(raw, "isVariant", "is_variant"));
-      const isReview = asBool(getVal(raw, "isReview", "is_review"));
-      const productId = getVal(raw, "productId");
-      const mongoId = getVal(raw, "mongoId", "_id");
-      const productImage = getVal(raw, "productImage");
-      const productGallery = getVal(raw, "productGallery", "galleryImages");
-      const weight = getVal(raw, "weight");
-      const dimLength = asNum(getVal(raw, "dimLength"));
-      const dimWidth = asNum(getVal(raw, "dimWidth"));
-      const dimHeight = asNum(getVal(raw, "dimHeight"));
-      const sellerIdRaw = getVal(raw, "sellerId");
+    const cleanKey = (k) =>
+      String(k || "")
+        .toLowerCase()
+        .replace(/\s+/g, "")
+        .replace(/[_-]+/g, "")
+        .trim();
 
-      const tagsRaw = getVal(raw, "tags");
-      let tags = [];
-      if (tagsRaw) {
-        try {
-          tags = tagsRaw.includes("|")
-            ? tagsRaw
-                .split("|")
-                .map((s) => s.trim())
-                .filter(Boolean)
-            : JSON.parse(tagsRaw);
-        } catch {
-          tags = [tagsRaw];
+    const getVal = (row, ...aliases) => {
+      const map = new Map(Object.keys(row).map((k) => [cleanKey(k), k]));
+      for (const a of aliases) {
+        const hit = map.get(cleanKey(a));
+        if (hit && row[hit] != null && String(row[hit]).trim() !== "") {
+          return row[hit];
         }
       }
+      return "";
+    };
 
-      // resolve category/subcategory
-      const category = await resolveCategoryForRow(raw);
-      if (!category) {
-        skipped++;
-        errors.push({ row: raw, reason: "Category not found" });
-        continue;
-      }
-      const subcat = await resolveSubcategoryForRow(raw, category);
-      if (!subcat) {
-        skipped++;
-        errors.push({ row: raw, reason: "Subcategory not found" });
-        continue;
-      }
+    // ---------- detect CSV ----------
+    const csvFile =
+      req.file || (req.files && (req.files.csv || req.files.file)) || null;
+    const csvPath =
+      csvFile && (csvFile.path || (Array.isArray(csvFile) && csvFile[0]?.path));
+    if (!csvPath)
+      return res.status(400).json({ ok: false, message: "CSV file required" });
 
-      // seller
-      const sellerId =
-        (sellerIdRaw &&
-          mongoose.Types.ObjectId.isValid(sellerIdRaw) &&
-          sellerIdRaw) ||
-        (req.user?.userId &&
-          mongoose.Types.ObjectId.isValid(req.user.userId) &&
-          req.user.userId) ||
-        null;
-      if (!sellerId) {
-        skipped++;
-        errors.push({ row: raw, reason: "Missing sellerId" });
-        continue;
-      }
+    // ---------- optional ZIP for images ----------
+    const imagesZip =
+      (req.files && (req.files.images || req.files["images"])) || null;
+    const imagesZipPath =
+      imagesZip &&
+      (imagesZip.path || (Array.isArray(imagesZip) && imagesZip[0]?.path));
+    const imagesMap = new Map();
 
-      // build doc
-      const doc = {
-        name,
-        description,
-        SKU: sku,
-        brand,
-        price,
-        stock,
-        product_img: productImage || "",
-        gallery_imgs: productGallery
-          ? productGallery
-              .split("|")
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : [],
-        dimensions: {
-          length: dimLength ?? undefined,
-          width: dimWidth ?? undefined,
-          height: dimHeight ?? undefined,
-        },
-        tags,
-        category_id: category._id,
-        subcategory_id: subcat._id,
-        is_variant: Boolean(isVariant),
-        is_review: Boolean(isReview),
-        seller_id: sellerId,
-      };
+    if (imagesZipPath) {
+      const now = new Date();
+      const Y = String(now.getFullYear());
+      const M = String(now.getMonth() + 1).padStart(2, "0");
+      const outDir = path.join(
+        process.cwd(),
+        "backend",
+        "uploads",
+        "products",
+        Y,
+        M
+      );
+      fs.mkdirSync(outDir, { recursive: true });
 
-      // match: productId -> SKU+seller -> _id
-      let query = null;
-      if (productId) query = { productId };
-      if (!query && sku && sellerId) query = { SKU: sku, seller_id: sellerId };
-      if (!query && mongoId && mongoose.Types.ObjectId.isValid(mongoId))
-        query = { _id: mongoId };
+      const zip = new AdmZip(imagesZipPath);
+      const mediaOps = [];
 
-      const existing = query ? await Product.findOne(query) : null;
+      zip.getEntries().forEach((entry) => {
+        if (entry.isDirectory) return;
+        const base = toFilename(entry.entryName);
+        if (!base) return;
 
-      if (existing) {
-        Object.assign(existing, doc);
-        await existing.save();
-        updated++;
-        upserted.push(String(existing._id));
-      } else {
-        const payload = { ...doc };
-        if (mongoId && mongoose.Types.ObjectId.isValid(mongoId))
-          payload._id = new mongoose.Types.ObjectId(mongoId);
-        const createdDoc = await Product.create(payload);
-        created++;
-        upserted.push(String(createdDoc._id));
-      }
+        const stamped =
+          `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${base}`.replace(
+            /\s+/g,
+            "-"
+          );
+        const target = path.join(outDir, stamped);
+        fs.writeFileSync(target, entry.getData());
+        imagesMap.set(base.toLowerCase(), stamped);
+
+        if (Media) {
+          const ext = path.extname(stamped).toLowerCase();
+          const mime =
+            ext === ".webm"
+              ? "video/webm"
+              : ext === ".png"
+                ? "image/png"
+                : ext === ".jpg" || ext === ".jpeg"
+                  ? "image/jpeg"
+                  : ext === ".webp"
+                    ? "image/webp"
+                    : "application/octet-stream";
+
+          mediaOps.push({
+            updateOne: {
+              filter: { filename: stamped },
+              update: {
+                $set: {
+                  filename: stamped,
+                  url: `/uploads/products/${Y}/${M}/${stamped}`,
+                  size: entry.header?.size || 0,
+                  mime,
+                  uploadedBy: req.user?._id || null,
+                  updatedAt: new Date(),
+                },
+                $setOnInsert: { createdAt: new Date() },
+              },
+              upsert: true,
+            },
+          });
+        }
+      });
+      if (Media && mediaOps.length)
+        await Media.bulkWrite(mediaOps, { ordered: false });
     }
 
-    fs.unlink(req.file.path, () => {});
+    // ---------- parse CSV ----------
+    const raw = fs.readFileSync(csvPath, "utf8");
+    const rows = parse(raw, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+      bom: true,
+    });
+
+    if (!rows.length)
+      return res.json({
+        ok: true,
+        created: 0,
+        updated: 0,
+        note: "CSV parsed but no rows",
+      });
+
+    const remap = (fn) => {
+      if (!fn) return "";
+      const hit = imagesMap.get(String(fn).toLowerCase());
+      return hit || fn;
+    };
+
+    let created = 0,
+      updated = 0;
+    const nowMs = Date.now();
+
+    // ---------- import loop ----------
+    for (const r of rows) {
+      const SKU = String(getVal(r, "SKU", "sku", "Sku") || "").trim();
+      if (!SKU) continue;
+
+      const mainImgRaw = getVal(
+        r,
+        "product_img",
+        "productimage",
+        "imagefile",
+        "mainimage"
+      );
+      const product_img2Raw = getVal(r, "product_img2", "secondaryimage");
+      const galleryRaw = getVal(
+        r,
+        "gallery_imgs",
+        "productgallery",
+        "galleryimages"
+      );
+
+      const product_img = remap(toFilename(mainImgRaw));
+      const product_img2 = remap(toFilename(product_img2Raw));
+      const gallery_imgs = splitList(galleryRaw).map(remap).filter(Boolean);
+
+      const updateDoc = {
+        name: getVal(r, "name", "title", "product_name") || SKU,
+        description: getVal(r, "description"),
+        SKU,
+        brand: getVal(r, "brand"),
+        price: Number(getVal(r, "price")) || 0,
+        stock: Number(getVal(r, "stock")) || 0,
+        weight: getVal(r, "weight") || "",
+        is_variant: getVal(r, "is_variant", "isVariant") === "true",
+        is_review: getVal(r, "is_review", "isReview") === "true",
+        product_img,
+        product_img2,
+        gallery_imgs,
+        tags: (() => {
+          const t = getVal(r, "tags");
+          if (!t) return [];
+          return t.includes("|")
+            ? t
+                .split("|")
+                .map((x) => x.trim())
+                .filter(Boolean)
+            : [t];
+        })(),
+        dimensions: {
+          length: getVal(r, "dimLength", "length") || "",
+          width: getVal(r, "dimWidth", "width") || "",
+          height: getVal(r, "dimHeight", "height") || "",
+        },
+        category_id: getVal(r, "category_id", "categoryMongoId") || null,
+        subcategory_id:
+          getVal(r, "subcategory_id", "subcategoryMongoId") || null,
+        seller_id: (() => {
+          const sid = getVal(r, "seller_id", "sellerId");
+          if (mongoose.Types.ObjectId.isValid(sid)) return sid;
+          if (req.user?._id && mongoose.Types.ObjectId.isValid(req.user._id))
+            return req.user._id;
+          return null;
+        })(),
+      };
+
+      const doc = await Product.findOneAndUpdate(
+        { SKU },
+        { $set: updateDoc },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+
+      const isCreated =
+        doc &&
+        doc.createdAt &&
+        nowMs - new Date(doc.createdAt).getTime() < 5000;
+      if (isCreated) created++;
+      else updated++;
+    }
+
     return res.json({
       ok: true,
       created,
       updated,
-      skipped,
-      count: created + updated,
-      upserted,
-      errors,
+      note: "Import completed successfully",
     });
-  } catch (e) {
-    console.error("importProductsCSV error", e);
-    return res.status(500).json({ message: e.message || "Import failed" });
+  } catch (err) {
+    console.error("importProductsCSV error:", err);
+    return res
+      .status(500)
+      .json({ ok: false, message: err.message || "Server error" });
   }
 };

@@ -1,14 +1,15 @@
 // backend/routes/productRoutes.js
 const express = require("express");
 const router = express.Router();
+const fs = require("fs");
+const path = require("path");
+const multer = require("multer");
 const { uploadFields } = require("../middleware/upload");
 const {
   deriveAssignedVendor,
   requireAdmin,
 } = require("../middleware/vendorContext");
 const { uploadImport } = require("../middleware/upload");
-const multer = require("multer");
-const path = require("path");
 // Safe import helpers
 const safe = (fn) =>
   typeof fn === "function"
@@ -90,14 +91,31 @@ router.get(
   deriveAssignedVendor,
   safe(productController.exportProductsCSV)
 );
+// --- BEGIN: Absolute tmp + CSV+ZIP upload for /import-all ---
+const tmpDir = path.join(process.cwd(), "backend", "tmp");
+fs.mkdirSync(tmpDir, { recursive: true });
+
+const disk = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, tmpDir),
+  filename: (_req, file, cb) => {
+    const safe = file.originalname.replace(/\s+/g, "-");
+    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safe}`);
+  },
+});
+const uploadCsvZip = multer({
+  storage: disk,
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
+});
+
+// CSV (file) + optional images ZIP (images)
 router.post(
   "/import-all",
   authUser,
   deriveAssignedVendor,
-  uploadCsv.single("file"),
-
+  uploadCsvZip.fields([{ name: "file", maxCount: 1 }, { name: "images", maxCount: 1 }]),
   safe(productController.importAllCSV)
-); // one-row download by Mongo _id or SKU
+);
+// --- END: Absolute tmp + CSV+ZIP upload for /import-all ---
 router.get(
   "/download-row/:idOrSku",
   authUser,

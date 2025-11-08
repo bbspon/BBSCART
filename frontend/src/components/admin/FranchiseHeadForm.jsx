@@ -4,7 +4,9 @@ import { Form, Button, Spinner, Row, Col } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import Select from "react-select";
 import { toast } from "react-hot-toast";
-
+import { IoIosArrowRoundBack } from "react-icons/io";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 // Options
 const constitutionOptions = [
   { value: "proprietorship", label: "Proprietorship" },
@@ -16,9 +18,34 @@ const constitutionOptions = [
   { value: "society", label: "Society" },
 ];
 
-export default function FranchiseHeadForm() {
-  const navigate = useNavigate();
+export default function FranchiseHeadForm({ value, onChange }) {
+  // value is optional Date object from parent; onChange(date) callback optional
+  const [pickerMode, setPickerMode] = useState("idle"); // "idle" | "year" | "month" | "date"
 
+  // Called when user selects something in the picker
+  const handleChange = (date) => {
+    // If we were in year picker, selecting a year should move to month mode
+    if (pickerMode === "year") {
+      setDobValue(date); // store selected year (date object)
+      setPickerMode("month"); // re-render DatePicker in month picker mode
+      return;
+    }
+
+    // If we were in month picker, selecting a month should move to date mode
+    if (pickerMode === "month") {
+      setDobValue(date); // store selected month/year
+      setPickerMode("date"); // re-render DatePicker in date mode
+      return;
+    }
+
+    // If we're in date mode (or idle), finalize selection
+    setDobValue(date);
+    setPickerMode("idle"); // close/idle next open will start year again
+    if (typeof onChange === "function") onChange(date);
+  };
+
+  const navigate = useNavigate();
+  const [openTo, setOpenTo] = useState("year");
   const [step, setStep] = useState(1);
   const [franchiseeId, setFranchiseeId] = useState(
     () => localStorage.getItem("franchiseeId") || ""
@@ -29,7 +56,7 @@ export default function FranchiseHeadForm() {
   const [loadingAFront, setLoadingAFront] = useState(false);
   const [loadingABack, setLoadingABack] = useState(false);
   const [loadingGST, setLoadingGST] = useState(false);
-
+  const [dobValue, setDobValue] = useState(null);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -448,6 +475,9 @@ export default function FranchiseHeadForm() {
             borderColor: "#008080", // teal border
           }}
         >
+          <a href="/" className="flex items-center gap-1 ">
+            <IoIosArrowRoundBack size={24} />
+          </a>
           <h5 className="mb-5 text-lg text-center ">
             Step 1: PAN Card Details
           </h5>
@@ -484,20 +514,35 @@ export default function FranchiseHeadForm() {
           </Row>
 
           <Row>
-            <Col md={6} className="mb-3">
-              <Form.Label>DOB (DD/MM/YYYY)</Form.Label>
-              <Form.Control
-                value={formData.dob}
-                onChange={(e) =>
-                  setFormData((p) => ({ ...p, dob: e.target.value }))
-                }
-                className="border border-dark rounded-lg my-3"
-                style={{
-                  border: "0.1px solid #333", // solid black border
-                  boxShadow: "none",
-                }}
+            <Col md={6} className="mb-3 flex flex-col">
+              <Form.Label>Date of Birth</Form.Label>
+
+              {/*
+        key={pickerMode} forces DatePicker to remount whenever pickerMode changes,
+        which allows switching between showYearPicker/showMonthYearPicker/regular.
+      */}
+              <DatePicker
+                // IMPORTANT: key forces a remount so showYearPicker/showMonthYearPicker take effect
+                key={pickerMode}
+                selected={dobValue}
+                onChange={handleChange}
+                // When input is clicked, start the flow at YEAR view
+                onInputClick={() => setPickerMode("year")}
+                dateFormat="dd/MM/yyyy"
+                placeholderText="Select Date of Birth"
+                className="form-control border border-dark rounded-lg my-3 p-2"
+                // picker mode mapping:
+                showYearPicker={pickerMode === "year"}
+                showMonthYearPicker={pickerMode === "month"}
+                // normal day picker when pickerMode === "date" or "idle"
+                minDate={new Date(1950, 0, 1)}
+                maxDate={new Date()}
+                // optional: ensure calendar opens above input if near bottom
+                popperPlacement="auto"
+                showPopperArrow={false}
               />
             </Col>
+
             <Col md={6} className="mb-3">
               <Form.Label>PAN Number</Form.Label>
               <Form.Control
@@ -555,6 +600,14 @@ export default function FranchiseHeadForm() {
             borderColor: "#008080", // teal border
           }}
         >
+          <button
+            onClick={() => setStep(1)}
+            className="flex items-center gap-1 text-teal-700 hover:text-teal-900"
+            style={{ background: "none", border: "none", cursor: "pointer" }}
+          >
+            <IoIosArrowRoundBack size={24} />
+          </button>
+
           <h5
             className="fw-bold mb-4 text-uppercase mt-5 text-center"
             style={{ color: "#008080", fontSize: "2rem", letterSpacing: "1px" }}
@@ -748,7 +801,15 @@ export default function FranchiseHeadForm() {
             borderColor: "#008080", // teal border
           }}
         >
-          <h5 className="text- mb-3 ">Step 3: GST Details</h5>
+          <button
+            onClick={() => setStep(2)}
+            className="flex items-center gap-1 text-teal-700 hover:text-teal-900"
+            style={{ background: "none", border: "none", cursor: "pointer" }}
+          >
+            <IoIosArrowRoundBack size={24} />
+          </button>
+
+          <h5 className="text-center mb-3 ">Step 3: GST Details</h5>
 
           <div className="mb-3">
             <label>GST Number</label>
@@ -886,6 +947,18 @@ export default function FranchiseHeadForm() {
                 boxShadow: "none",
               }}
             />
+            <label>State</label>
+            <input
+              value={formData.gst_district}
+              onChange={(e) =>
+                setFormData((p) => ({ ...p, gst_district: e.target.value }))
+              }
+              className="border border-dark rounded-lg my-3"
+              style={{
+                border: "0.1px solid #333", // solid black border
+                boxShadow: "none",
+              }}
+            />
           </div>
 
           <div className="flex justify-end">
@@ -909,7 +982,15 @@ export default function FranchiseHeadForm() {
             borderColor: "#008080", // teal border
           }}
         >
-          <h5 className="mb-3 text-xl">Step 4: Bank Details</h5>
+          <button
+            onClick={() => setStep(3)}
+            className="flex items-center gap-1 text-teal-700 hover:text-teal-900"
+            style={{ background: "none", border: "none", cursor: "pointer" }}
+          >
+            <IoIosArrowRoundBack size={24} />
+          </button>
+
+          <h5 className="mb-3 text-xl text-center">Step 4: Bank Details</h5>
           <Row>
             <Col md={6} className="mb-3">
               <Form.Label>Account Holder Name</Form.Label>
@@ -1045,7 +1126,15 @@ export default function FranchiseHeadForm() {
             borderColor: "#008080", // teal border
           }}
         >
-          <h5 className="mb-3 text-xl">Step 5: Outlet Details</h5>
+          <button
+            onClick={() => setStep(4)}
+            className="flex items-center gap-1 text-teal-700 hover:text-teal-900"
+            style={{ background: "none", border: "none", cursor: "pointer" }}
+          >
+            <IoIosArrowRoundBack size={24} />
+          </button>
+
+          <h5 className="mb-3 text-xl text-center">Step 5: Outlet Details</h5>
 
           <Row className="mb-3">
             <Col md={6}>

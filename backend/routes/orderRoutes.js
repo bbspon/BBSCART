@@ -15,7 +15,8 @@ router.post(
 );
 router.post("/verify-payment/", authUser, orderController.verifyPayment);
 router.get("/seller/:seller_id", orderController.getOrdersBySellerId);
-router.get("/user/:user_id", authUser, orderController.getOrdersBySellerId);
+// router.get("/user/:user_id", authUser, orderController.getOrdersBySellerId);
+router.get("/user/:user_id", authUser, orderController.getOrdersByUserId);
 router.get("/status/:status", authUser, orderController.getOrdersByStatus);
 router.get("/", authUser, orderController.getAllOrders);
 router.get("/:id", authUser, orderController.getOrderById);

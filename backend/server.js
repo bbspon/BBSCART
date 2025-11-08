@@ -37,7 +37,10 @@ const adminVendorRoutes = require("./routes/adminVendorRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const testimonialRoutes = require("./routes/testimonialRoutes");
 const posSsoRoutes = require("./routes/posSso");
-
+const deliveryWebhookRoutes = require("./routes/deliveryWebhookRoutes");
+const returnRoutes = require("./routes/returnRoutes");
+const webhookRoutes = require("./routes/webhookRoutes");
+const mediaRoutes = require("./routes/mediaRoutes");
 const app = express();
 
 // ===== DEV-FIRST CORS (simple & safe) =====
@@ -170,6 +173,82 @@ app.use(async (req, res, next) => {
   return assignVendorMiddleware(req, res, next);
 });
 // ---- END: Scoped vendor+pincode enforcement ----
+console.log("[ENV] DELIVERY_BASE_URL:", process.env.DELIVERY_BASE_URL);
+console.log(
+  "[ENV] DELIVERY_INGEST_TOKEN:",
+  process.env.DELIVERY_INGEST_TOKEN ? "set" : "missing"
+);
+
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow non-browser requests (no Origin) and known origins
+
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
+
+    credentials: true,
+
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+
+    allowedHeaders: [
+      "Content-Type",
+
+      "Authorization",
+
+      "X-Pincode",
+
+      "X-Guest-Key",
+      "X-Delivery-Pincode",
+    ],
+  })
+);
+
+// Handle preflight for all routes
+
+app.options(
+  "*",
+
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin))
+        return callback(null, true);
+
+      return callback(new Error("Not allowed by CORS"));
+    },
+
+    credentials: true,
+
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Pincode",
+      "X-Guest-Key",
+      "X-Delivery-Pincode",
+    ],
+  })
+);
+
+// (Optional) log incoming Origin for debugging
+
+app.use((req, res, next) => {
+  console.log("Request Origin:", req.headers.origin || "N/A");
+
+  next();
+});
+
+// (Optional) log incoming Origin for debugging
+app.use((req, res, next) => {
+  console.log("Request Origin:", req.headers.origin || "N/A");
+  next();
+});
 
 mongoose
 //   .connect(process.env.MONGO_URI, {
@@ -236,6 +315,10 @@ app.use("/api/admin/pincode-vendors", adminPincodeVendorsRoutes);
 app.use("/api/admin/vendors", adminVendorRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/testimonials", testimonialRoutes);
+app.use("/api/delivery/webhooks", deliveryWebhookRoutes);
+app.use("/api", returnRoutes);
+app.use("/api/webhooks", webhookRoutes);
+ app.use("/api/media", mediaRoutes);
 // ✅ Global Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -243,5 +326,5 @@ app.use((err, req, res, next) => {
 });
 
 // ✅ Start Server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

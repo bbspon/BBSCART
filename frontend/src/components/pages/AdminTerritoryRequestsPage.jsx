@@ -30,7 +30,11 @@ export default function AdminTerritoryRequestsPage() {
 
   return (
     <div style={{ padding: 16 }}>
-      <h2>Territory Head’s Request</h2>
+      <div className="bg-slate-300 pt-3 rounded-t-lg  border-b-0">
+        <h2 className="text-2xl font-semibold text-gray-700 flex items-center justify-center gap-2 border-b border-black pb-2">
+          Territory Head’s Request
+        </h2>
+      </div>
       <div
         style={{
           border: "1px solid #eee",
@@ -39,6 +43,28 @@ export default function AdminTerritoryRequestsPage() {
           marginTop: 12,
         }}
       >
+        {" "}
+        <div className="flex flex-row  justify-center items-center gap-3 m-4">
+          <label htmlFor="">Search :</label>
+
+          <input
+            placeholder="Search name / PAN / GST / Aadhaar / City / State"
+            className=" pl-10 pr-3 py-2 border rounded-md placeholder-gray-400 text-sm focus:ring-2 focus:ring-red-200 w-[500px]"
+          />
+          <select value={status}>
+            <option value="all">All</option>
+            <option value="approved">Approved</option>
+            <option value="submitted">Submitted</option>
+            <option value="under_review">Under Review</option>
+            <option value="rejected">Rejected</option>
+            <option value="draft">Draft</option>
+          </select>
+          <select>
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
+        </div>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead style={{ background: "#fafafa" }}>
             <tr>
@@ -78,13 +104,29 @@ export default function AdminTerritoryRequestsPage() {
                       : ""}
                   </td>
                   <td style={{ padding: 10 }}>
-                    <button onClick={() => setReviewId(t._id)}>Review</button>
+                    <button
+                      className=" bg-red-900 rounded-xl p-1 text-white px-5"
+                      onClick={() => setReviewId(t._id)}
+                    >
+                      Review
+                    </button>
                   </td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
+        <div className="flex flex-row justify-between items-center px-3 m-4">
+          <button className="bg-neutral-500 hover:bg-neutral-800 text-white px-3 rounded-xl">
+            Prev
+          </button>
+          <div className="bg-neutral-500 hover:bg-neutral-800 text-white px-3 rounded-xl">
+            Page
+          </div>
+          <button className="bg-neutral-500 hover:bg-neutral-800 text-white px-3 rounded-xl">
+            Next
+          </button>
+        </div>
       </div>
 
       {reviewId && (
