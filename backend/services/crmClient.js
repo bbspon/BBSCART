@@ -30,7 +30,9 @@
 
 // C:\Users\BBS\BBS\BBSCART\2025\BBSCART\backend\services\crmClient.js
 const axios = require('axios');
-const { v4: uuidv4 } = require('uuid');
+import("uuid").then(({ v4: uuidv4 }) => {
+  global.uuidv4 = uuidv4;
+});
 const { baseUrl, token, source } = require('../config/crm');
 
 // simple retry helper
