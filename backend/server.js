@@ -180,34 +180,34 @@ console.log(
 );
 
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      // Allow non-browser requests (no Origin) and known origins
+// app.use(
+//   cors({
+//     origin: function (origin, callback) {
+//       // Allow non-browser requests (no Origin) and known origins
 
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+//       if (!origin || allowedOrigins.includes(origin)) {
+//         return callback(null, true);
+//       }
 
-      return callback(new Error("Not allowed by CORS"));
-    },
+//       return callback(new Error("Not allowed by CORS"));
+//     },
 
-    credentials: true,
+//     credentials: true,
 
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 
-    allowedHeaders: [
-      "Content-Type",
+//     allowedHeaders: [
+//       "Content-Type",
 
-      "Authorization",
+//       "Authorization",
 
-      "X-Pincode",
+//       "X-Pincode",
 
-      "X-Guest-Key",
-      "X-Delivery-Pincode",
-    ],
-  })
-);
+//       "X-Guest-Key",
+//       "X-Delivery-Pincode",
+//     ],
+//   })
+// );
 
 // Handle preflight for all routes
 
@@ -326,5 +326,5 @@ app.use((err, req, res, next) => {
 });
 
 // ✅ Start Server
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
