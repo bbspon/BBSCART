@@ -327,32 +327,74 @@ exports.sendPasswordResetEmail = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-
 exports.resetPassword = async (req, res) => {
-  const { token } = req.params;
-  const { password } = req.body;
-
-  if (password.length < 6) {
-    return res
-      .status(400)
-      .json({ message: "Password must be at least 6 characters long" });
-  }
-
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    const token = req.params?.token || req.body?.token;
+    const { password, confirmPassword } = req.body || {};
 
-    // Hash the new password and update it
+    if (!token) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Token required" });
+    }
+    if (!password) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Password is required" });
+    }
+    if (
+      typeof confirmPassword !== "undefined" &&
+      password !== confirmPassword
+    ) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Passwords do not match" });
+    }
+    if (String(password).length < 6) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Password must be at least 6 characters",
+        });
+    }
+
+    // Decode if token came URL-encoded from the UI
+    const decodedToken = decodeURIComponent(token);
+
+    let payload;
+    try {
+      payload = jwt.verify(decodedToken, process.env.JWT_SECRET);
+    } catch (e) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid or expired token" });
+    }
+
+    const user = await User.findById(payload.id);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(password, salt);
+    user.updatedAt = new Date();
     await user.save();
 
-    res.status(200).json({ message: "Password reset successful" });
-  } catch (error) {
-    res.status(400).json({ message: "Invalid or expired token" });
+    return res
+      .status(200)
+      .json({
+        success: true,
+        message: "Password reset successful. You can now log in.",
+      });
+  } catch (err) {
+    console.error("[resetPassword]", err);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
 
 // Logout user (Blacklist Token)
 exports.logout = async (req, res) => {
