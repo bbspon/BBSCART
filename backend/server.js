@@ -5,16 +5,19 @@ const dotenv = require("dotenv");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
+const { getRedis } = require('./config/redisClient');
+const connectDB = require('./config/db');
 
 // Load environment variables
 dotenv.config();
-mongoose
-  .connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => console.log("✅ Connected toMongoDBcare (Default DB)"))
-  .catch((err) => console.error("❌ Main DB error:", err));
+connectDB();
+// mongoose
+//   .connect(process.env.MONGO_URI, {
+//     useNewUrlParser: true,
+//     useUnifiedTopology: true,
+//   })
+//   .then(() => console.log("✅ Connected toMongoDBcare (Default DB)"))
+//   .catch((err) => console.error("❌ Main DB error:", err));
 
 // ✅ Route imports
 const authRoutes = require("./routes/authRoutes");
@@ -39,18 +42,66 @@ const returnRoutes = require("./routes/returnRoutes");
 const webhookRoutes = require("./routes/webhookRoutes");
 const mediaRoutes = require("./routes/mediaRoutes");
 const app = express();
- // Static /uploads
-// server.js
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-/* =======================
-   ✅ CORS Setup (dev + prod)
-   ======================= */
-const allowedOrigins = [
-  process.env.CLIENT_URL_DEV || "http://localhost:5173",
+// ===== DEV-FIRST CORS (simple & safe) =====
+const DEV = process.env.NODE_ENV !== 'production';
 
-  process.env.CLIENT_URL_PROD || "https://bbscart.com",
-];
+// Always trust proxy in dev
+app.set('trust proxy', 1);
+
+// Single, permissive CORS in dev; strict in prod if you want later
+if (DEV) {
+  app.use((req, res, next) => {
+    const origin = req.headers.origin || '*';
+    // allow React dev (5173) and no-origin (server-to-server)
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers',
+      'Content-Type, Authorization, X-Requested-With, X-Idempotency-Key, X-Source-App, ' +
+      'X-Pincode, X-Guest-Key, X-Delivery-Pincode, Accept, Origin'
+    );
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    next();
+  });
+} else {
+  // (Optional) stricter allowlist in prod:
+//   const allowlist = new Set(['https://bbscart.com','https://admin.bbscart.com','https://vendor.bbscart.com']);
+  
+//   app.use(cors({
+//     origin: (origin, cb) => (!origin || allowlist.has(origin)) ? cb(null, true) : cb(new Error('Not allowed by CORS')),
+//     credentials: true
+//   }));
+//   app.options('*', cors());
+// }
+
+const ALLOWED_ORIGINS = new Set([
+  "http://localhost:5173",       // Vite/React dev
+  "http://127.0.0.1:5173",
+  "http://localhost:3000",       // CRM dev (if any browser hits it)
+  "http://127.0.0.1:3000",
+  "http://localhost:5000",       // same-host calls
+  "http://127.0.0.1:5000",
+  "https://bbscart.com",         // production site
+  "https://www.bbscart.com"
+]);
+
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow non-browser clients (Postman, curl, PowerShell) where origin is undefined
+    if (!origin) return cb(null, true);
+    if (ALLOWED_ORIGINS.has(origin)) return cb(null, true);
+    return cb(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Idempotency-Key"]
+}));
+}
+// Handle preflight fast
+app.options("*", cors());
+// ===== END CORS =====
 
 // ---- BEGIN: Scoped vendor+pincode enforcement (BBSCART Supermarket only) ----
 const assignVendorMiddleware = require("./middleware/assignVendorMiddleware");
@@ -129,34 +180,34 @@ console.log(
 );
 
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      // Allow non-browser requests (no Origin) and known origins
+// app.use(
+//   cors({
+//     origin: function (origin, callback) {
+//       // Allow non-browser requests (no Origin) and known origins
 
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+//       if (!origin || allowedOrigins.includes(origin)) {
+//         return callback(null, true);
+//       }
 
-      return callback(new Error("Not allowed by CORS"));
-    },
+//       return callback(new Error("Not allowed by CORS"));
+//     },
 
-    credentials: true,
+//     credentials: true,
 
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 
-    allowedHeaders: [
-      "Content-Type",
+//     allowedHeaders: [
+//       "Content-Type",
 
-      "Authorization",
+//       "Authorization",
 
-      "X-Pincode",
+//       "X-Pincode",
 
-      "X-Guest-Key",
-      "X-Delivery-Pincode",
-    ],
-  })
-);
+//       "X-Guest-Key",
+//       "X-Delivery-Pincode",
+//     ],
+//   })
+// );
 
 // Handle preflight for all routes
 
@@ -200,12 +251,12 @@ app.use((req, res, next) => {
 });
 
 mongoose
-  .connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => console.log("✅ Connected to bbshealthcare (Default DB)"))
-  .catch((err) => console.error("❌ Main DB error:", err));
+//   .connect(process.env.MONGO_URI, {
+//     useNewUrlParser: true,
+//     useUnifiedTopology: true,
+//   })
+//   .then(() => console.log("✅ Connected to MongoDB (BBSlive)"))
+//   .catch((err) => console.error("❌ Main DB error:", err));
 
 app.use(cookieParser());
 // ✅ Session & Cookie
@@ -226,8 +277,8 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Add body-parsing middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// app.use(express.json());
+// app.use(express.urlencoded({ extended: true }));
 
 // ✅ Static File Serving
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -253,7 +304,13 @@ app.use("/api/subcategories", require("./routes/subcategoryRoutes"));
 app.use("/api/cart", cartRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/users", userRoutes);
-app.get("/api/health", (req, res) => res.json({ ok: true }));
+app.get("/api/health", (req, res) => {
+  res.json({
+    ok: true,
+    service: "crm-ingest",
+    time: new Date().toISOString(),
+  });
+});
 app.use("/api/admin/pincode-vendors", adminPincodeVendorsRoutes);
 app.use("/api/admin/vendors", adminVendorRoutes);
 app.use("/api/orders", orderRoutes);
@@ -269,5 +326,5 @@ app.use((err, req, res, next) => {
 });
 
 // ✅ Start Server
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

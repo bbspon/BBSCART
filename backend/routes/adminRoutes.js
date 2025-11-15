@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { auth, adminOnly } = require('../middleware/authMiddleware');
-
+const { createPartnerUser } = require("../controllers/adminUserController");
+const allowServiceKey = require("../middleware/serviceKey");
 // Mock data for dashboard
 const getDashboardMetrics = () => {
     return {
@@ -29,6 +30,7 @@ router.get('/products', adminOnly, (req, res) => {
     ];
     res.status(200).json(products);
 });
+router.post("/create-partner-user", allowServiceKey, createPartnerUser);
 
 router.get('/orders', adminOnly, (req, res) => {
     const orders = [

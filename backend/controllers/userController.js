@@ -2,6 +2,7 @@ const User = require("../models/User");
 const UserDetails = require("../models/UserDetails");
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const { emitCustomerUpsert } = require("../events/customerEmitter");
 
 // Function to generate a 7-digit alphanumeric referral code
 const generateReferralCode = () => {
@@ -44,6 +45,13 @@ exports.createUser = async (req, res) => {
         // ✅ Link User to UserDetails
         user.userdetails = userDetails._id;
         await user.save();
+
+        require('../events/customerEmitter').emitUpsert(user).catch(() => { });
+        try {
+            await emitCustomerUpsert(savedUser);
+        } catch (e) {
+            console.error("[CRM] customer-upsert failed:", e.message);
+        }
 
         // ✅ Send response with tokens and user data
         res.status(201).json({
@@ -162,6 +170,12 @@ exports.updateUser = async (req, res) => {
             { new: true } // Return the updated document
         );
 
+        require('../events/customerEmitter').emitUpsert(updatedUser).catch(() => { });
+        try {
+            await emitCustomerUpsert(updatedUser);
+        } catch (e) {
+            console.error("[CRM] customer-upsert failed:", e.message);
+        }
         res.status(200).json(updatedUser);
     } catch (err) {
         console.error(err);

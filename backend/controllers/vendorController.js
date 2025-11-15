@@ -1,10 +1,27 @@
 // controllers/vendorController.js
+const { emitVendorUpsert } = require("../events/vendorEmitter");
 const mongoose = require("mongoose");
 const Vendor = require("../models/Vendor");
 // controllers/vendorController.js (add to the bottom)
 const Notification = require("../models/Notification");
 
-/**
+const LOG = {
+ info: (...a) => console.log("[VendorController]", ...a),
+warn: (...a) => console.warn("[VendorController][WARN]", ...a),
+err:  (...a) => console.error("[VendorController][ERROR]", ...a),
+ };
+const nowISO = () => new Date().toISOString();
+async function safeEmitVendor(doc, where) {
+try {
+await emitVendorUpsert(doc);
+LOG.info(`[EMIT] vendor-upsert OK @ ${where}`, { id: String(doc?._id || "") });
+ } catch (e) {
+ LOG.err(`[EMIT] vendor-upsert FAILED @ ${where}:`, e?.message || e);
+   }
+ }
+
+
+/*
  * Generic file upload handler (no OCR).
  * Expects multer to have placed the file at req.file.
  * Returns a stable /uploads/<filename> URL.
@@ -33,7 +50,8 @@ exports.uploadDocument = async (req, res) => {
  * - aadhar_number, aadhar_pic_front, aadhar_pic_back
  * - register_business_address: { street, city, state, country, postalCode }
  */
-exports.saveStepByKey = async (req, res) => {
+  exports.saveStepByKey = async (req, res) => {
+  LOG.info("saveStepByKey IN", { bodyKeys: Object.keys(req.body || {}) });
   try {
     const b = req.body || {};
     const id =
@@ -82,6 +100,11 @@ exports.saveStepByKey = async (req, res) => {
       }
     );
 
+    // require('../events/vendorEmitter').emitUpsert(doc).catch(()=>{});
+
+    await safeEmitVendor(doc, "saveStepByKey");
+    LOG.info("saveStepByKey OUT", { id: String(doc?._id || "") });
+    return res.json({ ok: true, data: doc });
     return res.json({ ok: true, data: doc });
   } catch (e) {
     console.error("saveStepByKey error:", e);
@@ -108,6 +131,13 @@ exports.saveStep = async (req, res) => {
     );
     if (!doc)
       return res.status(404).json({ ok: false, message: "Vendor not found" });
+    
+    try {
+      await emitVendorUpsert(doc);
+      } catch (e) {
+         console.error("[CRM] vendor-upsert failed:", e.message);
+      }
+
     return res.json({ ok: true, data: doc });
   } catch (e) {
     console.error("saveStep error:", e);
@@ -169,6 +199,12 @@ exports.updateGst = async (req, res) => {
     if (!updated)
       return res.status(404).json({ ok: false, message: "Vendor not found" });
 
+    try {
+      await emitVendorUpsert(updated);
+    } catch (e) {
+      console.error("[CRM] vendor-upsert failed:", e.message);
+    }
+
     return res.json({ ok: true, data: updated });
   } catch (e) {
     console.error("updateGst error:", e);
@@ -215,6 +251,12 @@ exports.updateBankDetails = async (req, res) => {
       return res.status(404).json({ ok: false, message: "Vendor not found" });
 
     return res.json({ ok: true, data: updated });
+
+    try {
+      await emitVendorUpsert(updated);
+    } catch (e) {
+      console.error("[CRM] vendor-upsert failed:", e.message);
+    } 
   } catch (e) {
     console.error("updateBank error:", e);
     return res
@@ -286,6 +328,11 @@ exports.updateOutlet = async (req, res) => {
       { $set: set },
       { new: true }
     );
+    try {
+      await emitVendorUpsert(updated);
+    } catch (e) {
+      console.error("[CRM] vendor-upsert failed:", e.message);
+    } 
     if (!updated)
       return res.status(404).json({ ok: false, message: "Vendor not found" });
 
@@ -319,6 +366,8 @@ exports.registerVendor = async (req, res) => {
     const vendorData = req.body;
     const vendor = new Vendor(vendorData);
     await vendor.save();
+    await safeEmitVendor(vendor, "registerVendor");
+    
     res
       .status(201)
       .json({ ok: true, message: "Vendor registered successfully", vendor });
@@ -346,6 +395,13 @@ exports.submitApplication = async (req, res) => {
     if (!updated) {
       return res.status(404).json({ ok: false, message: "Vendor not found" });
     }
+    
+     // Emit vendor upsert so downstream listeners are notified
+    try {
+      await emitVendorUpsert(updated);
+    } catch (e) {
+      console.error("[CRM] vendor-upsert failed:", e.message);
+    } 
 
     return res.json({ ok: true, data: updated });
   } catch (e) {
@@ -360,7 +416,7 @@ exports.submitApplication = async (req, res) => {
 exports.listPendingVendorRequests = async (_req, res) => {
   try {
     const docs = await Vendor.find({ application_status: "submitted" }).select(
-      "vendor_fname vendor_lname pan_number aadhar_number gst_number created_at submitted_at"
+      "vendor_fname vendor_lname pan_number aadhar_number gst_number  d_at submitted_at"
     );
     return res.json({ ok: true, data: docs });
   } catch (e) {
@@ -424,6 +480,12 @@ exports.decideVendor = async (req, res) => {
       message: `Vendor ${updated.vendor_fname || ""} ${updated.vendor_lname || ""} ${decision}`,
     });
 
+    // Emit vendor upsert so automation (notifications, indexing) can react
+    try {
+      await emitVendorUpsert(updated);
+    } catch (e) {
+      console.error("[CRM] vendor-upsert failed:", e.message);
+    } 
     return res.json({ ok: true, data: updated });
   } catch (e) {
     console.error("decideVendor error:", e);
@@ -534,8 +596,22 @@ exports.startApplication = async (_req, res) => {
       created_at: new Date(),
       updated_at: new Date(),
     });
+try {
+  await emitVendorUpsert(savedVendor);
+} catch (e) {
+  console.error("[CRM] vendor-upsert failed:", e.message);
+}
+    // Emit vendor upsert for newly started application
+    try {
+      require('../events/vendorEmitter').emitUpsert(doc).catch(()=>{});
+    } catch (_) {}
+    await safeEmitVendor(doc, "startApplication");
+
     return res.json({ ok: true, data: doc });
-  } catch (e) {
+
+  }
+  
+  catch (e) {
     console.error("startApplication error:", e);
     return res
       .status(500)

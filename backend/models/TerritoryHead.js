@@ -29,6 +29,8 @@ const TerritoryHeadSchema = new mongoose.Schema({
   vendor_lname: { type: String },
   dob: { type: Date },
 
+  bpcId: { type: String, index: true, default: null },
+
   // business
   business_type: {
     type: String,
@@ -126,6 +128,20 @@ const TerritoryHeadSchema = new mongoose.Schema({
     enum: ["seller", "cbv", "agent", "territory_head", "franchise_head"],
     required: true,
   },
+
+   // === BBS CRM/Dashboard required fields ===
+   bpcId: { type: String, index: { unique: true, sparse: true } }, // e.g. THPYPY03112500001
+   stateCode: { type: String },   // e.g. 'Puducherry'
+   cityCode:  { type: String },   // e.g. 'Puducherry'
+   zone:      { type: String },   // e.g. 'PY'
+  phone:     { type: String },
+   platform:  { type: String, default: "BBSCART" },
+   totalCustomers:     { type: Number, default: 0 },
+  totalTransactions:  { type: Number, default: 0 },
+  commissionEarned:   { type: Number, default: 0 },
+   commissionPending:  { type: Number, default: 0 },
+   joinedDate:         { type: Date },
+
 
   // linkage
   user_id: { type: ObjectId, ref: "User", default: null },
