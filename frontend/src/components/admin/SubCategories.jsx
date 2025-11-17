@@ -8,14 +8,13 @@ import useDashboardLogic from "./hooks/useDashboardLogic";
 import Modal from "react-modal";
 import SubCategoryForm from "./SubCategoryForm";
 import toast from "react-hot-toast";
-import instance  from "../../services/axiosInstance";
+import instance from "../../services/axiosInstance";
 import { saveAs } from "file-saver";
 import {
   importSubcategoriesCSV,
   exportSubcategoriesCSV,
   downloadSubcategoryRowCSV,
 } from "../../services/subcategoryAPI";
-
 
 const SubCategories = () => {
   const {
@@ -44,8 +43,8 @@ const SubCategories = () => {
   const [sortConfig, setSortConfig] = useState({ key: "", direction: "" });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 25;
-const fileRef = useRef(null);
-const [isImporting, setIsImporting] = useState(false);
+  const fileRef = useRef(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -121,48 +120,48 @@ const [isImporting, setIsImporting] = useState(false);
   }, [searchQuery, sortConfig]); // no subCategories to avoid loop
 
   const handleSearchChange = (e) => setSearchQuery(e.target.value);
-const handleClickImport = () => fileRef.current?.click();
+  const handleClickImport = () => fileRef.current?.click();
 
-const handleFileChange = async (e) => {
-  const f = e.target.files?.[0];
-  if (!f) return;
-  try {
-    setIsImporting(true);
-    const result = await importSubcategoriesCSV(f);
-    toast.success(
-      `Import done. Created: ${result.created}, Updated: ${result.updated}, Skipped: ${result.skipped}`
-    );
-    fetchSubCategories();
-  } catch (err) {
-    console.error(err);
-    toast.error(err?.response?.data?.message || "Import failed");
-  } finally {
-    setIsImporting(false);
-    e.target.value = "";
-  }
-};
+  const handleFileChange = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    try {
+      setIsImporting(true);
+      const result = await importSubcategoriesCSV(f);
+      toast.success(
+        `Import done. Created: ${result.created}, Updated: ${result.updated}, Skipped: ${result.skipped}`
+      );
+      fetchSubCategories();
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Import failed");
+    } finally {
+      setIsImporting(false);
+      e.target.value = "";
+    }
+  };
 
-const handleExport = async () => {
-  try {
-    const res = await exportSubcategoriesCSV();
-    const blob = new Blob([res.data], { type: "text/csv;charset=utf-8" });
-    saveAs(blob, "subcategories.csv");
-  } catch (err) {
-    console.error(err);
-    toast.error("Export failed");
-  }
-};
+  const handleExport = async () => {
+    try {
+      const res = await exportSubcategoriesCSV();
+      const blob = new Blob([res.data], { type: "text/csv;charset=utf-8" });
+      saveAs(blob, "subcategories.csv");
+    } catch (err) {
+      console.error(err);
+      toast.error("Export failed");
+    }
+  };
 
-const handleDownloadRow = async (idOrKey) => {
-  try {
-    const res = await downloadSubcategoryRowCSV(idOrKey);
-    const blob = new Blob([res.data], { type: "text/csv;charset=utf-8" });
-    saveAs(blob, `subcategory-${idOrKey}.csv`);
-  } catch (err) {
-    console.error(err);
-    toast.error("Download failed");
-  }
-};
+  const handleDownloadRow = async (idOrKey) => {
+    try {
+      const res = await downloadSubcategoryRowCSV(idOrKey);
+      const blob = new Blob([res.data], { type: "text/csv;charset=utf-8" });
+      saveAs(blob, `subcategory-${idOrKey}.csv`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Download failed");
+    }
+  };
 
   const handleAddCategory = async (payload) => {
     try {
@@ -476,6 +475,18 @@ const handleDownloadRow = async (idOrKey) => {
                                       }}
                                     >
                                       <i className="bx bxs-trash-alt text-lg"></i>
+                                    </button>
+                                    <button
+                                      className="rounded-full bg-yellow-50 hover:bg-yellow-200 text-yellow-700 transition shadow border border-yellow-200"
+                                      onClick={() => undoDelete(p)}
+                                      title="Undo Delete"
+                                      style={{
+                                        width: "30px",
+                                        height: "30px",
+                                        lineHeight: "35px",
+                                      }}
+                                    >
+                                      <i className="bx bx-undo text-lg"></i>
                                     </button>
                                   </div>
                                 </td>

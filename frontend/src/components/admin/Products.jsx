@@ -192,7 +192,7 @@ const Products = () => {
     form.append("file", file);
     try {
       const res = await instance.post(
-        `${import.meta.env.VITE_API_URL}/api/products/import-csv`,
+        `${import.meta.env.VITE_API_URL}/products/import-csv`,
         form,
         {
           headers: { "Content-Type": "multipart/form-data" },
@@ -219,9 +219,7 @@ const Products = () => {
     const form = new FormData();
     form.append("file", file);
     try {
-      const url = `${
-        import.meta.env.VITE_API_URL
-      }/api/products/import-all?dryRun=${
+      const url = `${import.meta.env.VITE_API_URL}/products/import-all?dryRun=${
         iaDryRun ? "true" : "false"
       }&mode=${iaMode}`;
       const res = await instance.post(url, form, {
@@ -677,6 +675,18 @@ const Products = () => {
                                   }}
                                 >
                                   <i className="bx bxs-trash-alt text-lg"></i>
+                                </button>
+                                <button
+                                  className="rounded-full bg-green-50 hover:bg-yellow-200 text-yellow-700 transition shadow border border-yellow-200"
+                                  onClick={() => undoDelete(p)}
+                                  title="Undo Delete"
+                                  style={{
+                                    width: "30px",
+                                    height: "30px",
+                                    lineHeight: "35px",
+                                  }}
+                                >
+                                  <i className="bx bx-undo text-lg"></i>
                                 </button>
                               </div>
                             </td>

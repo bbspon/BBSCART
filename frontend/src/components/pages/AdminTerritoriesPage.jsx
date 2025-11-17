@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import AdminTerritoryReviewPage from "../../components/pages/admin/AdminTerritoryReviewPage"; // adjust path
-
+import { MdOutlineRemoveRedEye } from "react-icons/md";
+import { CiEdit } from "react-icons/ci";
+import { MdAutoDelete } from "react-icons/md";
+import { BiUndo } from "react-icons/bi";
 export default function AdminTerritoriesPage() {
   const [status, setStatus] = useState("approved");
   const [q, setQ] = useState("");
@@ -146,8 +149,22 @@ export default function AdminTerritoriesPage() {
                       ? new Date(x.updated_at).toLocaleString()
                       : ""}
                   </td>
-                  <td style={{ padding: 10 }}>
-                    <button onClick={() => setReviewOpenId(x._id)}>View</button>
+                  <td
+                    className="flex items-center gap-2"
+                    style={{ padding: 10 }}
+                  >
+                    <button onClick={() => setReviewOpenId(x._id)}>
+                      <MdOutlineRemoveRedEye size={20} />
+                    </button>
+                    <button>
+                      <CiEdit size={20} />
+                    </button>
+                    <button>
+                      <MdAutoDelete size={20} />
+                    </button>
+                    <button>
+                      <BiUndo size={20} />
+                    </button>
                   </td>
                 </tr>
               ))
