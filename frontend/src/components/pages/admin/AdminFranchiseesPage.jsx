@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-
+import { MdOutlineUndo } from "react-icons/md";
+import { MdAutoDelete } from "react-icons/md";
+import { CiEdit } from "react-icons/ci";
+import { MdOutlineRemoveRedEye } from "react-icons/md";
 export default function AdminFranchiseesPage() {
   const [status, setStatus] = useState("approved");
   const [q, setQ] = useState("");
@@ -131,6 +134,7 @@ export default function AdminFranchiseesPage() {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead style={{ background: "#fafafa" }}>
               <tr>
+                <th style={{ textAlign: "left", padding: 10 }}>#</th>
                 <th style={{ textAlign: "left", padding: 10 }}>Name</th>
                 <th style={{ textAlign: "left", padding: 10 }}>PAN</th>
                 <th style={{ textAlign: "left", padding: 10 }}>GSTIN</th>
@@ -157,6 +161,7 @@ export default function AdminFranchiseesPage() {
               ) : (
                 data.map((x) => (
                   <tr key={x._id} style={{ borderTop: "1px solid #eee" }}>
+                    <td style={{ padding: 10 }}>{x._id}</td>
                     <td style={{ padding: 10 }}>
                       {safe(x.vendor_fname)} {safe(x.vendor_lname)}
                     </td>
@@ -176,8 +181,19 @@ export default function AdminFranchiseesPage() {
                         ? new Date(x.updated_at).toLocaleString()
                         : ""}
                     </td>
-                    <td style={{ padding: 10 }}>
-                      <button onClick={() => openReview(x._id)}>View</button>
+                    <td className="flex flex-row gap-2" style={{ padding: 10 }}>
+                      <button onClick={() => openReview(x._id)}>
+                        <MdOutlineRemoveRedEye color="darkblue" size={20} />
+                      </button>
+                      <button>
+                        <CiEdit color="black" size={20} />
+                      </button>
+                      <button>
+                        <MdAutoDelete color="darkred" size={20} />
+                      </button>
+                      <button>
+                        <MdOutlineUndo color="darkblue" size={20} />
+                      </button>
                     </td>
                   </tr>
                 ))

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from "react";
 import { NavLink } from "react-router-dom";
 import "./assets/dashboard.css";
@@ -391,6 +390,18 @@ const Categories = () => {
                                   style={{ width: 30, height: 30 }}
                                 >
                                   <i className="bx bxs-trash-alt text-lg"></i>
+                                </button>
+                                <button
+                                  className="rounded-full bg-yellow-50 hover:bg-yellow-200 text-yellow-700 transition shadow border border-yellow-200"
+                                  onClick={() => undoDelete(p)}
+                                  title="Undo Delete"
+                                  style={{
+                                    width: "30px",
+                                    height: "30px",
+                                    lineHeight: "35px",
+                                  }}
+                                >
+                                  <i className="bx bx-undo text-lg"></i>
                                 </button>
                               </div>
                             </td>
