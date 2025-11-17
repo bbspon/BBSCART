@@ -3,6 +3,8 @@ const path = require("path");
 const mongoose = require("mongoose");
 const Franchise = require("../models/FranchiseHead"); // reuse schema; tag role='franchisee_owner'
 const Notification = require("../models/Notification") // if you already created one for vendors
+// CRM sync: franchise upsert emitter
+const { emitFranchiseUpsert } = require("../events/franchiseEmitter");
 
 /**
  * POST /upload  (no OCR)  -> { ok, fileUrl: /uploads/xxx.ext }
@@ -83,9 +85,9 @@ exports.saveStepByKey = async (req, res) => {
       }
     );
 
+    try { await emitFranchiseUpsert(doc); } catch (e) { console.error("[CRM] franchise-upsert failed:", e.message); }  } catch (e) {
     return res.json({ ok: true, data: doc, franchiseeId: doc._id });
-  } catch (e) {
-    console.error("franchisee.saveStepByKey error:", e);
+      console.error("franchisee.saveStepByKey error:", e);
     return res
       .status(500)
       .json({ ok: false, message: "Save failed", details: e.message });
@@ -107,6 +109,7 @@ exports.saveStep = async (req, res) => {
       { new: true, runValidators: false }
     );
     if (!doc) return res.status(404).json({ ok: false, message: "Not found" });
+    try { await emitFranchiseUpsert(doc); } catch (e) { console.error("[CRM] franchise-upsert failed:", e.message); }
     res.json({ ok: true, data: doc });
   } catch (e) {
     console.error("franchisee.saveStep error:", e);
@@ -162,6 +165,7 @@ exports.updateGst = async (req, res) => {
     );
     if (!updated)
       return res.status(404).json({ ok: false, message: "Not found" });
+   try { await emitFranchiseUpsert(updated); } catch (e) { console.error("[CRM] franchise-upsert failed:", e.message); }
     return res.json({ ok: true, data: updated });
   } catch (e) {
     console.error("franchisee.updateGst error:", e);
@@ -200,6 +204,7 @@ exports.updateBankDetails = async (req, res) => {
     );
     if (!updated)
       return res.status(404).json({ ok: false, message: "Not found" });
+    try { await emitFranchiseUpsert(updated); } catch (e) { console.error("[CRM] franchise-upsert failed:", e.message); }
     return res.json({ ok: true, data: updated });
   } catch (e) {
     console.error("franchisee.updateBank error:", e);
@@ -266,6 +271,7 @@ exports.updateOutlet = async (req, res) => {
     );
     if (!updated)
       return res.status(404).json({ ok: false, message: "Not found" });
+    try { await emitFranchiseUpsert(updated); } catch (e) { console.error("[CRM] franchise-upsert failed:", e.message); }
     return res.json({ ok: true, data: updated });
   } catch (e) {
     console.error("franchisee.updateOutlet error:", e);
@@ -354,7 +360,7 @@ exports.submitFranchiseApplication = async (req, res) => {
         message: `Franchisee ${doc.vendor_fname || ""} ${doc.vendor_lname || ""} submitted application`,
       });
     } catch (_) {}
-
+      try { await emitFranchiseUpsert(doc); } catch (e) { console.error("[CRM] franchise-upsert failed:", e.message); }
     return res.json({ ok: true, data: doc });
   } catch (e) {
     console.error("franchisee.submit error:", e);
@@ -442,6 +448,7 @@ exports.decideFranchise = async (req, res) => {
         message: `Franchisee ${updated.vendor_fname || ""} ${updated.vendor_lname || ""} ${decision}`,
       });
     } catch (_) {}
+    try { await emitFranchiseUpsert(updated); } catch (e) { console.error("[CRM] franchise-upsert failed:", e.message); }
 
     return res.json({ ok: true, data: updated });
   } catch (e) {

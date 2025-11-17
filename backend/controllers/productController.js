@@ -16,56 +16,7 @@ const ProductGroup = require("../models/ProductGroup");
 // prefer file path if present; otherwise keep a URL string from body
 const { parse } = require("csv-parse/sync");
 const Vendor = require("../models/Vendor");
- const Media = require("../models/Media");
- const BASE_ASSETS_URL = process.env.BASE_ASSETS_URL || "http://localhost:5001";
- const PUBLIC_UPLOAD_PREFIX = "/uploads";
- const pathMod = require("path");
-const toUrl = (fn) =>
-  fn ? `${BASE}${PREFIX}/${encodeURIComponent(fn)}` : null;
-
-const toFilename = (v) => {
-  if (!v) return "";
-  const s = String(v).trim();
-  try {
-    return pathMod.basename(new URL(s).pathname);
-  } catch {
-    return pathMod.basename(s);
-  }
-};
-
- const toFilenameArray = (v) =>
-   Array.isArray(v)
-     ? v.map(toFilename).filter(Boolean)
-     : String(v || "")
-         .split(/[|,]/)
-         .map((x) => x.trim())
-         .filter(Boolean)
-         .map(toFilename);
- const fallbackUrl = (fn) => (fn ? `${BASE_ASSETS_URL}${PUBLIC_UPLOAD_PREFIX}/${encodeURIComponent(fn)}` : null);
- async function resolveFilenamesToUrls(fns) {
-   if (!fns?.length) return [];
-   const docs = await Media.find({ filename: { $in: fns } }, { filename: 1, url: 1 }).lean();
-   const map = new Map(docs.map((m) => [m.filename, m.url]));
-   return fns.map((fn) => map.get(fn) || fallbackUrl(fn));
- }
- async function decorateProduct(pDoc) {
-   if (!pDoc) return pDoc;
-   const p = pDoc.toObject ? pDoc.toObject() : { ...pDoc };
-   const f1 = p.product_img ? [toFilename(p.product_img)] : [];
-   const f2 = p.product_img2 ? [toFilename(p.product_img2)] : [];
-   const gallery = toFilenameArray(p.gallery_imgs);
-   const [u1, u2, g] = await Promise.all([
-     resolveFilenamesToUrls(f1),
-     resolveFilenamesToUrls(f2),
-     resolveFilenamesToUrls(gallery),
-   ]);
-p.product_img_url = toUrl(p.product_img);
-p.product_img2_url = toUrl(p.product_img2);
-p.gallery_img_urls = (Array.isArray(p.gallery_imgs) ? p.gallery_imgs : []).map(
-  toUrl
-);
-   return p;
- }
+const { emitProductUpsert } = require("../events/productEmitter");
 
 const toBool = (v) => {
   if (typeof v === "boolean") return v;
@@ -915,6 +866,13 @@ exports.createProduct = async (req, res) => {
       is_global: product.is_global,
     });
 
+    require('../events/productEmitter').emitUpsert(product).catch(()=>{});
+    try {
+  await emitProductUpsert(savedProduct);
+} catch (e) {
+  console.error("[CRM] product-upsert failed:", e.message);
+}
+
     return res.status(201).json(product);
   } catch (err) {
     console.error("createProduct error:", err);
@@ -1258,6 +1216,8 @@ exports.updateProduct = async (req, res) => {
     );
     console.log("✅ Product Updated:", updatedProduct);
 
+    require('../events/productEmitter').emitUpsert(updatedProduct).catch(()=>{});
+
     if (variants) {
       const existingVariants = await Variant.find({
         product_id: updatedProduct._id,
@@ -1397,8 +1357,13 @@ exports.updateProduct = async (req, res) => {
 
       updatedProduct.variants = variantIds;
       await updatedProduct.save();
+      require('../events/productEmitter').emitUpsert(updatedProduct).catch(()=>{});
     }
-
+    try {
+  await emitProductUpsert(updatedProduct);
+} catch (e) {
+  console.error("[CRM] product-upsert failed:", e.message);
+}
     res.status(200).json({
       message: "✅ Product updated successfully",
       product: updatedProduct,

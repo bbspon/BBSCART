@@ -3,6 +3,10 @@ const path = require("path");
 const mongoose = require("mongoose");
 const AgentHead = require("../models/Agent"); // mirror of your TerritoryHead model
 
+// CRM sync: agent upsert emitter
+const { emitAgentUpsert } = require("../events/agentEmitter");
+
+
 // POST /upload -> { ok, fileUrl }  (no OCR)
 exports.uploadDocument = async (req, res) => {
   try {
@@ -68,6 +72,8 @@ exports.saveStepByKey = async (req, res) => {
     }
 
     const doc = await AgentHead.findOneAndUpdate(
+
+ 
       { _id: id },
       {
         $set: set,
@@ -80,9 +86,13 @@ exports.saveStepByKey = async (req, res) => {
         runValidators: false,
       }
     );
-
-    return res.json({ ok: true, data: doc, agentHeadId: doc._id });
-  } catch (e) {
+     // 🔔 CRM sync: agent upsert after partial save
+    try {
+      await emitAgentUpsert(doc);
+    } catch (e) {
+      console.error("[CRM] agent-upsert failed:", e.message);
+    } 
+  return res.json({ ok: true, data: doc, agentHeadId: doc._id });  } catch (e) {
     console.error("agentHead.saveStepByKey error:", e);
     return res
       .status(500)
@@ -102,7 +112,14 @@ exports.saveStep = async (req, res) => {
       { $set: set },
       { new: true, runValidators: false }
     );
-    if (!doc) return res.status(404).json({ ok: false, message: "Not found" });
+   if (!doc) return res.status(404).json({ ok: false, message: "Not found" });
+    // 🔔 CRM sync: agent upsert after step save
+  
+   try {
+     await emitAgentUpsert(doc);
+   } catch (e) {
+     console.error("[CRM] agent-upsert failed:", e.message);
+   }
     res.json({ ok: true, data: doc });
   } catch (e) {
     console.error("agentHead.saveStep error:", e);
@@ -161,7 +178,14 @@ exports.updateGst = async (req, res) => {
     );
     if (!updated)
       return res.status(404).json({ ok: false, message: "Not found" });
-    return res.json({ ok: true, data: updated });
+
+    // 🔔 CRM sync: agent upsert after GST update
+    try {
+      await emitAgentUpsert(updated);
+    } catch (e) {
+      console.error("[CRM] agent-upsert failed:", e.message);
+    }
+     return res.json({ ok: true, data: updated });
   } catch (e) {
     console.error("agentHead.updateGst error:", e);
     return res
@@ -201,7 +225,14 @@ exports.updateBankDetails = async (req, res) => {
     );
     if (!updated)
       return res.status(404).json({ ok: false, message: "Not found" });
-    return res.json({ ok: true, data: updated });
+    // 🔔 CRM sync: agent upsert after bank update
+    try {
+      await emitAgentUpsert(updated);
+    } catch (e) {
+      console.error("[CRM] agent-upsert failed:", e.message);
+    } 
+
+    return res.json({ ok: true, data: updated })
   } catch (e) {
     console.error("agentHead.updateBank error:", e);
     return res
@@ -271,7 +302,15 @@ exports.updateOutlet = async (req, res) => {
     );
     if (!updated)
       return res.status(404).json({ ok: false, message: "Not found" });
-    return res.json({ ok: true, data: updated });
+
+    // 🔔 CRM sync: agent upsert after outlet update
+    try {
+      await emitAgentUpsert(updated);
+    } catch (e) {
+      console.error("[CRM] agent-upsert failed:", e.message);
+    }
+
+   return res.json({ ok: true, data: updated });
   } catch (e) {
     console.error("agentHead.updateOutlet error:", e);
     return res
@@ -316,6 +355,12 @@ exports.registerAgentHead = async (req, res) => {
       },
       { new: true, upsert: true, runValidators: false }
     );
+      // 🔔 CRM sync: agent upsert after registration
+    try {
+      await emitAgentUpsert(updated);
+    } catch (e) {
+      console.error("[CRM] agent-upsert failed:", e.message);
+    } 
     res
       .status(201)
       .json({ ok: true, message: "Agent Head registered", agentHead: updated });
@@ -382,6 +427,12 @@ exports.approve = async (req, res) => {
     );
     if (!updated)
       return res.status(404).json({ ok: false, message: "Not found" });
+    // 🔔 CRM sync: agent upsert after approve
+    try { 
+      await emitAgentUpsert(updated);
+    } catch (e) {
+      console.error("[CRM] agent-upsert failed:", e.message);
+    } 
     res.json({ ok: true, data: updated });
   } catch (e) {
     res
@@ -410,8 +461,16 @@ exports.reject = async (req, res) => {
       { new: true }
     );
     if (!updated)
-      return res.status(404).json({ ok: false, message: "Not found" });
-    res.json({ ok: true, data: updated });
+      
+    return res.status(404).json({ ok: false, message: "Not found" });
+
+    // 🔔 CRM sync: agent upsert after reject
+    try {
+      await emitAgentUpsert(updated);
+    } catch (e) {
+      console.error("[CRM] agent-upsert failed:", e.message);
+    }
+     res.json({ ok: true, data: updated });
   } catch (e) {
     res
       .status(500)

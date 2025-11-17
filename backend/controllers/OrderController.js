@@ -6,9 +6,8 @@ const Product = require("../models/Product.js");
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
 const mongoose = require("mongoose");
-const { emitCreateDeliveryJob } = require("../services/deliveryEmitter");
-const deliveryEmitter = require("../services/deliveryEmitter");
-
+const { emitCreated, emitUpdated } = require("../events/orderEmitter");
+const { emitTxnUpsert } = require("../events/transactionEmitter");
 // Razorpay Instance
 const razorpay = new Razorpay({
   key_id: "rzp_test_5kdXsZAny3KeQZ",
@@ -169,82 +168,9 @@ exports.createOrder = async (req, res) => {
         amount_paid: 0,
       },
     });
-    const saved = await orderDoc.save();
-    console.log("[ORDER] in", new Date().toISOString());
-
-    // #3 Persist deliverySlot onto the created order (safe, optional)
-    try {
-      if (_isValidSlot(deliverySlot)) {
-        await Order.updateOne(
-          { _id: saved._id },
-          { $set: { deliverySlot } },
-          { strict: false }
-        );
-        // reflect it in-memory so emitCreateDeliveryJob can read it
-        saved.deliverySlot = deliverySlot;
-      } else if (deliverySlot) {
-        console.warn(
-          "[orders:create] deliverySlot present but invalid shape:",
-          deliverySlot
-        );
-      }
-    } catch (e) {
-      console.error(
-        "[orders:create] failed to persist deliverySlot:",
-        e.message
-      );
-    }
-
-    // set COD fields if needed
-    saved.cod = saved.cod || {};
-    const isCod = String(saved.payment_method || "").toUpperCase() === "COD";
-    saved.cod.isCOD = isCod;
-    if (isCod) {
-      saved.cod.amount = Number(
-        saved.total_price || saved.payment_details?.amount_paid || 0
-      );
-    }
-
-    // send to Delivery (do not block checkout)
-    try {
-      // #4 Ensure slot is attached to the object we emit (no signature changes)
-      if (_isValidSlot(deliverySlot) && !saved.deliverySlot) {
-        saved.deliverySlot = deliverySlot;
-      }
-      // (keep existing import style)
-      const { emitCreateDeliveryJob } = require("../services/deliveryEmitter");
-      const data = await emitCreateDeliveryJob(saved);
-      const deliveryOrderId = data?.deliveryOrderId || data?.data?._id || null;
-      const trackingId = data?.trackingId || data?.data?.trackingId || null;
-      if (!deliveryOrderId || !trackingId) {
-        console.warn(
-          "[orders:create] delivery response missing ids:",
-          JSON.stringify(data)
-        );
-      }
-
-      await Order.updateOne(
-        { _id: saved._id },
-        {
-          $set: {
-            ...(deliveryOrderId
-              ? { deliveryOrderId: String(deliveryOrderId) }
-              : {}),
-            ...(trackingId ? { trackingId } : {}),
-          },
-          $push: {
-            deliveryStatusHistory: {
-              code: data?.status || "CREATED",
-              note: trackingId ? "Tracking ID received" : "Sent to E-Delivery",
-              at: new Date(),
-            },
-          },
-        },
-        { strict: false }
-      );
-    } catch (e) {
-      console.error("[delivery.ingest] failed:", e.message);
-    }
+      const saved = await orderDoc.save();
+console.log("[ORDER] in", new Date().toISOString());
+      require('../events/orderEmitter').emitCreated(saved).catch(()=>{});
 
     if (paymentMethod === "Razorpay") {
       const options = {
@@ -255,54 +181,25 @@ exports.createOrder = async (req, res) => {
       const rpOrder = await razorpay.orders.create(options);
       saved.order_id = rpOrder.id;
       await saved.save();
-      const freshRP = await Order.findById(saved._id);
-      return res.status(201).json({
-        success: true,
-        message: "Order created successfully",
-        order: freshRP || saved,
-      });
+
+      return res
+        .status(201)
+        .json({
+          success: true,
+          message: "Order created successfully",
+          order: saved,
+        });
+
     }
-    console.log("[ORDER] out OK", new Date().toISOString());
-
-    try {
-      // #5 Re-attach slot before the idempotent emit as well
-      if (_isValidSlot(deliverySlot) && !saved.deliverySlot) {
-        saved.deliverySlot = deliverySlot;
-      }
-      const data = await emitCreateDeliveryJob(saved); // idempotent; safe to call
-      const deliveryOrderId = data?.deliveryOrderId || data?.data?._id || null;
-      const trackingId = data?.trackingId || data?.data?.trackingId || null;
-
-      await Order.updateOne(
-        { _id: saved._id },
-        {
-          $set: {
-            ...(deliveryOrderId
-              ? { deliveryOrderId: String(deliveryOrderId) }
-              : {}),
-            ...(trackingId ? { trackingId } : {}),
-          },
-          $push: {
-            deliveryStatusHistory: {
-              code: data?.status || "CREATED",
-              note: trackingId
-                ? "Tracking ID received"
-                : "ingested to Delivery",
-              at: new Date(),
-            },
-          },
-        },
-        { strict: false }
-      );
-    } catch (e) {
-      console.error("[delivery.ingest] failed", e.message);
-      // Do NOT throw: checkout must not break if delivery is temporarily down
-    }
-
+console.log("[ORDER] out OK", new Date().toISOString());
+// NOTE: previous code tried to emitCreated(order) but `order` was undefined here.
+// We already emitted the created event just after the DB save above — avoid duplicate emit.
     if (paymentMethod === "COD") {
       saved.payment_details.payment_status = "completed";
       saved.payment_details.amount_paid = Number(totalAmount || 0);
       await saved.save();
+
+      require('../events/transactionEmitter').emitTxnUpsert(saved).catch(()=>{});
 
       await reduceStock(saved);
 
@@ -322,6 +219,15 @@ exports.createOrder = async (req, res) => {
     });
   } catch (error) {
     console.error("Error creating order:", error);
+    // use the caught variable 'error' (was 'err' previously)
+    console.log("[ORDER] ERR", new Date().toISOString(), error?.message);
+
+    // after saving a new order
+try {
+  await emitCreated(savedOrder);
+} catch (e) {
+  console.error("[CRM] order-created failed:", e.message);
+}
     console.log("[ORDER] ERR", new Date().toISOString(), error?.message);
 
     return res.status(500).json({
@@ -360,10 +266,25 @@ exports.verifyPayment = async (req, res) => {
 
     order.payment_details.payment_id = razorpay_payment_id;
     order.payment_details.payment_status = "completed";
+
+    
+// when you create a payment/transaction record (in this controller or elsewhere)
+try {
+  await emitTxnUpsert(savedTxn);
+} catch (e) {
+  console.error("[CRM] transaction-upsert failed:", e.message);
+}
+
     order.payment_details.amount_paid = order.total_price;
     await order.save();
+// right after: await order.save()
+require('../events/orderEmitter').emitCreated(order).catch(() => {});
+
+    require('../events/transactionEmitter').emitUpsert(order).catch(()=>{});
 
     await reduceStock(order);
+
+    require('../events/orderEmitter').emitUpdated(order).catch(()=>{});
 
     return res.json({ success: true, message: "Payment successful" });
   } catch (error) {
@@ -514,11 +435,20 @@ exports.updateOrder = async (req, res) => {
         .json({ success: false, message: "Order not found" });
     }
 
+    require('../events/orderEmitter').emitUpdated(updatedOrder).catch(()=>{});
+
     res.status(200).json({
       success: true,
       message: "Order updated successfully",
       order: updatedOrder,
     });
+
+    // after updating an order
+try {
+  await emitUpdated(updatedOrder);
+} catch (e) {
+  console.error("[CRM] order-updated failed:", e.message);
+}
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -526,6 +456,7 @@ exports.updateOrder = async (req, res) => {
       error: error.message,
     });
   }
+
 };
 
 // Delete order
