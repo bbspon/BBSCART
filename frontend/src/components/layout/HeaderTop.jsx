@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -11,11 +10,12 @@ import { FaCartArrowDown } from "react-icons/fa";
 import DeliverTo from "../../components/DeliverTo";
 import NavbarCart from "../../components/NavbarCart";
 import ProductSearch from "./ProductSearch";
-
+import { ImSearch } from "react-icons/im";
+import { MdCancel } from "react-icons/md";
 function HeaderTop() {
   const [menuOpen, setMenuOpen] = useState(false);
   const toggleMenu = () => setMenuOpen((v) => !v);
-
+  const [open, setOpen] = useState(false);
   const navItems = [
     { name: "Home", href: "/" },
     { name: "About BBSCART", href: "/about" },
@@ -121,9 +121,6 @@ function HeaderTop() {
                 </button>
               ))}
             </div>
-            <div className="flex flex-row justify-center items-center">
-              <ProductSearch />
-            </div>
           </div>
         </nav>
 
@@ -200,7 +197,7 @@ function HeaderTop() {
     left-28 right-18 bottom-[-54.2rem] w-[43vw] mx-auto text-black 
 
     /* 💻 Desktop (sm and up) */
-    sm:left-[-85px] sm:right-18 sm:top-[85px] sm:bottom-auto sm:w-44 sm:text-left z-9999
+    sm:left-[6rem] sm:right-18 sm:top-[90px] sm:bottom-auto sm:w-44 sm:text-left z-9999
   "
             >
               {!isAuthenticated ? (
@@ -691,7 +688,32 @@ w-[100vw]  sm:w-[90vw] md:w-[100vw] lg:w-[45vw]
               )}
             </ul>
           </div>
+          <div className="flex flex-row justify-center items-center">
+            {/* Search Icon */}
+            <button
+              onClick={() => setOpen(true)}
+              className="text-xl p-2 hover:scale-110 transition"
+            >
+              <ImSearch className="text-[#6b0e13] w-5 h-5" />
+            </button>
 
+            {/* Popup Modal */}
+            {open && (
+              <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
+                <div className=" p-5 rounded-2xl shadow-xl min-w-[350px] relative bg-slate-200 mt-2">
+                  {/* Close button */}
+                  <button
+                    onClick={() => setOpen(false)}
+                    className="absolute  top-2 right-2 text-gray-600 hover:text-black "
+                  >
+                    <MdCancel />
+                  </button>
+
+                  <ProductSearch />
+                </div>
+              </div>
+            )}
+          </div>
           <NavbarCart />
           {/* Wishlist */}
           <div className="navbar-cart">

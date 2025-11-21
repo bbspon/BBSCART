@@ -119,11 +119,15 @@ const MegaMenu = ({ menuType }) => {
   return (
     <>
       {/* === Offer Bar === */}
-      <div className="w-full bg-gradient-to-r from-[#4d060a] via-[#6b0e13] to-[#141414] text-white py-2 text-center overflow-hidden sticky top-0 z-50 shadow-neutral-950 shadow-2xl">
+      <div
+        className="w-full bg-[#FAFAFA] text-black py-2 text-center 
+  border-b border-b-slate-300 border-t border-t-slate-300 overflow-hidden 
+  sticky top-0 z-50 shadow-2xl shadow-neutral-950"
+      >
         <ul className="offer-msg list-none m-0 p-0">
           <li
             key={currentIndex}
-            className="bounce-text text-sm font-medium text-white"
+            className="bounce-text text-sm font-medium text-black"
           >
             {offers[currentIndex]}
           </li>
@@ -152,7 +156,7 @@ const MegaMenu = ({ menuType }) => {
               className="flex items-center justify-between w-[150px] gap-2  px-4 py-2 rounded-lg text-sm hover:bg-gray-200 transition"
             >
               <FaBars />
-              <span className=" text-black">All Products</span>
+              <span className="text-black">All Products</span>
             </button>
           </div>
 
@@ -248,7 +252,7 @@ const MegaMenu = ({ menuType }) => {
                   {/* Mobile All Products Section */}
                   <button
                     onClick={() => setOpenAllProductsMobile(true)}
-                    className="block w-full text-left px-3 py-2 font-semibold text-gray-800 hover:bg-[#f7eaea] hover:text-[#cf1717] transition"
+                    className="block w-full text-left px-3 py-2 font-semibold text-gray-800 hover:bg-[#f1efef] hover:text-[#cf1717] transition"
                   >
                     All Products
                   </button>

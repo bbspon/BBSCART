@@ -13,6 +13,10 @@ import Services from "../home/Services";
 import CallToActionSection from "../home/CallToActionSection";
 import { useLocation } from "react-router-dom";
 import AppDownloadCTA from "../layout/AppDownloadCTA";
+import ProductsPage from "./ProductsPage";
+import Discount from "../home/discount";
+import GroceryMap from "./GroceryMap";
+
 function HomePage() {
   const location = useLocation();
   useEffect(() => {
@@ -25,15 +29,21 @@ function HomePage() {
         <HeroSection />
         <div className="homepage bbscontainer">
           <SectionCategory />
+          <div className="py-8">
+            <Discount />
+          </div>
           <div className="home">
             <ProductList heading="Grocery Items" type="Slider" />
           </div>
           <TrendingItems />
           <VendorSlider />
+          <ProductsPage />
+
           <AnimationCards />
           <OfferSection />
           <HeroVideoCarousel />
           <WhatsAppChat />
+          <GroceryMap />
           <AppDownloadCTA />
         </div>
         <CallToActionSection />
