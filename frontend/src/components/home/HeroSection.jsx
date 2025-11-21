@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Pagination, Navigation } from "swiper/modules";
 
@@ -8,97 +7,86 @@ import "swiper/css/navigation";
 import "swiper/css/pagination";
 
 const HeroSection = () => {
-  const slides = [
-    { id: 1, image: "/img/hero/red-gold.jpg" },
-    { id: 2, image: "/img/hero/offers.jpg" }, // <-- This one gets 1000px width
-    { id: 3, image: "/img/hero/red-gold.jpg" },
-    { id: 4, image: "/img/hero/orange-gold.jpg" },
-    {
-      id: 5,
-      image:
-        "https://images.pexels.com/photos/531880/pexels-photo-531880.jpeg?cs=srgb&dl=pexels-pixabay-531880.jpg&fm=jpg",
-    },
-  ];
+ const slides = [
+   { id: 1, image: "/img/hero/Grocery2.jpg" },
+   { id: 2, image: "/img/hero/Banner4.jpg" },
+   { id: 3, image: "/img/hero/Grocery3.jpg" },
+   { id: 4, image: "/img/hero/Grocery4.jpg" },
+ ];
 
-  const images = [
-    "https://png.pngtree.com/background/20230624/original/pngtree-grocery-items-in-3d-view-picture-image_3991295.jpg",
-    "https://i.pinimg.com/originals/26/33/da/2633da06590d107e0ab30178022253f8.jpg",
-    "https://media.istockphoto.com/photos/large-group-of-food-and-drinks-isolated-on-white-background-picture-id500546148?k=20&m=500546148&s=612x612&w=0&h=kCmgBIrzzbju61HPwPGVahZUo-L2QcOFl5ohr89KCO4=",
-  ];
-
-  const [index, setIndex] = useState(0);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setIndex((prev) => (prev + 1) % images.length);
-    }, 3000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  // Circular rotation logic
-  const left = images[(index + 0) % images.length];
-  const center = images[(index + 1) % images.length];
-  const right = images[(index + 2) % images.length];
   return (
     <>
-      <section className="w-full overflow-hidden mt-12 pt-10">
+      <section className="w-full mt-12 pt-10">
         <Swiper
           loop
           centeredSlides={true}
-          grabCursor
+          grabCursor={true}
           autoplay={{ delay: 3000, disableOnInteraction: false }}
-          slidesPerView={3}
-          spaceBetween={0}
+          slidesPerView={1.5}
+          spaceBetween={30}
           navigation
           pagination={{ clickable: true }}
           modules={[Autoplay, Pagination, Navigation]}
           breakpoints={{
-            0: { slidesPerView: 1, spaceBetween: 0 },
-            640: { slidesPerView: 1.3, spaceBetween: 0 },
-            1024: { slidesPerView: 3, spaceBetween: 0 },
+            0: { slidesPerView: 1, spaceBetween: 10 },
+            640: { slidesPerView: 1.2, spaceBetween: 15 },
+            1024: { slidesPerView: 1.6, spaceBetween: 25 },
+            1440: { slidesPerView: 2.2, spaceBetween: 30 },
           }}
           className="hero-slider w-full"
         >
           {slides.map((slide) => (
-            <SwiperSlide
-              key={slide.id}
-              className="relative flex justify-center"
-            >
+            <SwiperSlide key={slide.id} className="flex justify-center">
               <img
                 src={slide.image}
-                alt="Slide Banner"
-                className={`h-[450px] object-cover rounded-3xl shadow-2xl ${
-                  slide.id === 2 ? "w-[1500px]" : "w-full"
-                }`}
+                alt="Banner"
+                className="w-full h-[450px] object-cover rounded-3xl shadow-xl"
               />
             </SwiperSlide>
           ))}
         </Swiper>
 
-        {/* SLIDE STYLING */}
+        {/* STYLES */}
         <style>
           {`
-          .hero-slider .swiper-slide {
-            transition: all 0.5s ease;
-            opacity: 0.45;
-            transform: scale(0.85);
-          }
+            .hero-slider .swiper-slide {
+              transition: all 0.45s ease;
+              opacity: 0.55;
+              transform: scale(0.88);
+            }
 
-          .hero-slider .swiper-slide.swiper-slide-active {
-            opacity: 1 !important;
-            transform: scale(1.05) !important;
-            z-index: 50 !important;
-          }
+            .hero-slider .swiper-slide.swiper-slide-active {
+              opacity: 1 !important;
+              transform: scale(1.05) !important;
+              z-index: 20 !important;
+            }
 
-          .swiper-pagination-bullet {
-            background: white;
-            opacity: 0.6;
-          }
-          .swiper-pagination-bullet-active {
-            background: #ff6600;
-            opacity: 1;
-          }
+          .swiper-button-prev,
+.swiper-button-next {
+  width: 42px !important;
+  height: 42px !important;
+  backdrop-filter: blur(6px);
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 12px;
+  color: #000 !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+.swiper-button-prev:after,
+.swiper-button-next:after {
+  font-size: 18px !important;
+  font-weight: 600;
+}
+
+
+            .swiper-pagination-bullet {
+              background: #fff;
+              opacity: 0.7;
+            }
+
+            .swiper-pagination-bullet-active {
+              background: #ff6600;
+              opacity: 1;
+            }
         `}
         </style>
       </section>
