@@ -127,7 +127,7 @@ export default function CategoryMegaMenu() {
       <button
         ref={btnRef}
         onMouseEnter={() => setOpen(true)}
-        className="rounded  text-zinc-950 hover:bg-zinc-100 px-4 py-2   hover:text-black"
+        className="rounded  text-white hover:black px-4 py-2    hover:bg-[#37475A] transition"
       >
         Shop by Category
       </button>
@@ -157,7 +157,6 @@ export default function CategoryMegaMenu() {
                     </div>
                   ))}
                 </div>
-                
               </div>
 
               {/* Middle: subcategories */}
@@ -210,7 +209,8 @@ export default function CategoryMegaMenu() {
                 </div>
               </div>
             </div>
-          </div>,document.body
+          </div>,
+          document.body
         )}
     </>
   );

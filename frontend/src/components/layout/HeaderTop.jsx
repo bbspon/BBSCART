@@ -16,6 +16,16 @@ function HeaderTop() {
   const [menuOpen, setMenuOpen] = useState(false);
   const toggleMenu = () => setMenuOpen((v) => !v);
   const [open, setOpen] = useState(false);
+  const [showUserPopup, setShowUserPopup] = useState(false);
+useEffect(() => {
+  let timer;
+  if (showUserPopup) {
+    timer = setTimeout(() => setShowUserPopup(false), 5000);
+  }
+  return () => clearTimeout(timer);
+}, [showUserPopup]);
+
+
   const navItems = [
     { name: "Home", href: "/" },
     { name: "About BBSCART", href: "/about" },
@@ -83,10 +93,14 @@ function HeaderTop() {
       </div>
     );
   }
+const closePopup = () => setShowUserPopup(false);
 
   return (
     <>
-      <header className="flex flex-wrap items-center justify-between p-4 shadow">
+      <header
+        onClick={closePopup}
+        className="sticky top-0 z-[999] flex flex-wrap items-center justify-between p-4 shadow bg-white"
+      >
         {/* Left: Logo + Mobile Toggle */}
         <div className="flex items-center justify-between w-full md:w-auto">
           <Link to="/">
@@ -107,7 +121,10 @@ function HeaderTop() {
         </div>
 
         {/* Middle: Desktop Navigation */}
-        <nav className="hidden md:flex flex-1 flex-nowrap  justify-center gap-5 text-sm font-medium text-gray-700">
+        <nav
+          className="hidden md:flex flex-1 flex-nowrap justify-center gap-5 text-[16px] font-sans font-semibold tracking-tight text-[16px]
+ text-gray-800"
+        >
           <div classsName="flex">
             <div>
               {navItems.map((item, idx) => (
@@ -126,7 +143,7 @@ function HeaderTop() {
 
         {/* Mobile Dropdown Panel */}
         {menuOpen && (
-          <div className="md:hidden w-full mt-2 flex flex-row flex-wrap gap-2 text-gray-700 justify-center">
+          <div className="md:hidden w-full mt-2 flex flex-row flex-wrap gap-2 text-[#0B7A4B] justify-center">
             {navItems.map((item, idx) => (
               <button
                 key={idx}
@@ -149,7 +166,10 @@ function HeaderTop() {
             {/* Welcome text placed left of the icon */}
             {isAuthenticated ? (
               <div className="hidden sm:flex items-center gap-2">
-                <span className="bb-btn-title font-Poppins text-[12px] text-[#6b0e13]">
+                <span
+                  className="bb-btn-title font-sans font-semibold tracking-tight text-[14px]
+ text-[#6b0e13]"
+                >
                   Welcome!
                 </span>
                 <span className="bb-btn-stitle font-Poppins text-[13px] font-semibold text-[#6b0e13]">
@@ -158,13 +178,22 @@ function HeaderTop() {
               </div>
             ) : (
               <div className="hidden sm:block">
-                <span className="text-sm text-gray-700">Welcome!</span>
+                <span className="text-sm text-[#0B7A4B] font-bold">
+                  Welcome!
+                </span>
               </div>
             )}
 
-            <div className="flex items-center cursor-pointer">
-              <RiUserShared2Fill className="text-[#6b0e13] w-6 h-6" />
+            <div
+              className="flex items-center cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowUserPopup(!showUserPopup);
+              }}
+            >
+              <RiUserShared2Fill className="text-[#0B7A4B] w-6 h-6" />
             </div>
+
             <div className="relative text-center top-8 z-[99]">
               {/* Dropdown / menu */}
               <div
@@ -185,230 +214,145 @@ function HeaderTop() {
                 aria-label="User dropdown"
               ></div>
             </div>
-
-            <ul
-              className=" rounded-lg
-    absolute 
-     p-3 mt-2  
-     text-sm z-[99] 
-    hidden group-hover:block
-
-    /* 📱 Mobile (default) */
-    left-28 right-18 bottom-[-54.2rem] w-[43vw] mx-auto text-black 
-
-    /* 💻 Desktop (sm and up) */
-    sm:left-[6rem] sm:right-18 sm:top-[90px] sm:bottom-auto sm:w-44 sm:text-left z-9999
-  "
-            >
-              {!isAuthenticated ? (
-                <>
-                  <div
-                    className="
-                 absolute z-[99] border-2 bg-[#6b0e13] rounded-xl shadow-md 
-
-    /* 📱 Mobile (default) */
-          left-[-18rem] right-auto bottom-[16.5rem] w-[vw] mx-auto p-5
-
-    /* 💻 Desktop (sm and up) */  
-    sm:left-[-25rem] sm:right-auto sm:bottom-[-31.5rem] 
-  "
-                  >
-                    <ul className="flex flex-row mt-2 justify-center">
+            {showUserPopup && (
+              <div
+                className="
+      fixed
+      top-[70px]
+      right-0
+      z-[9999]
+      w-[360px]
+      bg-white
+      border border-gray-300
+      shadow-xl
+      rounded-xl
+      p-3
+    "
+              >
+                {/* NOT LOGGED IN */}
+                {!isAuthenticated ? (
+                  <div className="p-3">
+                    {/* Login + Register */}
+                    <ul className="flex justify-between mb-3">
                       <li>
                         <Link
                           to="/register"
-                          className="block px-4 py-2 text-white text-xl hover:bg-[#8e1c21] rounded-lg"
+                          className="block px-4 py-2 text-[#0B0B0B] hover:bg-[#E8F3ED] rounded-lg"
                         >
                           Register
                         </Link>
                       </li>
+
                       <li>
                         <Link
                           to="/login"
-                          className="block px-4 py-2 text-white text-xl hover:bg-[#8e1c21] rounded-lg"
+                          className="block px-4 py-2 text-[#0B0B0B] hover:bg-[#E8F3ED] rounded-lg"
                         >
                           Login
                         </Link>
                       </li>
                     </ul>
-                    <hr className="border-t-1 border-[#ecd9da] my-2 w-full" />
 
-                    <div className="flex flex-nowrap">
-                      <div className="min-w-[180px]">
-                        <ul className="flex flex-col">
-                          <h6 className="text-white px-4 text-xs mt-3">
-                            Your Lists
-                          </h6>
-                          <li>
-                            <Link
-                              to="/"
-                              className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
-                            >
-                              Create a List
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              to="/"
-                              className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
-                            >
-                              Wish from Any Website
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              to="/"
-                              className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
-                            >
-                              Baby Wishlist
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              to="/"
-                              className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
-                            >
-                              Discover Your Style
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              to="/"
-                              className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
-                            >
-                              Explore Showroom
-                            </Link>
-                          </li>
-                        </ul>
-                      </div>
+                    <hr className="my-2 border-gray-300" />
 
-                      <div classsName="min-w-[180px] ">
-                        <ul className="flex flex-col border-l border-white pl-4">
-                          <h6 className="text-white px-4 text-xs mt-3">
-                            Your Account
-                          </h6>
-                          <li>
-                            <Link
-                              to="/"
-                              className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
-                            >
-                              Your Account
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              to="/orders-list"
-                              className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
-                            >
-                              Your Orders
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              to="/"
-                              className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
-                            >
-                              Your Wishlist
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              to="/"
-                              className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
-                            >
-                              Keep shopping for
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              to="/"
-                              className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
-                            >
-                              Your Recommendations
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              to="/"
-                              className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
-                            >
-                              Your Membership
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              to="/"
-                              className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
-                            >
-                              Your Prime Membership
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              to="/"
-                              className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
-                            >
-                              Your Prime Video
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              to="/"
-                              className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
-                            >
-                              Your Subscribe & Save Items
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              to="/"
-                              className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
-                            >
-                              Membershios & Subscriptions
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              to="/"
-                              className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
-                            >
-                              Your Seller Account
-                            </Link>
-                          </li>
-                          <li>
-                            <Link
-                              to="/"
-                              className="block px-4 py-2 text-white hover:bg-[#8e1c21] rounded-lg"
-                            >
-                              Manager Your Content and Device
-                            </Link>
-                          </li>
-                          <a
-                            href="#"
-                            className="block text-center text-white mt-2 text-sm underline underline-offset-4 hover:text-[#fddede]"
+                    {/* LISTS + ACCOUNT */}
+                    <div className="flex gap-4">
+                      {/* LEFT */}
+                      <ul className="flex-1 text-sm space-y-1">
+                        <h6 className="text-[#0B7A4B] font-semibold">
+                          Your Lists
+                        </h6>
+                        <li>
+                          <Link
+                            to="/"
+                            className="block px-2 py-1 hover:bg-[#E8F3ED] rounded"
                           >
-                            Register for a free Business Account
-                          </a>
-                        </ul>
-                      </div>
+                            Create a List
+                          </Link>
+                        </li>
+                        <li>
+                          <Link
+                            to="/"
+                            className="block px-2 py-1 hover:bg-[#E8F3ED] rounded"
+                          >
+                            Wish From Any Website
+                          </Link>
+                        </li>
+                        <li>
+                          <Link
+                            to="/"
+                            className="block px-2 py-1 hover:bg-[#E8F3ED] rounded"
+                          >
+                            Baby Wishlist
+                          </Link>
+                        </li>
+                        <li>
+                          <Link
+                            to="/"
+                            className="block px-2 py-1 hover:bg-[#E8F3ED] rounded"
+                          >
+                            Discover Your Style
+                          </Link>
+                        </li>
+                        <li>
+                          <Link
+                            to="/"
+                            className="block px-2 py-1 hover:bg-[#E8F3ED] rounded"
+                          >
+                            Explore Showroom
+                          </Link>
+                        </li>
+                      </ul>
+
+                      {/* RIGHT */}
+                      <ul className="flex-1 text-sm space-y-1 border-l pl-3">
+                        <h6 className="text-[#0B7A4B] font-semibold">
+                          Your Account
+                        </h6>
+                        <li>
+                          <Link
+                            to="/"
+                            className="block px-2 py-1 hover:bg-[#E8F3ED] rounded"
+                          >
+                            Your Account
+                          </Link>
+                        </li>
+                        <li>
+                          <Link
+                            to="/orders-list"
+                            className="block px-2 py-1 hover:bg-[#E8F3ED] rounded"
+                          >
+                            Your Orders
+                          </Link>
+                        </li>
+                        <li>
+                          <Link
+                            to="/"
+                            className="block px-2 py-1 hover:bg-[#E8F3ED] rounded"
+                          >
+                            Your Wishlist
+                          </Link>
+                        </li>
+                        <li>
+                          <Link
+                            to="/"
+                            className="block px-2 py-1 hover:bg-[#E8F3ED] rounded"
+                          >
+                            Recommendations
+                          </Link>
+                        </li>
+                      </ul>
                     </div>
                   </div>
-                </>
-              ) : (
-                <>
-                  <div
-                    className=" relative left-[-23rem] top-[-65px] z-[99]
-bg-[#6b0e13] text-white border-2 border-[#8e1c21]
-rounded-2xl shadow-lg p-6
-w-[100vw]  sm:w-[90vw] md:w-[100vw] lg:w-[45vw]
- overflow-y-visible"
-                  >
-                    {/* Profile + Quick Links */}
-                    <div className="flex flex-row justify-around text-xl flex-wrap">
+                ) : (
+                  /* LOGGED IN */
+                  <div className="p-3">
+                    {/* TOP SHORTCUTS */}
+                    <ul className="flex justify-between mb-3 text-sm">
                       <li>
                         <Link
                           to="/my-account"
-                          className="block px-4 py-2 hover:bg-gray-100 rounded-lg"
+                          className="px-3 py-1 hover:bg-gray-100 rounded"
                         >
                           Profile
                         </Link>
@@ -418,7 +362,7 @@ w-[100vw]  sm:w-[90vw] md:w-[100vw] lg:w-[45vw]
                         <li>
                           <Link
                             to={dashboardPath}
-                            className="block px-4 py-2 hover:bg-gray-100 rounded-lg"
+                            className="px-3 py-1 hover:bg-gray-100 rounded"
                           >
                             Dashboard
                           </Link>
@@ -428,7 +372,7 @@ w-[100vw]  sm:w-[90vw] md:w-[100vw] lg:w-[45vw]
                       <li>
                         <Link
                           to="/checkout"
-                          className="block px-4 py-2 hover:bg-gray-100 rounded-lg"
+                          className="px-3 py-1 hover:bg-gray-100 rounded"
                         >
                           Checkout
                         </Link>
@@ -437,28 +381,23 @@ w-[100vw]  sm:w-[90vw] md:w-[100vw] lg:w-[45vw]
                       <li>
                         <button
                           onClick={handleLogout}
-                          className="block w-full text-left px-4 py-2 hover:bg-gray-100 rounded-lg"
+                          className="px-3 py-1 hover:bg-gray-100 rounded"
                         >
                           Logout
                         </button>
                       </li>
-                    </div>
-                    {/* 📦 Dropdown Panel */}
-                    <div
-                      className="
-      mt-3
-      flex flex-row items-start justify-between gap-10
- 
-      overflow-y-auto
-      z-50
-    "
-                    >
-                      {/* 🛍️ Left Column: Lists */}
-                      <ul className="flex flex-col space-y-1 w-1/2 pr-4 ">
+                    </ul>
+
+                    <hr className="my-2 border-gray-300" />
+
+                    {/* TWO COLUMN PANEL */}
+                    <div className="flex gap-4 text-sm">
+                      {/* LEFT COLUMN */}
+                      <ul className="flex-1 space-y-1">
                         <li>
                           <Link
                             to="/your-lists"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
                             Shopping List
                           </Link>
@@ -466,121 +405,54 @@ w-[100vw]  sm:w-[90vw] md:w-[100vw] lg:w-[45vw]
                         <li>
                           <Link
                             to="/your-lists"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
-                            Shopping List
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/your-lists"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
-                          >
-                            Shopping List
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/your-lists"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
-                          >
-                            Shopping List
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/your-lists"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
-                          >
-                            Shopping List
+                            Wish List
                           </Link>
                         </li>
                         <li>
                           <Link
                             to="/"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
                             See More
                           </Link>
                         </li>
 
-                        <hr className="border-t border-[#ecd9da] my-2 w-full" />
+                        <hr className="border-gray-300" />
 
                         <li>
                           <Link
                             to="/"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
-                            Create a Wish List
+                            Create Wish List
                           </Link>
                         </li>
                         <li>
                           <Link
                             to="/"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
-                          >
-                            Wish from Any Website
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
-                          >
-                            Baby Wishlist
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
-                          >
-                            Discover Your Style
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
                             Explore Showroom
                           </Link>
                         </li>
                       </ul>
 
-                      {/* 👤 Right Column: Account */}
-                      <ul className="flex flex-col space-y-1 w-1/2 pl-4 border-l border-[#dbcece]">
+                      {/* RIGHT COLUMN */}
+                      <ul className="flex-1 space-y-1 border-l pl-3">
                         <li>
                           <Link
                             to="/switch-account"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
-                            Switch Accounts
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/logout"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
-                          >
-                            Sign Out
-                          </Link>
-                        </li>
-
-                        <hr className="border-t border-[#ecd9da] my-2 w-full" />
-
-                        <li>
-                          <Link
-                            to="/account"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
-                          >
-                            Your Account
+                            Switch Account
                           </Link>
                         </li>
                         <li>
                           <Link
                             to="/orders"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
                             Your Orders
                           </Link>
@@ -588,105 +460,33 @@ w-[100vw]  sm:w-[90vw] md:w-[100vw] lg:w-[45vw]
                         <li>
                           <Link
                             to="/wishlist"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
-                            Your Wishlist
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/continue-shopping"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
-                          >
-                            Keep Shopping For
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/recommendations"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
-                          >
-                            Your Recommendations
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/safety-alerts"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
-                          >
-                            Recalls & Product Safety Alerts
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/membership"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
-                          >
-                            Your Membership
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/prime-video"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
-                          >
-                            Your Video
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/subscriptions"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
-                          >
-                            Your Subscribe & Save Items
+                            Wishlist
                           </Link>
                         </li>
                         <li>
                           <Link
                             to="/plans"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
-                            Memberships & Subscriptions
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/seller-account"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
-                          >
-                            Your Seller Account
+                            Subscriptions
                           </Link>
                         </li>
                         <li>
                           <Link
                             to="/library"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
                             Content Library
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/devices"
-                            className="block px-4 py-2 hover:bg-[#8e1c21] rounded-lg"
-                          >
-                            Devices
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/business-register"
-                            className="block px-4 py-2 underline underline-offset-4 hover:text-[#fddede]"
-                          >
-                            Register for a Free Business Account
                           </Link>
                         </li>
                       </ul>
                     </div>
                   </div>
-                </>
-              )}
-            </ul>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex flex-row justify-center items-center">
             {/* Search Icon */}
@@ -694,7 +494,7 @@ w-[100vw]  sm:w-[90vw] md:w-[100vw] lg:w-[45vw]
               onClick={() => setOpen(true)}
               className="text-xl p-2 hover:scale-110 transition"
             >
-              <ImSearch className="text-[#6b0e13] w-5 h-5" />
+              <ImSearch className="text-[#0B7A4B] w-5 h-5" />
             </button>
 
             {/* Popup Modal */}
@@ -720,7 +520,7 @@ w-[100vw]  sm:w-[90vw] md:w-[100vw] lg:w-[45vw]
             <Link to="/wishlist">
               <FaHandHoldingHeart
                 size={20}
-                className="text-[#6b0e13] w-5 h-5"
+                className="text-[#0B7A4B] w-5 h-5"
               />
             </Link>
           </div>

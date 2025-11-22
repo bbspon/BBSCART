@@ -33,9 +33,9 @@ export default function NavbarCart() {
         onClick={() => setOpen((v) => !v)}
         title="Go to cart"
       >
-        <FaCartArrowDown size={20} className="text-[#6b0e13] w-5 h-5" />
+        <FaCartArrowDown size={20} className="text-[#0B7A4B] w-5 h-5" />
         {/* <-- Use the icon here */}
-        <span>{cart.totalCount}</span>
+        <span className="text-[#0B7A4B]">{cart.totalCount}</span>
       </button>
 
       {/* Show dropdown only when open */}
