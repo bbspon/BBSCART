@@ -264,10 +264,21 @@ import { FaCartArrowDown } from "react-icons/fa";
 import DeliverTo from "../../components/DeliverTo";
 import NavbarCart from "../../components/NavbarCart";
 import ProductSearch from "./ProductSearch";
-
+import { ImSearch } from "react-icons/im";
+import { MdCancel } from "react-icons/md";
 function HeaderTop() {
   const [menuOpen, setMenuOpen] = useState(false);
   const toggleMenu = () => setMenuOpen((v) => !v);
+  const [open, setOpen] = useState(false);
+  const [showUserPopup, setShowUserPopup] = useState(false);
+useEffect(() => {
+  let timer;
+  if (showUserPopup) {
+    timer = setTimeout(() => setShowUserPopup(false), 5000);
+  }
+  return () => clearTimeout(timer);
+}, [showUserPopup]);
+
 
   const navItems = [
     { name: "Home", href: "/" },
@@ -336,10 +347,14 @@ function HeaderTop() {
       </div>
     );
   }
+const closePopup = () => setShowUserPopup(false);
 
   return (
     <>
-      <header className="flex flex-wrap items-center justify-between p-4 shadow">
+      <header
+        onClick={closePopup}
+        className="sticky top-0 z-[999] flex flex-wrap items-center justify-between p-4 shadow bg-white"
+      >
         {/* Left: Logo + Mobile Toggle */}
         <div className="flex items-center justify-between w-full md:w-auto">
           <Link to="/">
@@ -360,7 +375,10 @@ function HeaderTop() {
         </div>
 
         {/* Middle: Desktop Navigation */}
-        <nav className="hidden md:flex flex-1 flex-nowrap  justify-center gap-5 text-sm font-medium text-gray-700">
+        <nav
+          className="hidden md:flex flex-1 flex-nowrap justify-center gap-5 text-[16px] font-sans font-semibold tracking-tight text-[16px]
+ text-gray-800"
+        >
           <div classsName="flex">
             <div>
               {navItems.map((item, idx) => (
@@ -374,15 +392,12 @@ function HeaderTop() {
                 </button>
               ))}
             </div>
-            <div className="flex flex-row justify-center items-center">
-              <ProductSearch />
-            </div>
           </div>
         </nav>
 
         {/* Mobile Dropdown Panel */}
         {menuOpen && (
-          <div className="md:hidden w-full mt-2 flex flex-row flex-wrap gap-2 text-gray-700 justify-center">
+          <div className="md:hidden w-full mt-2 flex flex-row flex-wrap gap-2 text-[#0B7A4B] justify-center">
             {navItems.map((item, idx) => (
               <button
                 key={idx}
@@ -401,10 +416,38 @@ function HeaderTop() {
         {/* Right: User, Wishlist, Cart */}
         <div className="flex items-center gap-4 w-full md:w-auto justify-center">
           {/* User */}
-          <div className="relative group">
-            <div className="flex items-center cursor-pointer">
-              <RiUserShared2Fill className="text-[#6b0e13] w-6 h-6" />
+          <div className="relative group flex items-center gap-2">
+            {/* Welcome text placed left of the icon */}
+            {isAuthenticated ? (
+              <div className="hidden sm:flex items-center gap-2">
+                <span
+                  className="bb-btn-title font-sans font-semibold tracking-tight text-[14px]
+ text-[#6b0e13]"
+                >
+                  Welcome!
+                </span>
+                <span className="bb-btn-stitle font-Poppins text-[13px] font-semibold text-[#6b0e13]">
+                  {user?.name}
+                </span>
+              </div>
+            ) : (
+              <div className="hidden sm:block">
+                <span className="text-sm text-[#0B7A4B] font-bold">
+                  Welcome!
+                </span>
+              </div>
+            )}
+
+            <div
+              className="flex items-center cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowUserPopup(!showUserPopup);
+              }}
+            >
+              <RiUserShared2Fill className="text-[#0B7A4B] w-6 h-6" />
             </div>
+
             <div className="relative text-center top-8 z-[99]">
               {/* Dropdown / menu */}
               <div
@@ -436,150 +479,145 @@ function HeaderTop() {
                 )}
               </div>
             </div>
-
-            <ul
-              className=" rounded-lg
-    absolute 
-     p-3 mt-2  
-     text-sm z-[99] 
-    hidden group-hover:block
-
-    /* 📱 Mobile (default) */
-    left-[10rem] right-18 top-[53.8rem] bottom-auto w-[43vw] mx-auto text-black 
-
-    /* 💻 Desktop (sm and up) */
-    sm:left-[-6.5rem] sm:right-[-82px] sm:top-[5.2rem] sm:bottom-auto sm:w-44 sm:text-left z-9999
-  "
-            >
-              {!isAuthenticated ? (
-                <>
-                  <div
-                    className="
-                    absolute z-[99] border-2 bg-[#fffaf5] rounded-xl shadow-md text-sm 
-                    overflow-y-auto max-h-[500px] max-w-[500px]  /* ✅ Scrollable dropdown */ med
-                    scrollbar-thin scrollbar-thumb-[#c7c7c7] scrollbar-track-[#f3f3f3] 
-                     [scrollbar-width:none]           /* Firefox */
-                    [&::-webkit-scrollbar]:hidden    /* Chrome/Safari/Edge */
-
-                    /* 📱 Mobile (default) */
-                    left-[-16rem] right-auto bottom-[23rem] w-[80vw] mx-auto p-4
-
-                    /* 💻 Desktop (sm and up) */
-                                  sm:left-[-16rem] sm:right-auto sm:bottom-[-25.5rem]
-                  "
-                  >
-                    {/* 🔹 Top Buttons */}
-                    <ul className="flex flex-row mt-2 justify-center">
+            {showUserPopup && (
+              <div
+                className="
+      fixed
+      top-[70px]
+      right-0
+      z-[9999]
+      w-[360px]
+      bg-white
+      border border-gray-300
+      shadow-xl
+      rounded-xl
+      p-3
+    "
+              >
+                {/* NOT LOGGED IN */}
+                {!isAuthenticated ? (
+                  <div className="p-3">
+                    {/* Login + Register */}
+                    <ul className="flex justify-between mb-3">
                       <li>
                         <Link
                           to="/register"
-                          className="block px-4 py-2 text-[#6b0e13] font-medium hover:bg-[#f3e0e0] rounded-lg"
+                          className="block px-4 py-2 text-[#0B0B0B] hover:bg-[#E8F3ED] rounded-lg"
                         >
                           Register
                         </Link>
                       </li>
+
                       <li>
                         <Link
                           to="/login"
-                          className="block px-4 py-2 text-[#6b0e13] font-medium hover:bg-[#f3e0e0] rounded-lg"
+                          className="block px-4 py-2 text-[#0B0B0B] hover:bg-[#E8F3ED] rounded-lg"
                         >
                           Login
                         </Link>
                       </li>
                     </ul>
 
-                    <hr className="border-t border-[#e8caca] my-2 w-full" />
+                    <hr className="my-2 border-gray-300" />
 
-                    <div className="flex flex-nowrap">
-                      {/* 🔹 Left Column */}
-                      <div className="min-w-[180px]">
-                        <ul className="flex flex-col">
-                          <h6 className="text-[#6b0e13] px-4 text-xs mt-3 font-semibold uppercase tracking-wide">
-                            Your Lists
-                          </h6>
-                          {[
-                            "Create a List",
-                            "Wish from Any Website",
-                            "Baby Wishlist",
-                            "Discover Your Style",
-                            "Explore Showroom",
-                          ].map((item, index) => (
-                            <li key={index}>
-                              <Link
-                                to="/"
-                                className="block px-4 py-2 text-[#3a3a3a] hover:bg-[#f3e0e0] rounded-lg"
-                              >
-                                {item}
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      {/* 🔹 Right Column */}
-                      <div className="min-w-[180px] border-l border-[#e8caca] pl-4">
-                        <ul className="flex flex-col">
-                          <h6 className="text-[#6b0e13] px-4 text-xs mt-3 font-semibold uppercase tracking-wide">
-                            Your Account
-                          </h6>
-                          {[
-                            "Your Account",
-                            "Your Orders",
-                            "Your Wishlist",
-                            "Keep shopping for",
-                            "Your Recommendations",
-                            "Your Membership",
-                            "Your Prime Membership",
-                            "Your Prime Video",
-                            "Your Subscribe & Save Items",
-                            "Memberships & Subscriptions",
-                            "Your Seller Account",
-                            "Manage Your Content and Devices",
-                          ].map((item, index) => (
-                            <li key={index}>
-                              <Link
-                                to="/"
-                                className="block px-4 py-2 text-[#3a3a3a] hover:bg-[#f3e0e0] rounded-lg"
-                              >
-                                {item}
-                              </Link>
-                            </li>
-                          ))}
-
-                          <a
-                            href="#"
-                            className="block text-center text-[#6b0e13] mt-2 text-sm underline underline-offset-4 hover:text-[#a31b22]"
+                    {/* LISTS + ACCOUNT */}
+                    <div className="flex gap-4">
+                      {/* LEFT */}
+                      <ul className="flex-1 text-sm space-y-1">
+                        <h6 className="text-[#0B7A4B] font-semibold">
+                          Your Lists
+                        </h6>
+                        <li>
+                          <Link
+                            to="/"
+                            className="block px-2 py-1 hover:bg-[#E8F3ED] rounded"
                           >
-                            Register for a free Business Account
-                          </a>
-                        </ul>
-                      </div>
+                            Create a List
+                          </Link>
+                        </li>
+                        <li>
+                          <Link
+                            to="/"
+                            className="block px-2 py-1 hover:bg-[#E8F3ED] rounded"
+                          >
+                            Wish From Any Website
+                          </Link>
+                        </li>
+                        <li>
+                          <Link
+                            to="/"
+                            className="block px-2 py-1 hover:bg-[#E8F3ED] rounded"
+                          >
+                            Baby Wishlist
+                          </Link>
+                        </li>
+                        <li>
+                          <Link
+                            to="/"
+                            className="block px-2 py-1 hover:bg-[#E8F3ED] rounded"
+                          >
+                            Discover Your Style
+                          </Link>
+                        </li>
+                        <li>
+                          <Link
+                            to="/"
+                            className="block px-2 py-1 hover:bg-[#E8F3ED] rounded"
+                          >
+                            Explore Showroom
+                          </Link>
+                        </li>
+                      </ul>
+
+                      {/* RIGHT */}
+                      <ul className="flex-1 text-sm space-y-1 border-l pl-3">
+                        <h6 className="text-[#0B7A4B] font-semibold">
+                          Your Account
+                        </h6>
+                        <li>
+                          <Link
+                            to="/"
+                            className="block px-2 py-1 hover:bg-[#E8F3ED] rounded"
+                          >
+                            Your Account
+                          </Link>
+                        </li>
+                        <li>
+                          <Link
+                            to="/orders-list"
+                            className="block px-2 py-1 hover:bg-[#E8F3ED] rounded"
+                          >
+                            Your Orders
+                          </Link>
+                        </li>
+                        <li>
+                          <Link
+                            to="/"
+                            className="block px-2 py-1 hover:bg-[#E8F3ED] rounded"
+                          >
+                            Your Wishlist
+                          </Link>
+                        </li>
+                        <li>
+                          <Link
+                            to="/"
+                            className="block px-2 py-1 hover:bg-[#E8F3ED] rounded"
+                          >
+                            Recommendations
+                          </Link>
+                        </li>
+                      </ul>
                     </div>
                   </div>
-                </>
-              ) : (
-                <>
-                  <div
-                    className="
-                    absolute z-[99] border-2 bg-[#fffaf5] rounded-xl shadow-md text-sm 
-                    overflow-y-auto max-h-[500px] max-w-[500px]  /* ✅ Scrollable dropdown */ med
-                    scrollbar-thin scrollbar-thumb-[#c7c7c7] scrollbar-track-[#f3f3f3] 
-                     [scrollbar-width:none]           /* Firefox */
-                    [&::-webkit-scrollbar]:hidden    /* Chrome/Safari/Edge */
-
-                    /* 📱 Mobile (default) */
-                    left-[-16rem] right-auto bottom-[23rem] w-[80vw] mx-auto p-4
-
-                    /* 💻 Desktop (sm and up) */
-                                  sm:left-[-16rem] sm:right-auto sm:bottom-[-27.9rem]
-                  "
-                  >
-                    {/* 🔹 Profile + Quick Links */}
-                    <div className="flex flex-row justify-around text-sm flex-wrap gap-2 mb-3">
+                ) : (
+                  /* LOGGED IN */
+                  <div className="p-3">
+                    {/* TOP SHORTCUTS */}
+                    <ul className="flex justify-between mb-3 text-sm">
                       <li>
                         <Link
                           to="/my-account"
-                          className="block px-3 py-1.5 hover:bg-[#f3e7e7] rounded-lg"
+                          className="px-3 py-1 hover:bg-gray-100 rounded"
                         >
                           Profile
                         </Link>
@@ -589,7 +627,7 @@ function HeaderTop() {
                         <li>
                           <Link
                             to={dashboardPath}
-                            className="block px-3 py-1.5 hover:bg-[#f3e7e7] rounded-lg"
+                            className="px-3 py-1 hover:bg-gray-100 rounded"
                           >
                             Dashboard
                           </Link>
@@ -599,121 +637,87 @@ function HeaderTop() {
                       <li>
                         <Link
                           to="/checkout"
-                          className="block px-3 py-1.5 hover:bg-[#f3e7e7] rounded-lg"
+                          className="px-3 py-1 hover:bg-gray-100 rounded"
                         >
                           Checkout
                         </Link>
                       </li>
-                    </div>
 
-                    {/* 📦 Dropdown Panel */}
-                    <div
-                      className="flex flex-row items-start justify-between gap-4 overflow-y-auto z-50 h-[400px]
-    scrollbar-thin scrollbar-thumb-[#c7c7c7] scrollbar-track-[#f3f3f3] 
-                     [scrollbar-width:none]           /* Firefox */
-                    [&::-webkit-scrollbar]:hidden    /* Chrome/Safari/Edge */
-"
-                    >
-                      {/* 🛍️ Left Column: Lists */}
-                      <ul className="flex flex-col space-y-1 w-1/2 pr-2">
-                        {Array(5)
-                          .fill()
-                          .map((_, i) => (
-                            <li key={i}>
-                              <Link
-                                to="/your-lists"
-                                className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg"
-                              >
-                                Shopping List {i + 1}
-                              </Link>
-                            </li>
-                          ))}
+                      <li>
+                        <button
+                          onClick={handleLogout}
+                          className="px-3 py-1 hover:bg-gray-100 rounded"
+                        >
+                          Logout
+                        </button>
+                      </li>
+                    </ul>
+
+                    <hr className="my-2 border-gray-300" />
+
+                    {/* TWO COLUMN PANEL */}
+                    <div className="flex gap-4 text-sm">
+                      {/* LEFT COLUMN */}
+                      <ul className="flex-1 space-y-1">
+                        <li>
+                          <Link
+                            to="/your-lists"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
+                          >
+                            Shopping List
+                          </Link>
+                        </li>
+                        <li>
+                          <Link
+                            to="/your-lists"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
+                          >
+                            Wish List
+                          </Link>
+                        </li>
                         <li>
                           <Link
                             to="/"
-                            className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg font-medium"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
                             See More
                           </Link>
                         </li>
 
-                        <hr className="border-t border-[#ecd9da] my-2 w-full" />
+                        <hr className="border-gray-300" />
 
                         <li>
                           <Link
                             to="/"
-                            className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
-                            Create a Wish List
+                            Create Wish List
                           </Link>
                         </li>
                         <li>
                           <Link
                             to="/"
-                            className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg"
-                          >
-                            Wish from Any Website
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/"
-                            className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg"
-                          >
-                            Baby Wishlist
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/"
-                            className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg"
-                          >
-                            Discover Your Style
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/"
-                            className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
                             Explore Showroom
                           </Link>
                         </li>
                       </ul>
 
-                      {/* 👤 Right Column: Account */}
-                      <ul className="flex flex-col space-y-1 w-1/2 pl-2 border-l border-[#e0d4d4] ">
+                      {/* RIGHT COLUMN */}
+                      <ul className="flex-1 space-y-1 border-l pl-3">
                         <li>
                           <Link
                             to="/switch-account"
-                            className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
-                            Switch Accounts
-                          </Link>
-                        </li>
-                        <li>
-                          <button
-                            onClick={handleLogout}
-                            className="block w-full text-left px-3 py-1.5 hover:bg-[#f3e7e7] rounded-lg"
-                          >
-                            Logout
-                          </button>
-                        </li>
-
-                        <hr className="border-t border-[#ecd9da] my-2 w-full" />
-
-                        <li>
-                          <Link
-                            to="/account"
-                            className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg"
-                          >
-                            Your Account
+                            Switch Account
                           </Link>
                         </li>
                         <li>
                           <Link
                             to="/orders"
-                            className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
                             Your Orders
                           </Link>
@@ -721,114 +725,67 @@ function HeaderTop() {
                         <li>
                           <Link
                             to="/wishlist"
-                            className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
-                            Your Wishlist
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/continue-shopping"
-                            className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg"
-                          >
-                            Keep Shopping For
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/recommendations"
-                            className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg"
-                          >
-                            Your Recommendations
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/safety-alerts"
-                            className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg"
-                          >
-                            Recalls & Product Safety Alerts
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/membership"
-                            className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg"
-                          >
-                            Your Membership
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/prime-video"
-                            className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg"
-                          >
-                            Your Video
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/subscriptions"
-                            className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg"
-                          >
-                            Your Subscribe & Save Items
+                            Wishlist
                           </Link>
                         </li>
                         <li>
                           <Link
                             to="/plans"
-                            className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
-                            Memberships & Subscriptions
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/seller-account"
-                            className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg"
-                          >
-                            Your Seller Account
+                            Subscriptions
                           </Link>
                         </li>
                         <li>
                           <Link
                             to="/library"
-                            className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
                             Content Library
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/devices"
-                            className="block px-3 py-1.5 hover:bg-[#f9efef] rounded-lg"
-                          >
-                            Devices
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/business-register"
-                            className="block px-3 py-1.5 underline underline-offset-4 hover:text-[#8e1c21]"
-                          >
-                            Register for a Free Business Account
                           </Link>
                         </li>
                       </ul>
                     </div>
                   </div>
-                </>
-              )}
-            </ul>
+                )}
+              </div>
+            )}
           </div>
+          <div className="flex flex-row justify-center items-center">
+            {/* Search Icon */}
+            <button
+              onClick={() => setOpen(true)}
+              className="text-xl p-2 hover:scale-110 transition"
+            >
+              <ImSearch className="text-[#0B7A4B] w-5 h-5" />
+            </button>
 
+            {/* Popup Modal */}
+            {open && (
+              <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
+                <div className=" p-5 rounded-2xl shadow-xl min-w-[350px] relative bg-slate-200 mt-2">
+                  {/* Close button */}
+                  <button
+                    onClick={() => setOpen(false)}
+                    className="absolute  top-2 right-2 text-gray-600 hover:text-black "
+                  >
+                    <MdCancel />
+                  </button>
+
+                  <ProductSearch />
+                </div>
+              </div>
+            )}
+          </div>
           <NavbarCart />
           {/* Wishlist */}
           <div className="navbar-cart">
             <Link to="/wishlist">
               <FaHandHoldingHeart
                 size={20}
-                className="text-[#6b0e13] w-5 h-5"
+                className="text-[#0B7A4B] w-5 h-5"
               />
             </Link>
           </div>

@@ -58,22 +58,22 @@ const SectionCategory = () => {
     slidesToShow: 5,
     slidesToScroll: 1,
     responsive: [
-      { breakpoint: 1536, settings: { slidesToShow: 4 } }, // large desktops
+      { breakpoint: 1536, settings: { slidesToShow: 6 } }, // large desktops
       { breakpoint: 1280, settings: { slidesToShow: 3 } }, // laptops
       { breakpoint: 1024, settings: { slidesToShow: 2 } }, // tablets landscape
-      { breakpoint: 768, settings: { slidesToShow: 1 } },  // tablets portrait & mobiles
+      { breakpoint: 768, settings: { slidesToShow: 1 } }, // tablets portrait & mobiles
     ],
   };
 
   return (
- <div className="flex justify-center items-center">
+    <div className="flex justify-center items-center">
       <section className="category-carousel w-full max-w-screen-2xl px-4 md:px-6 lg:px-8 pb-8 md:pb-12">
-        <h2 className="font-quicksand text-center text-xl md:text-2xl lg:text-3xl font-bold mb-6">
+        <h2 className="font-quicksand text-center text-xl md:text-2xl lg:text-3xl font-bold mt-5 pt-12 mb-4">
           Explore Categories
         </h2>
         <Slider {...settings}>
           {categories.map((category) => (
-            <div key={category.id} className="p-4">
+            <div key={category.id} className="p-2">
               <Link to={category.path} className="block">
                 <motion.div
                   whileHover={{ scale: 1.05 }}
@@ -81,24 +81,24 @@ const SectionCategory = () => {
                   initial={{ opacity: 0, y: 40 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
-                  className={`category-box p-6 rounded-xl flex flex-col items-center justify-between text-center shadow-xl ${category.bgColor}`}
+                  className="category-box  rounded-xl flex flex-col items-center justify-between text-center h-full "
                 >
-                  <div className="mb-4 w-full flex justify-center">
+                  <div className=" w-full flex justify-center">
                     <img
                       src={category.icon}
                       alt={category.name}
-                      className="w-40 h-28 sm:w-48 sm:h-32 md:w-56 md:h-36 object-contain"
+                      className="w-[150px] h-[150px] object-contain"
                     />
                   </div>
-                  <h5 className="text-base md:text-lg font-semibold mb-1">
+                  <h5 className="text-base md:text-sm font-semibold mb-1">
                     {category.name}
                   </h5>
-                  <p className="text-sm text-gray-700">{category.items} items</p>
+                  {/* <p className="text-sm text-gray-700">{category.items} items</p>
                   {category.description && (
                     <p className="text-xs text-gray-500 mt-2 hidden md:block">
                       {category.description}
                     </p>
-                  )}
+                  )} */}
                 </motion.div>
               </Link>
             </div>

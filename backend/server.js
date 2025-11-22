@@ -41,6 +41,9 @@ const deliveryWebhookRoutes = require("./routes/deliveryWebhookRoutes");
 const returnRoutes = require("./routes/returnRoutes");
 const webhookRoutes = require("./routes/webhookRoutes");
 const mediaRoutes = require("./routes/mediaRoutes");
+const vendorIdentityRoutes = require("./routes/vendorIdentityRoutes");
+const territoryIdentityRoutes = require("./routes/territoryIdentityRoutes");
+
 const app = express();
 
 // ===== DEV-FIRST CORS (simple & safe) =====
@@ -319,6 +322,13 @@ app.use("/api/delivery/webhooks", deliveryWebhookRoutes);
 app.use("/api", returnRoutes);
 app.use("/api/webhooks", webhookRoutes);
  app.use("/api/media", mediaRoutes);
+ app.use("/api/vendor-identity", vendorIdentityRoutes);
+ app.use("/api/territory-identity", territoryIdentityRoutes);
+app.use("/api/agent-identity", require("./routes/agentIdentityRoutes"));
+app.use("/api/franchise-identity", require("./routes/franchiseIdentityRoutes"));
+
+app.use("/uploads", express.static("uploads"));
+
 // ✅ Global Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
