@@ -103,7 +103,15 @@ import ReturnRequestForm from './components/pages/ReturnRequestForm';
 import AdminPartnersPage from './components/AdminPartners';
 import OrdersPage from './components/pages/OrdersPage';
 import MediaLibrary from "./components/pages/admin/MediaLibrary";
+import VendorIdentityCardForm from "./components/pages/VendorIdentityCardForm";
+import VendorIdentityCard from "./components/pages/VendorIdentityCard";
+import TerrotoryIdentityCardForm from "./components/pages/TerrotoryIdentityCardForm";
+import TerritoryCard from "./components/pages/TerritoryCard";
 
+import HealthcareAgentCardForm from "./components/pages/AgentCardForm";
+import AgentIdentityCard from "./components/pages/AgentIdentityCard";
+import FranchiseIdentityCardForm from "./components/pages/FranchiseIdentityCardForm";
+import FranchiseCard from "./components/pages/FranchiseCard";
 function App() {
   const dispatch = useDispatch();
   const location = useLocation(); // Get the current route
@@ -214,13 +222,22 @@ function App() {
         <Route path="/admin/vendors" element={<AdminVendorsPage />} />
         <Route path="/admin/franchisees" element={<AdminFranchiseesPage />} />
         <Route path="/admin-partners" element={<AdminPartnersPage />} />
-
+        <Route path="/vendorCard-form" element={<VendorIdentityCardForm />} />
+        <Route path="/vendorcard" element={<VendorIdentityCard />} />
+        <Route path="/agentform" element={<HealthcareAgentCardForm />} />
+        <Route path="/agent-card" element={<AgentIdentityCard />} />
+        <Route path="/franchise-form" element={<FranchiseIdentityCardForm />} />
+        <Route path="/franchise-card" element={<FranchiseCard />} />
+        <Route
+          path="/territoryCard-form"
+          element={<TerrotoryIdentityCardForm />}
+        />
+        <Route path="/territorycard" element={<TerritoryCard />} />
         <Route
           path="/customertracking/:trackingId"
           element={<CustomerOrderTrack />}
         />
         <Route path="/returnRequest/:orderId" element={<ReturnRequestForm />} />
-
         <Route
           path="/admin/requests/territories"
           element={<AdminTerritoryRequestsPage />}
@@ -263,7 +280,6 @@ function App() {
           element={<AdminVendorCredentials />}
         />
         <Route path="/accept-invite" element={<AcceptInvite />} />
-
         <Route
           path="/vendor/set-password/:token"
           element={<VendorSetPassword />}
@@ -279,7 +295,6 @@ function App() {
         {/* ✅ Home>PricingPage */}
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/vendor-home" element={<VendorsHome />} />
-
         <Route path="/admin" element={<AdminRoutes />}>
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="products" element={<Products />} />
@@ -301,7 +316,6 @@ function App() {
           <Route path="dashboard" element={<BBSCARTCMSPage />} />
         </Route>
         <Route path="/admin/media" element={<MediaLibrary />} />
-
         {/*260925*/}
         <Route path="/cart" element={<NavbarCart />} />
       </Routes>
