@@ -1,14 +1,69 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import instance from "../../services/axiosInstance";
-import { ChevronDown, ChevronUp, Star } from "lucide-react";
-
+import { ChevronDown, ChevronUp, Star, Check } from "lucide-react";
+import { BsFillHeartFill } from "react-icons/bs";
+import { ImCart } from "react-icons/im";
+import { BsCurrencyRupee } from "react-icons/bs";
+import { PiPlusCircleBold, PiMinusCircleBold } from "react-icons/pi";
+import { TbArrowBadgeLeft } from "react-icons/tb";
+import { TbArrowBadgeRight } from "react-icons/tb";
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+  const STATIC_PREFIXES = ["/uploads"]; // support both roots
 
 export default function SubcategoryPage() {
+  const [page, setPage] = useState(1);
+  const totalPages = 10; // <-- add this line
+
+  const handlePrev = () => {
+    if (page > 1) setPage(page - 1);
+  };
+
+  const handleNext = () => {
+    if (page < totalPages) setPage(page + 1);
+  };
+  const [isComboOpen, setIsComboOpen] = useState(false);
+  const [showMoreCombos, setShowMoreCombos] = useState(false);
+  const [selectedCombo, setSelectedCombo] = useState("Select Combo");
+
+  const comboOptions = [
+    { label: "1 Kg", discount: "10% Off", price: "₹900", oldPrice: "₹1000" },
+    { label: "2 Kg", discount: "12% Off", price: "₹1760", oldPrice: "₹2000" },
+    { label: "3 Kg", discount: "15% Off", price: "₹2550", oldPrice: "₹3000" },
+    { label: "4 Kg", discount: "18% Off", price: "₹3280", oldPrice: "₹4000" },
+    { label: "5 Kg", discount: "20% Off", price: "₹4000", oldPrice: "₹5000" },
+  ];
+
+  const moreCombos = [
+    { label: "6 Kg", discount: "22% Off", price: "₹4680", oldPrice: "₹6000" },
+    { label: "7 Kg", discount: "23% Off", price: "₹5390", oldPrice: "₹7000" },
+    { label: "8 Kg", discount: "25% Off", price: "₹6000", oldPrice: "₹8000" },
+    { label: "9 Kg", discount: "26% Off", price: "₹6660", oldPrice: "₹9000" },
+    { label: "10 Kg", discount: "28% Off", price: "₹7200", oldPrice: "₹10000" },
+  ];
+  const [inCart, setInCart] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+
+  const addToCart = () => {
+    setInCart(true);
+    setQuantity(1);
+  };
+
+  const increase = () => setQuantity((prev) => prev + 1);
+
+  const decrease = () => {
+    setQuantity((prev) => {
+      if (prev > 1) return prev - 1;
+      else {
+        setInCart(false); // remove from cart when qty = 0
+        return 1;
+      }
+    });
+  };
+
+  const [liked, setLiked] = useState(false);
   const { subcategoryId } = useParams();
   const [params, setParams] = useSearchParams();
-
   // --- pincode helper (kept) ---
   const urlPincode = params.get("pincode") || "";
   const getPincode = () =>
@@ -520,18 +575,6 @@ export default function SubcategoryPage() {
       filtered.length
     );
     setItems(filtered);
-    // after you set the 'items' state (wherever you do that)
-    console.log(
-      "IMG DEBUG",
-      items.slice(0, 5).map((p) => ({
-        name: p.name,
-        product_img: p.product_img,
-        gallery_imgs: p.gallery_imgs,
-        product_img_url: p.product_img_url,
-        gallery_img_urls: p.gallery_img_urls,
-        picked: pickImage(p),
-      }))
-    );
   }, [
     itemsRaw,
     q,
@@ -567,9 +610,6 @@ export default function SubcategoryPage() {
   const priceBandsFinal = generatedPriceBands.length
     ? generatedPriceBands
     : fallback.priceBands;
-  // put this near the top of SubcategoryPage.jsx, below API_BASE
-  const STATIC_PREFIXES = ["/uploads"]; // support both roots
-
   function norm(u) {
     if (!u) return "";
     const s = String(u).trim();
@@ -585,7 +625,6 @@ export default function SubcategoryPage() {
     return `${API_BASE}/uploads/${encodeURIComponent(s)}`;
   }
 
-  // REPLACE existing pickImage(p) with this
   function pickImage(p) {
     // 1) Prefer explicit, already-built URLs from backend
     if (p.product_img_url) return p.product_img_url;
@@ -989,7 +1028,31 @@ export default function SubcategoryPage() {
 
       <div className="mx-auto max-w-6xl p-4">
         {label && <h2 className="mb-2 text-lg font-semibold">{label}</h2>}
+        <div className="flex justify-between my-2 border-b border-b-black  pb-2">
+          <h6 className="border border-gray-300 rounded-md px-5 py-2 bg-orange-50  font-semibold hover:bg-orange-100 hover:shadow-md transition shadow-sm">
+            Egg, Meat, and Fish
+          </h6>
 
+          <h6 className="border border-gray-300 rounded-md px-5 py-2  font-semibold hover:bg-purple-100 hover:shadow-md transition shadow-md">
+            BBSNEO
+          </h6>
+
+          <h6 className="border border-gray-300 rounded-md px-5 py-2 bg-gray-50  font-semibold hover:bg-blue-100 hover:shadow-md transition shadow-sm">
+            Thiaworld
+          </h6>
+
+          <h6 className="border border-gray-300 rounded-md px-5 py-2   font-semibold hover:bg-green-100 hover:shadow-md transition shadow-sm">
+            Health
+          </h6>
+
+          <h6 className="border border-gray-300 rounded-md px-5 py-2  font-semibold hover:bg-pink-100 hover:shadow-md transition shadow-sm">
+            Deal Week
+          </h6>
+
+          <h6 className="border border-gray-300 rounded-md px-5 py-2  font-semibold hover:bg-yellow-100 hover:shadow-md transition shadow-sm">
+            Store Pick
+          </h6>
+        </div>
         <div className="mb-4 flex flex-wrap items-end gap-3 justify-between">
           <input
             className="w-52 rounded border px-3 py-2 text-sm"
@@ -1063,27 +1126,203 @@ export default function SubcategoryPage() {
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
             {items.map((p) => (
-              <Link
+              <div
                 key={p._id}
-                to={`/p/${p._id}`}
-                className="rounded border p-3 hover:bg-gray-50"
+                className="relative border-2 rounded-xl p-5 bg-slate-10 hover:bg-gray-50"
               >
-                <img
-                  src={pickImage(p)}
-                  alt=""
-                  className="mb-2 h-32 w-full rounded object-cover"
-                  onError={(e) =>
-                    (e.currentTarget.src = "/img/placeholder.png")
-                  }
-                />
+                {/* Product Card Link */}
+                <Link to={`/p/${p._id}`} className="block ">
+                  <img
+                    src={pickImage(p)}
+                    alt=""
+                    className="mb-2 h-32 w-full rounded object-cover"
+                    onError={(e) =>
+                      (e.currentTarget.src = "/img/placeholder.png")
+                    }
+                  />
 
-                <div className="line-clamp-2 text-sm">{p.name}</div>
-                <div className="text-xs text-gray-500">{p.brand || ""}</div>
-                <div className="text-sm font-semibold">₹{p.price}</div>
-              </Link>
+                  <div className="flex items-center justify-between px-1 py-2">
+                    <div>
+                      <div className="line-clamp-2 text-sm">{p.name}</div>
+                      <div className="text-xs text-gray-500">
+                        {p.brand || ""}
+                      </div>
+                      <div className="text-sm font-semibold">₹{p.price}</div>
+                    </div>
+                    <div className="me-3">
+                      <BsFillHeartFill
+                        size={20}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setLiked(!liked);
+                        }}
+                        className={`text-xl cursor-pointer transition-colors duration-200 ${
+                          liked ? "text-red-500" : "text-gray-300"
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* ADD / BUY Section */}
+                  <div className="flex gap-2 items-center justify-center sm:justify-start py-2 flex-wrap">
+                    {!inCart ? (
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          addToCart();
+                        }}
+                        className="flex flex-row items-center gap-1 border rounded-2xl p-2 px-2 text-xs text-nowrap
+                text-white bg-rose-400 shadow-sm"
+                      >
+                        <ImCart size={15} />
+                        ADD TO CART
+                      </button>
+                    ) : (
+                      <div className="flex items-center justify-center border bg-cyan-200 rounded-lg px-2 flex-wrap py-1">
+                        <span className="text-sm font-semibold text-gray-700 mr-1">
+                          Qty:
+                        </span>
+                        <div className="flex items-center justify-center rounded-lg overflow-hidden">
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              decrease();
+                            }}
+                            className="py-1 text-gray-600 hover:bg-gray-100 font-bold text-lg"
+                          >
+                            <PiMinusCircleBold />
+                          </button>
+                          <span className="px-2 text-gray-800 font-medium text-sm text-center">
+                            {quantity}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              increase();
+                            }}
+                            className="py-1 text-gray-600 hover:bg-gray-100 font-bold text-lg"
+                          >
+                            <PiPlusCircleBold />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        addToCart();
+                      }}
+                      className="flex flex-row items-center gap-1 border rounded-2xl p-2 px-1 text-xs text-nowrap
+              text-white bg-sky-400 shadow-sm"
+                    >
+                      <BsCurrencyRupee size={18} />
+                      BUY NOW
+                    </button>
+                  </div>
+                </Link>
+                <div className="relative mt-2  font-[Inter] z-9999 flex justify-center ">
+                  {/* Main Button */}
+                  <button
+                    onClick={() => setIsComboOpen(!isComboOpen)}
+                    className="  flex  items-center border border-gray-300 bg-white
+                     rounded-md px-3 py-2 text-sm font-medium shadow-sm hover:border-gray-400 transition w-full"
+                  >
+                    {selectedCombo}
+                    <span className="text-gray-500">▾</span>
+                  </button>
+
+                  {/* Dropdown */}
+                  {isComboOpen && (
+                    <div className="absolute  w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg ">
+                      {(showMoreCombos
+                        ? [...comboOptions, ...moreCombos]
+                        : comboOptions
+                      ).map((combo) => (
+                        <div
+                          key={combo.label}
+                          onClick={() => {
+                            setSelectedCombo(combo.label);
+                            setIsComboOpen(false);
+                          }}
+                          className={`p-3 cursor-pointer border-b last:border-0 ${
+                            selectedCombo === combo.label
+                              ? "border-green-400 bg-green-50"
+                              : "hover:bg-gray-50"
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-700">
+                              {combo.label}
+                            </span>
+                            {selectedCombo === combo.label && (
+                              <Check className="text-green-600 w-4 h-4" />
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs bg-green-100 text-green-700 font-semibold px-2 py-[1px] rounded">
+                              {combo.discount}
+                            </span>
+                            <span className="text-sm font-semibold text-gray-900">
+                              {combo.price}
+                            </span>
+                            <span className="text-xs line-through text-gray-400">
+                              {combo.oldPrice}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* +10 More / Show Less */}
+                      <div
+                        onClick={() => setShowMoreCombos(!showMoreCombos)}
+                        className="text-center py-2 text-sm text-gray-600 hover:text-green-700 cursor-pointer font-medium border-t"
+                      >
+                        {showMoreCombos ? "Show Less" : "+10 More Combos"}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
         )}
+        <div className="flex items-center justify-end pt-2 gap-3">
+          {/* Prev Button */}
+          <button
+            onClick={handlePrev}
+            disabled={page === 1}
+            className={`p-1 rounded-md ${
+              page === 1
+                ? "text-gray-300 cursor-not-allowed"
+                : "text-gray-700 hover:text-black"
+            }`}
+          >
+            <TbArrowBadgeLeft size={24} />
+          </button>
+
+          {/* Page Info */}
+          <div className="flex items-center  gap-1">
+            <span className="text-sm font-semibold text-gray-700">
+              {page} of {totalPages}
+            </span>
+          </div>
+
+          {/* Next Button */}
+          <button
+            onClick={handleNext}
+            disabled={page === totalPages}
+            className={`p-1 rounded-md ${
+              page === totalPages
+                ? "text-gray-300 cursor-not-allowed"
+                : "text-gray-700 hover:text-black"
+            }`}
+          >
+            <TbArrowBadgeRight size={24} />
+          </button>
+        </div>
       </div>
     </div>
   );
