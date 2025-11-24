@@ -14,7 +14,7 @@ import CallToActionSection from "../home/CallToActionSection";
 import { useLocation } from "react-router-dom";
 import AppDownloadCTA from "../layout/AppDownloadCTA";
 import ProductsPage from "./ProductsPage";
-import Discount from "../home/discount";
+import Discount from "../home/Discount";
 import GroceryMap from "./GroceryMap";
 
 function HomePage() {

@@ -2,7 +2,6 @@ import React, { useState } from "react";
 
 const Discounts = () => {
   const [copied, setCopied] = useState(null);
-
   const offers = [
     {
       title: "10% Off Cashback",
