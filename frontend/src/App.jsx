@@ -112,17 +112,26 @@ import HealthcareAgentCardForm from "./components/pages/AgentCardForm";
 import AgentIdentityCard from "./components/pages/AgentIdentityCard";
 import FranchiseIdentityCardForm from "./components/pages/FranchiseIdentityCardForm";
 import FranchiseCard from "./components/pages/FranchiseCard";
+import CustomerBecomeAVendorForm from './components/pages/CustomerBecomeAVendorForm';
+import CustomerVendorIdentityCard from './components/pages/CustomerVendorIdentityCard';
+import UserSetting from './components/UserSetting'
+import EditProfile from './components/pages/EditProfile'
+import { loadAuthFromStorage } from "./utils/loadAuth";
+
 function App() {
   const dispatch = useDispatch();
   const location = useLocation(); // Get the current route
   const { user, isAuthenticated } = useSelector((state) => state.auth);
+useEffect(() => {
+  dispatch(loadAuthFromStorage());
+}, []);
 
   useEffect(() => {
     const excludeRoutes = ['/login', '/register'];
 
     if (!excludeRoutes.includes(location.pathname)) {
       // if(isAuthenticated){
-        dispatch(loadUser());
+        // dispatch(loadUser());
       // }
       dispatch(fetchCartItems());
       dispatch(fetchWishlistItems());
@@ -228,6 +237,18 @@ function App() {
         <Route path="/agent-card" element={<AgentIdentityCard />} />
         <Route path="/franchise-form" element={<FranchiseIdentityCardForm />} />
         <Route path="/franchise-card" element={<FranchiseCard />} />
+        <Route path="/user-setting" element={<UserSetting />} />
+        <Route path="/edit-profile" element={<EditProfile />} />
+
+        <Route
+          path="/customerVendor-card"
+          element={<CustomerBecomeAVendorForm />}
+        />
+        <Route
+          path="/customer-vendor-id-card"
+          element={<CustomerVendorIdentityCard />}
+        />
+
         <Route
           path="/territoryCard-form"
           element={<TerrotoryIdentityCardForm />}

@@ -1,22 +1,218 @@
+// const jwt = require("jsonwebtoken");
+// const redis = require("redis");
+// const User = require("../models/User");
+// // Initialize Redis Client
+// const client = redis.createClient({
+//     socket: {
+//         host: "127.0.0.1", // Change if Redis is reqhosted elsewhere
+//         port: 6379,
+//     },
+// });
+
+// client.on("error", (err) => console.error("❌ Redis Client Error:", err));
+// client.connect().catch((err) => console.error("❌ Redis Connection Failed:", err));
+// const POS_SSO_SECRET = process.env.POS_SSO_SECRET;
+
+// // Create a fresh BBSCART access token (what the app already expects)
+// function createBbscartAccessToken(userId, jti = require("crypto").randomUUID()) {
+//   return jwt.sign({ userId, jti }, process.env.JWT_SECRET, { expiresIn: "1d" });
+// }
+// function setBbscartCookie(res, accessToken) {
+//   res.cookie("accessToken", accessToken, {
+//     httpOnly: true,
+//     secure: true,
+//     sameSite: "None",
+//     maxAge: 24 * 60 * 60 * 1000,
+//     domain: ".bbscart.com",
+//   });
+// }
+// function getWithTimeout(client, key, ms = 200) {
+//   return Promise.race([
+//     client.get(key),
+//     new Promise((resolve) => setTimeout(() => resolve(null), ms)),
+//   ]);
+// }
+
+// // Authentication Middleware
+// const auth = async (req, res, next) => {
+//   console.log("[AUTH] in", new Date().toISOString());
+//     try {
+//       const token = req.cookies?.accessToken;
+
+//       if (!token) {
+//         return res
+//           .status(401)
+//           .json({ success: false, message: "No token, authorization denied" });
+//       }
+//       // Only check Redis if connected/ready
+//       if (client?.isOpen) {
+//         const isBlacklisted = await getWithTimeout(client, token, 200);
+//         if (isBlacklisted) {
+//           return res
+//             .status(401)
+//             .json({
+//               success: false,
+//               message: "Token expired. Please login again",
+//             });
+//         }
+//       }
+//       // Check if token is blacklisted
+//       const isBlacklisted = await client.get(token);
+//       if (isBlacklisted) {
+//         return res
+//           .status(401)
+//           .json({
+//             success: false,
+//             message: "Token expired. Please login again",
+//           });
+//       }
+
+//       // Verify token
+//       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+//       const dbUser = await User.findById(decoded.userId).select(
+//         "_id role vendor_id"
+//       );
+//       if (!dbUser) {
+//         return res
+//           .status(401)
+//           .json({ success: false, message: "User not found" });
+//       }
+//       req.user = {
+//         userId: String(dbUser._id),
+//         role: dbUser.role,
+//         vendor_id: dbUser.vendor_id ? String(dbUser.vendor_id) : null,
+//       };
+//       // ✅ Provide a consistent field for controllers that expect vendor assignment
+//       if (req.user.role === "seller" && req.user.vendor_id) {
+//         req.assignedVendorId = req.user.vendor_id;
+//       }
+//       next();
+//       console.log(
+//         "[AUTH] out",
+//         new Date().toISOString(),
+//         "user=",
+//         req.user?.role
+//       );
+
+//     } catch (error) {
+//         console.error("❌ JWT Verification Error:", error.message);
+//         return res.status(401).json({ success: false, message: "Token is not valid" });
+//     }
+// };
+
+// // Admin-Only Middleware
+// const adminOnly = (req, res, next) => {
+//     if (!req.user || req.user.role !== "admin") {
+//         return res.status(403).json({ success: false, message: "Access denied" });
+//     }
+//     next();
+// };
+
+// // SuperAdmin-Only Middleware
+// const superAdminOnly = (req, res, next) => {
+//     if (!req.user || req.user.role !== "superadmin") {
+//         return res.status(403).json({ success: false, message: "SuperAdmin access required" });
+//     }
+//     next();
+// };
+
+// // Logout Function (Blacklist Token)
+// const logout = async (req, res) => {
+//     try {
+//         const token = req.cookies?.accessToken;
+
+//         if (!token) {
+//             return res.status(400).json({ success: false, message: "Token is required" });
+//         }
+
+//         // Blacklist token by storing it in Redis with expiration
+//         const decoded = jwt.decode(token);
+//         const expiresIn = decoded.exp - Math.floor(Date.now() / 1000); // Get remaining time
+
+//         if (expiresIn > 0) {
+//             await client.setEx(token, expiresIn, "blacklisted"); // Store token in Redis
+//         }
+
+//         return res.json({ success: true, message: "Logged out successfully" });
+//     } catch (error) {
+//         console.error("❌ Logout Error:", error.message);
+//         return res.status(500).json({ success: false, message: "Error logging out" });
+//     }
+// };
+
+// const authUser = async (req, res, next) => {
+//     try {
+//         const token = req.cookies?.accessToken || req.cookies?.accessToken;;
+
+//         if (!token) {
+//             req.user = null;
+//             return next();
+//         }
+
+//         // Check if token is blacklisted
+//         const isBlacklisted = await client.get(token);
+//         if (isBlacklisted) {
+//             req.user = null;
+//             return next();
+//         }
+
+//                     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+//      const dbUser = await User.findById(decoded.userId).select("_id role vendor_id");
+//      if (dbUser) {
+//        req.user = {
+//          userId: String(dbUser._id),
+//          role: dbUser.role,
+//          vendor_id: dbUser.vendor_id ? String(dbUser.vendor_id) : null,
+//        };
+//        if (req.user.role === "seller" && req.user.vendor_id) {
+//          req.assignedVendorId = req.user.vendor_id;
+//        }
+//      } else {
+//        req.user = null;
+//      }
+//         next();
+//     } catch (error) {
+//         console.error("❌ JWT Middleware Error:", error.message);
+//         req.user = null;
+//         next();
+//     }
+// };
+
+
+// module.exports = { auth, adminOnly, logout, authUser, superAdminOnly, createBbscartAccessToken, setBbscartCookie };
+
+
+
 const jwt = require("jsonwebtoken");
 const redis = require("redis");
 const User = require("../models/User");
+
 // Initialize Redis Client
 const client = redis.createClient({
-    socket: {
-        host: "127.0.0.1", // Change if Redis is reqhosted elsewhere
-        port: 6379,
-    },
+  socket: {
+    host: "127.0.0.1",
+    port: 6379,
+  },
 });
 
 client.on("error", (err) => console.error("❌ Redis Client Error:", err));
-client.connect().catch((err) => console.error("❌ Redis Connection Failed:", err));
+client
+  .connect()
+  .catch((err) => console.error("❌ Redis Connection Failed:", err));
+
 const POS_SSO_SECRET = process.env.POS_SSO_SECRET;
 
-// Create a fresh BBSCART access token (what the app already expects)
-function createBbscartAccessToken(userId, jti = require("crypto").randomUUID()) {
+// ─────────────────────────────────────────────
+// CREATE BBSCART ACCESS TOKEN
+// ─────────────────────────────────────────────
+function createBbscartAccessToken(
+  userId,
+  jti = require("crypto").randomUUID()
+) {
   return jwt.sign({ userId, jti }, process.env.JWT_SECRET, { expiresIn: "1d" });
 }
+
 function setBbscartCookie(res, accessToken) {
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
@@ -26,6 +222,8 @@ function setBbscartCookie(res, accessToken) {
     domain: ".bbscart.com",
   });
 }
+
+// Faster Redis getter with timeout
 function getWithTimeout(client, key, ms = 200) {
   return Promise.race([
     client.get(key),
@@ -33,151 +231,199 @@ function getWithTimeout(client, key, ms = 200) {
   ]);
 }
 
-// Authentication Middleware
+// ─────────────────────────────────────────────
+// AUTH MIDDLEWARE (Supports: Cookie + Bearer + Raw Token)
+// ─────────────────────────────────────────────
 const auth = async (req, res, next) => {
   console.log("[AUTH] in", new Date().toISOString());
-    try {
-      const token = req.cookies?.accessToken;
 
-      if (!token) {
-        return res
-          .status(401)
-          .json({ success: false, message: "No token, authorization denied" });
+  try {
+    let token = null;
+
+    // 1. Cookie token
+    if (req.cookies?.accessToken) {
+      token = req.cookies.accessToken;
+    }
+
+    // 2. Authorization header (Bearer <token> OR just <token>)
+    if (!token && req.headers["authorization"]) {
+      let headerToken = req.headers["authorization"];
+      if (headerToken.startsWith("Bearer ")) {
+        headerToken = headerToken.split(" ")[1];
       }
-      // Only check Redis if connected/ready
-      if (client?.isOpen) {
-        const isBlacklisted = await getWithTimeout(client, token, 200);
-        if (isBlacklisted) {
-          return res
-            .status(401)
-            .json({
-              success: false,
-              message: "Token expired. Please login again",
-            });
-        }
-      }
-      // Check if token is blacklisted
-      const isBlacklisted = await client.get(token);
+      token = headerToken;
+    }
+
+    // No token provided
+    if (!token) {
+      return res
+        .status(401)
+        .json({ success: false, message: "No token provided" });
+    }
+
+    // Check Redis blacklist
+    if (client?.isOpen) {
+      const isBlacklisted = await getWithTimeout(client, token, 200);
       if (isBlacklisted) {
-        return res
-          .status(401)
-          .json({
-            success: false,
-            message: "Token expired. Please login again",
-          });
+        return res.status(401).json({
+          success: false,
+          message: "Token expired. Please login again",
+        });
       }
+    }
 
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const dbUser = await User.findById(decoded.userId).select(
-        "_id role vendor_id"
-      );
-      if (!dbUser) {
-        return res
-          .status(401)
-          .json({ success: false, message: "User not found" });
-      }
+    // Verify Token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (!decoded || !decoded.userId) {
+      return res.status(401).json({ success: false, message: "Invalid token" });
+    }
+
+    // Find user in DB
+    const dbUser = await User.findById(decoded.userId).select(
+      "_id role vendor_id"
+    );
+
+    if (!dbUser) {
+      return res
+        .status(401)
+        .json({ success: false, message: "User not found" });
+    }
+
+    // Attach to req
+    req.user = {
+      userId: String(dbUser._id),
+      role: dbUser.role,
+      vendor_id: dbUser.vendor_id ? String(dbUser.vendor_id) : null,
+    };
+
+    if (req.user.role === "seller" && req.user.vendor_id) {
+      req.assignedVendorId = req.user.vendor_id;
+    }
+
+    next();
+
+    console.log(
+      "[AUTH] out",
+      new Date().toISOString(),
+      "role=",
+      req.user?.role
+    );
+  } catch (error) {
+    console.error("❌ AUTH ERROR:", error);
+    return res.status(401).json({
+      success: false,
+      message: "Unauthorized",
+      error: error.message,
+    });
+  }
+};
+
+// ─────────────────────────────────────────────
+// ADMIN ONLY
+// ─────────────────────────────────────────────
+const adminOnly = (req, res, next) => {
+  if (!req.user || req.user.role !== "admin") {
+    return res.status(403).json({ success: false, message: "Access denied" });
+  }
+  next();
+};
+
+// ─────────────────────────────────────────────
+// SUPER ADMIN ONLY
+// ─────────────────────────────────────────────
+const superAdminOnly = (req, res, next) => {
+  if (!req.user || req.user.role !== "superadmin") {
+    return res
+      .status(403)
+      .json({ success: false, message: "SuperAdmin access required" });
+  }
+  next();
+};
+
+// ─────────────────────────────────────────────
+// LOGOUT – BLACKLIST TOKEN
+// ─────────────────────────────────────────────
+const logout = async (req, res) => {
+  try {
+    const token = req.cookies?.accessToken;
+
+    if (!token) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Token is required" });
+    }
+
+    // Decode token to get remaining expiry
+    const decoded = jwt.decode(token);
+    const expiresIn = decoded.exp - Math.floor(Date.now() / 1000);
+
+    if (expiresIn > 0) {
+      await client.setEx(token, expiresIn, "blacklisted");
+    }
+
+    return res.json({ success: true, message: "Logged out successfully" });
+  } catch (error) {
+    console.error("❌ Logout Error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Error logging out",
+    });
+  }
+};
+
+// ─────────────────────────────────────────────
+// OPTIONAL USER CHECK (No Error if Token Missing)
+// ─────────────────────────────────────────────
+const authUser = async (req, res, next) => {
+  try {
+    const token = req.cookies?.accessToken;
+
+    if (!token) {
+      req.user = null;
+      return next();
+    }
+
+    const isBlacklisted = await client.get(token);
+    if (isBlacklisted) {
+      req.user = null;
+      return next();
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const dbUser = await User.findById(decoded.userId).select(
+      "_id role vendor_id"
+    );
+
+    if (dbUser) {
       req.user = {
         userId: String(dbUser._id),
         role: dbUser.role,
         vendor_id: dbUser.vendor_id ? String(dbUser.vendor_id) : null,
       };
-      // ✅ Provide a consistent field for controllers that expect vendor assignment
       if (req.user.role === "seller" && req.user.vendor_id) {
         req.assignedVendorId = req.user.vendor_id;
       }
-      next();
-      console.log(
-        "[AUTH] out",
-        new Date().toISOString(),
-        "user=",
-        req.user?.role
-      );
-
-    } catch (error) {
-        console.error("❌ JWT Verification Error:", error.message);
-        return res.status(401).json({ success: false, message: "Token is not valid" });
+    } else {
+      req.user = null;
     }
-};
 
-// Admin-Only Middleware
-const adminOnly = (req, res, next) => {
-    if (!req.user || req.user.role !== "admin") {
-        return res.status(403).json({ success: false, message: "Access denied" });
-    }
     next();
-};
-
-// SuperAdmin-Only Middleware
-const superAdminOnly = (req, res, next) => {
-    if (!req.user || req.user.role !== "superadmin") {
-        return res.status(403).json({ success: false, message: "SuperAdmin access required" });
-    }
+  } catch (error) {
+    console.error("❌ JWT Middleware Error:", error.message);
+    req.user = null;
     next();
+  }
 };
 
-// Logout Function (Blacklist Token)
-const logout = async (req, res) => {
-    try {
-        const token = req.cookies?.accessToken;
-
-        if (!token) {
-            return res.status(400).json({ success: false, message: "Token is required" });
-        }
-
-        // Blacklist token by storing it in Redis with expiration
-        const decoded = jwt.decode(token);
-        const expiresIn = decoded.exp - Math.floor(Date.now() / 1000); // Get remaining time
-
-        if (expiresIn > 0) {
-            await client.setEx(token, expiresIn, "blacklisted"); // Store token in Redis
-        }
-
-        return res.json({ success: true, message: "Logged out successfully" });
-    } catch (error) {
-        console.error("❌ Logout Error:", error.message);
-        return res.status(500).json({ success: false, message: "Error logging out" });
-    }
+module.exports = {
+  auth,
+  adminOnly,
+  logout,
+  authUser,
+  superAdminOnly,
+  createBbscartAccessToken,
+  setBbscartCookie,
 };
 
-const authUser = async (req, res, next) => {
-    try {
-        const token = req.cookies?.accessToken || req.cookies?.accessToken;;
-
-        if (!token) {
-            req.user = null;
-            return next();
-        }
-
-        // Check if token is blacklisted
-        const isBlacklisted = await client.get(token);
-        if (isBlacklisted) {
-            req.user = null;
-            return next();
-        }
-
-                    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-     const dbUser = await User.findById(decoded.userId).select("_id role vendor_id");
-     if (dbUser) {
-       req.user = {
-         userId: String(dbUser._id),
-         role: dbUser.role,
-         vendor_id: dbUser.vendor_id ? String(dbUser.vendor_id) : null,
-       };
-       if (req.user.role === "seller" && req.user.vendor_id) {
-         req.assignedVendorId = req.user.vendor_id;
-       }
-     } else {
-       req.user = null;
-     }
-        next();
-    } catch (error) {
-        console.error("❌ JWT Middleware Error:", error.message);
-        req.user = null;
-        next();
-    }
-};
-
-
-module.exports = { auth, adminOnly, logout, authUser, superAdminOnly, createBbscartAccessToken, setBbscartCookie };

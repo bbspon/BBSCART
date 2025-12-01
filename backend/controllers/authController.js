@@ -65,7 +65,9 @@ exports.register = async (req, res) => {
 
   // whitelist role (map 'vendor' from UI to 'seller')
   const ALLOWED = ["user", "customer"];
-  const safeRole = ALLOWED.includes(String(req.body.role)) ? req.body.role : "customer";
+  const safeRole = ALLOWED.includes(String(req.body.role))
+    ? req.body.role
+    : "customer";
 
   try {
     // ✅ Check if user already exists
@@ -165,6 +167,7 @@ exports.register = async (req, res) => {
 };
 
 // Login controller
+// Login controller (PATCHED)
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -179,69 +182,70 @@ exports.login = async (req, res) => {
     const user = await User.findOne({ email })
       .populate("userdetails")
       .select("+password");
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Compare the provided password with the stored hash
+    // Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // ✅ Merge guest cart with logged-in user cart (if applicable)
+    // Merge guest cart if needed
     if (req.session.userId) {
       await mergeGuestCartWithUser(req.session.userId, user._id);
-      req.session.userId = null; // Clear session cart after merging
+      req.session.userId = null;
     }
 
-    // ✅ Generate Access Token (Short Expiry)
+    // ⭐ Generate Access Token (SEND TO FRONTEND)
     const accessToken = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" } // Access token valid for 1 hour
+      { expiresIn: "1h" }
     );
 
-    // ✅ Generate Refresh Token (Longer Expiry)
+    // ⭐ Generate Refresh Token
     const refreshToken = jwt.sign(
       { userId: user._id },
       process.env.REFRESH_TOKEN_SECRET,
-      { expiresIn: "7d" } // Refresh token valid for 7 days
+      { expiresIn: "7d" }
     );
 
-    // ✅ Store refreshToken securely in the database
+    // Save refresh token to DB
     user.refreshToken = refreshToken;
     await user.save();
 
-    // ✅ Set HttpOnly Cookie for Access Token
+    // Set cookies (same as before)
     res.cookie("accessToken", accessToken, {
-      httpOnly: true, // Prevents XSS attacks
-      secure: process.env.NODE_ENV === "production", // Only send over HTTPS in production
-      sameSite: "Strict", // Protects against CSRF
-      maxAge: 60 * 60 * 1000, // 1 hour
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Strict",
+      maxAge: 60 * 60 * 1000,
     });
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    // ✅ Send response with refreshToken and user data (without password)
-    res.status(200).json({
+    // ⭐⭐⭐ SEND TOKEN IN RESPONSE BODY (missing in your old code)
+    return res.status(200).json({
       message: "Login successful",
+      token: accessToken, // ⭐ REQUIRED by frontend
+      refreshToken: refreshToken, // optional but useful
       user: {
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        details: user.userdetails, // ✅ Corrected field name
+        details: user.userdetails,
         vendor_id: user.vendor_id || null,
       },
     });
-
-    // console.log('Login Res - ',res);
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
@@ -351,12 +355,10 @@ exports.resetPassword = async (req, res) => {
         .json({ success: false, message: "Passwords do not match" });
     }
     if (String(password).length < 6) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Password must be at least 6 characters",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters",
+      });
     }
 
     // Decode if token came URL-encoded from the UI
@@ -383,18 +385,15 @@ exports.resetPassword = async (req, res) => {
     user.updatedAt = new Date();
     await user.save();
 
-    return res
-      .status(200)
-      .json({
-        success: true,
-        message: "Password reset successful. You can now log in.",
-      });
+    return res.status(200).json({
+      success: true,
+      message: "Password reset successful. You can now log in.",
+    });
   } catch (err) {
     console.error("[resetPassword]", err);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
-
 
 // Logout user (Blacklist Token)
 exports.logout = async (req, res) => {
@@ -474,99 +473,55 @@ exports.getUserInfo = async (req, res) => {
 };
 
 // Update User Profile
+// UPDATE PROFILE (FINAL FIXED VERSION)
 exports.updateProfile = async (req, res) => {
-  const token = req.cookies?.accessToken;
-  if (!token) {
-    return res.status(401).json({ message: "No token provided" });
-  }
-
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const userInfo = await User.findById(decoded.userId).populate(
-      "userdetails"
-    );
+    const userId = req.user?.userId || req.user?.id;
 
-    if (!userInfo) {
-      return res.status(404).json({ message: "User not found" });
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: Token missing or invalid",
+      });
     }
 
-    // Update user name if provided
-    if (req.body.name) {
-      userInfo.name = req.body.name;
+    const { name, email, phone } = req.body;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { name, email, phone },
+      { new: true }
+    ).select("-password");
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
     }
 
-    // Ensure userDetails exists
-    if (userInfo.userdetails) {
-      let userDetails = await UserDetails.findById(userInfo.userdetails._id);
-      if (userDetails) {
-        // Replace the address instead of pushing a new one
-        if (req.body.address) {
-          let address = req.body.address;
-          let fullAddress = `${address.street},${address.city},${address.state},${address.country},${address.postalCode}`;
+    // Build the safe user object to return
+    const safeUser = {
+      _id: updatedUser._id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      phone: updatedUser.phone || "",
+      role: updatedUser.role,
+      vendor_id: updatedUser.vendor_id || null,
+    };
 
-          // Wait for geocoding response
-          const location = await geocodeAddress(fullAddress);
-
-          console.log("location", location);
-
-          userDetails.addresses = req.body.address; // Replace with new address
-          userDetails.latitude = location?.latitude || null;
-          userDetails.longitude = location?.longitude || null; // Fix: Assign correct longitude
-        }
-
-        // Handle profile picture upload
-        if (req.files && req.files[0]?.fieldname === "profilePic") {
-          console.log("Profile picture uploaded:", req.files[0]);
-
-          const uploadedFile = req.files[0]; // Get the uploaded file
-          const fileExtension = path.extname(uploadedFile.originalname);
-          const uniqueFileName = `profile_${decoded.userId}_${Date.now()}${fileExtension}`;
-          const uploadPath = path.join(__dirname, "../uploads", uniqueFileName);
-
-          // Remove the previous profile picture if it exists
-          if (userDetails.profilePic) {
-            const oldImagePath = path.join(
-              __dirname,
-              "../",
-              userDetails.profilePic
-            );
-            if (fs.existsSync(oldImagePath)) {
-              fs.unlinkSync(oldImagePath); // Delete old file
-              console.log(
-                "Old profile picture deleted:",
-                userDetails.profilePic
-              );
-            }
-          }
-
-          // Move uploaded file to the uploads directory
-          fs.renameSync(uploadedFile.path, uploadPath);
-
-          // Save unique filename to database
-          userDetails.profilePic = `/uploads/${uniqueFileName}`;
-        } else {
-          console.log("No new profile picture uploaded", req.body);
-        }
-
-        userDetails.updated_at = new Date(); // Update timestamp
-        await userDetails.save(); // Save changes
-      }
-    }
-
-    await userInfo.save(); // Save updated user info
-
-    // Fetch updated user details
-    const updatedUserInfo = await User.findById(decoded.userId).populate(
-      "userdetails"
-    );
-
-    res.status(200).json({
+    return res.json({
+      success: true,
       message: "Profile updated successfully",
-      userInfo: updatedUserInfo,
+      user: safeUser,
     });
-  } catch (error) {
-    console.error("Error updating profile:", error);
-    res.status(500).json({ message: "Failed to update profile" });
+  } catch (err) {
+    console.log("UPDATE PROFILE ERROR", err);
+    return res.status(500).json({
+      success: false,
+      message: "Update failed",
+      error: err.message,
+    });
   }
 };
 
@@ -765,13 +720,18 @@ exports.acceptAdminInvite = async (req, res, next) => {
 
     const invite = await AdminInvite.findOne({ email, usedAt: null });
     if (!invite)
-      return res.status(400).json({ success: false, message: "Invalid invite" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid invite" });
     if (new Date() > invite.expiresAt) {
-      return res.status(400).json({ success: false, message: "Invite expired" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invite expired" });
     }
 
     const ok = await bcrypt.compare(token, invite.tokenHash);
-    if (!ok) return res.status(400).json({ success: false, message: "Invalid token" });
+    if (!ok)
+      return res.status(400).json({ success: false, message: "Invalid token" });
 
     // Create or elevate the user to admin
     let user = await User.findOne({ email });
@@ -802,8 +762,41 @@ exports.acceptAdminInvite = async (req, res, next) => {
 
     return res
       .status(200)
-      .json({ success: true, message: "Admin account activated. You can log in now." });
+      .json({
+        success: true,
+        message: "Admin account activated. You can log in now.",
+      });
   } catch (err) {
     next(err);
+  }
+};
+
+exports.getMyProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).select("-password");
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+exports.updateMyProfile = async (req, res) => {
+  try {
+    const { name, email, phone } = req.body;
+
+    const updated = await User.findByIdAndUpdate(
+      req.user.userId,
+      { name, email, phone },
+      { new: true }
+    ).select("-password");
+
+    res.json({
+      message: "Profile updated successfully",
+      user: updated,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Update failed", error: err.message });
   }
 };
