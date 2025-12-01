@@ -117,14 +117,21 @@ const AnimationCards = () => {
             </ul>
             <div className="mt-6 flex flex-col sm:flex-row gap-4">
               <button
+                onClick={() =>
+                  (window.location.href =
+                    "https://thiaworld.bbscart.com/contact-page")
+                }
                 className="bg-yellow-500 hover:bg-yellow-600 text-white font-medium px-6 py-2 rounded shadow"
-                fdprocessedid="eo05zum"
               >
                 Apply Now
               </button>
+
               <button
+                onClick={() =>
+                  (window.location.href =
+                    "https://thiaworld.bbscart.com/thia-secure")
+                }
                 className="bg-white text-yellow-600 hover:text-yellow-700 border border-yellow-500 font-medium px-6 py-2 rounded shadow"
-                fdprocessedid="fde6mb"
               >
                 Know More
               </button>

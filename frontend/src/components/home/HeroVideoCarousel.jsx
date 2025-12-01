@@ -130,7 +130,13 @@ const HeroVideoCarousel = () => {
                       <i className="ri-play-circle-fill"></i>
                     )}
                   </button>
-                  <button className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded-md shadow-md transition">
+                  <button
+                    onClick={() =>
+                      (window.location.href =
+                        "https://thiaworld.bbscart.com/all-jewellery")
+                    }
+                    className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded-md shadow-md transition"
+                  >
                     View
                   </button>
                 </>

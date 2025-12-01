@@ -21,7 +21,13 @@ const OfferSection = () => {
             <p className="text-sm sm:text-base mb-4">
               Limited-time discounts on premium 22K and 24K jewelry collections.
             </p>
-            <button className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded font-medium shadow">
+            <button
+              onClick={() =>
+                (window.location.href =
+                  "https://thiaworld.bbscart.com/gold-collection")
+              }
+              className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded font-medium shadow"
+            >
               Shop Now
             </button>
           </div>

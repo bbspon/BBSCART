@@ -14,7 +14,10 @@ const GregoryStoreHero = () => {
   return (
     <div
       className="w-full min-h-screen flex items-center bg-cover bg-center bg-no-repeat p-10"
-      style={{ backgroundImage: "url('https://static.vecteezy.com/system/resources/thumbnails/001/905/572/small_2x/blue-paper-background-free-photo.jpg')" }}
+      style={{
+        backgroundImage:
+          "url('https://static.vecteezy.com/system/resources/thumbnails/001/905/572/small_2x/blue-paper-background-free-photo.jpg')",
+      }}
     >
       {/* LEFT SIDE IMAGE SLIDER */}
       <div className="w-1/2 flex items-center justify-center">
@@ -48,7 +51,12 @@ const GregoryStoreHero = () => {
           Online Gregory Store & Delivery
         </h1>
 
-        <button className="mt-6 bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-xl text-lg font-semibold shadow-xl">
+        <button
+          onClick={() =>
+            (window.location.href = "https://bbscart.com/all-products")
+          }
+          className="mt-6 bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-xl text-lg font-semibold shadow-xl"
+        >
           Order Now
         </button>
       </div>

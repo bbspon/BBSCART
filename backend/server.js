@@ -62,7 +62,7 @@ if (DEV) {
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers',
-      'Content-Type, Authorization, X-Requested-With, X-Idempotency-Key, X-Source-App, ' +
+      'Content-Type, Authorization, X-Requested-With,x-user-role, X-Idempotency-Key, X-Source-App, ' +
       'X-Pincode, X-Guest-Key, X-Delivery-Pincode, Accept, Origin'
     );
     if (req.method === 'OPTIONS') return res.sendStatus(204);
@@ -227,12 +227,13 @@ app.options(
 
     credentials: true,
 
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
 
     allowedHeaders: [
       "Content-Type",
       "Authorization",
       "X-Pincode",
+      "x-user-role",
       "X-Guest-Key",
       "X-Delivery-Pincode",
     ],
@@ -326,6 +327,7 @@ app.use("/api/webhooks", webhookRoutes);
  app.use("/api/territory-identity", territoryIdentityRoutes);
 app.use("/api/agent-identity", require("./routes/agentIdentityRoutes"));
 app.use("/api/franchise-identity", require("./routes/franchiseIdentityRoutes"));
+app.use("/api/customer-vendor", require("./routes/customerBecomeVendorRoutes"));
 
 app.use("/uploads", express.static("uploads"));
 

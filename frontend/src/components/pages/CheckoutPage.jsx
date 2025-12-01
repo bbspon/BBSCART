@@ -25,6 +25,11 @@ function CheckoutPage() {
   const dispatch = useDispatch();
 
   const user = useSelector((state) => state.auth.user);
+  const auth = useSelector((state) => state.auth);
+ console.log("CHECKOUT USER →", user);
+ console.log("AUTH STATE →", auth);
+
+
   const cart = useCart();
   const cartItems = cart.state.items;
 

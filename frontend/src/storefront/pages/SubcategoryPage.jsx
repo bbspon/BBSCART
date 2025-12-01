@@ -1032,11 +1032,6 @@ export default function SubcategoryPage() {
           <h6 className="border border-gray-300 rounded-md px-5 py-2 bg-orange-50  font-semibold hover:bg-orange-100 hover:shadow-md transition shadow-sm">
             Egg, Meat, and Fish
           </h6>
-
-          <h6 className="border border-gray-300 rounded-md px-5 py-2  font-semibold hover:bg-purple-100 hover:shadow-md transition shadow-md">
-            BBSNEO
-          </h6>
-
           <h6 className="border border-gray-300 rounded-md px-5 py-2 bg-gray-50  font-semibold hover:bg-blue-100 hover:shadow-md transition shadow-sm">
             Thiaworld
           </h6>
