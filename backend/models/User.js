@@ -66,7 +66,11 @@ const UserSchema = new mongoose.Schema(
       ref: "Vendor",
       default: null,
     },
-
+    phone: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     status: {
       type: String,
       enum: ["active", "disabled"],

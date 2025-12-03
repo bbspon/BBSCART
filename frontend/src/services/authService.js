@@ -229,27 +229,32 @@ export const login = async (dispatch, email, password, navigate) => {
     if (response.status === 200 && response.data?.user) {
       const user = response.data.user;
 
-      // ✅ Store user in Redux
+      // Redux
       dispatch(setUser(user));
 
-      // ✅ Save role and token in localStorage for persistent access
+      // Token
       if (response.data.token) {
         localStorage.setItem("token", response.data.token);
       }
-      // ⭐ Save user details
+
+      // User Data
       if (response.data.user) {
         localStorage.setItem("userData", JSON.stringify(response.data.user));
       }
-      localStorage.setItem("role", user.role);
-      localStorage.setItem("userId", user._id); // optional but useful later
 
-      // ✅ ADD THIS LINE — store full user object in localStorage
+      localStorage.setItem("role", user.role);
+      localStorage.setItem("userId", user._id);
+
+      // ⭐ Store full user
       localStorage.setItem("auth_user", JSON.stringify(user));
+
+      // ⭐⭐⭐ Store phone number (NEW LINE)
+      localStorage.setItem("phone", user.phone || user.mobile || "");
 
       console.log("User role in production:", user.role);
       toast.success("Login successful");
 
-      // ✅ Updated navigation logic
+      // Redirect
       if (user.role === "admin" || user.role === "seller") {
         navigate("/admin/dashboard");
       } else {
@@ -265,6 +270,7 @@ export const login = async (dispatch, email, password, navigate) => {
     toast.error(error.response?.data?.message || "Login failed");
   }
 };
+
 
 
 // Logout function
