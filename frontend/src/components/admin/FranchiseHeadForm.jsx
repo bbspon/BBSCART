@@ -23,26 +23,30 @@ export default function FranchiseHeadForm({ value, onChange }) {
   const [pickerMode, setPickerMode] = useState("idle"); // "idle" | "year" | "month" | "date"
 
   // Called when user selects something in the picker
-  const handleChange = (date) => {
-    // If we were in year picker, selecting a year should move to month mode
-    if (pickerMode === "year") {
-      setDobValue(date); // store selected year (date object)
-      setPickerMode("month"); // re-render DatePicker in month picker mode
-      return;
-    }
+const handleChange = (date) => {
+  // Save DOB to formData on every selection
+  setFormData((p) => ({
+    ...p,
+    dob: date.toISOString().split("T")[0], // YYYY-MM-DD
+  }));
 
-    // If we were in month picker, selecting a month should move to date mode
-    if (pickerMode === "month") {
-      setDobValue(date); // store selected month/year
-      setPickerMode("date"); // re-render DatePicker in date mode
-      return;
-    }
-
-    // If we're in date mode (or idle), finalize selection
+  if (pickerMode === "year") {
     setDobValue(date);
-    setPickerMode("idle"); // close/idle next open will start year again
-    if (typeof onChange === "function") onChange(date);
-  };
+    setPickerMode("month");
+    return;
+  }
+
+  if (pickerMode === "month") {
+    setDobValue(date);
+    setPickerMode("date");
+    return;
+  }
+
+  setDobValue(date);
+  setPickerMode("idle");
+  if (typeof onChange === "function") onChange(date);
+};
+
 
   const navigate = useNavigate();
   const [openTo, setOpenTo] = useState("year");

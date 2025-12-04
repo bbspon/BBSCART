@@ -180,7 +180,7 @@ const closePopup = () => setShowUserPopup(false);
             ) : (
               <div className="hidden sm:block">
                 <span className="text-sm font-semibold text-[#0B7A4B]">
-                  Welcome!
+                  Hi, Explore!
                 </span>
               </div>
             )}
