@@ -82,6 +82,7 @@ const handleChange = (date) => {
     gst_street: "",
     gst_locality: "",
     gst_district: "",
+    gst_state: "",
   });
 
   const handleSelectChange = (selectedOption, field) => {
@@ -113,33 +114,65 @@ const handleChange = (date) => {
   };
 
   // -------------------- PAN (Step 1) --------------------
-  const onPanUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setLoadingPan(true);
-    try {
-      const fileUrl = await uploadDoc(file);
-      const r = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/franchisees/step-by-key`,
-        {
-          franchiseeId,
-          pan_pic: fileUrl,
-        }
-      );
-      const id = r?.data?.data?._id;
-      if (id && !franchiseeId) {
-        setFranchiseeId(id);
-        localStorage.setItem("franchiseeId", id);
+const onPanUpload = async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  setLoadingPan(true);
+
+  try {
+    const fileUrl = await uploadDoc(file);
+
+    // 1. SAVE to backend
+    const r = await axios.post(
+      `${import.meta.env.VITE_API_URL}/api/franchisees/step-by-key`,
+      {
+        franchiseeId,
+        pan_pic: fileUrl,
       }
-    } catch (err) {
-      console.error(err);
-      alert("PAN upload failed");
-    } finally {
-      setLoadingPan(false);
+    );
+
+    // 2. UPDATE LOCAL STATE so validation works
+    setFormData((p) => ({
+      ...p,
+      pan_pic: fileUrl,
+    }));
+
+    // 3. STORE franchiseeId if returned
+    const id = r?.data?.data?._id;
+    if (id && !franchiseeId) {
+      setFranchiseeId(id);
+      localStorage.setItem("franchiseeId", id);
     }
-  };
+
+    toast.success("PAN uploaded successfully");
+  } catch (err) {
+    console.error(err);
+    alert("PAN upload failed");
+  } finally {
+    setLoadingPan(false);
+  }
+};
+
+const validateStep1 = () => {
+  if (!formData.firstName.trim()) return toast.error("Enter First Name"), false;
+
+  if (!formData.lastName.trim()) return toast.error("Enter Last Name"), false;
+
+  if (!dobValue) return toast.error("Select Date of Birth"), false;
+
+  if (!formData.panNumber.trim()) return toast.error("Enter PAN Number"), false;
+
+  // PAN must be uploaded before continuing
+  if (!franchiseeId && !formData.pan_pic)
+    return toast.error("Upload PAN Card"), false;
+
+  return true;
+};
 
   const saveStep1AndNext = async () => {
+      if (!validateStep1()) return;
+
     try {
       const payload = {
         franchiseeId,
@@ -220,8 +253,27 @@ const handleChange = (date) => {
       setLoadingABack(false);
     }
   };
+const validateStep2 = () => {
+  if (!franchiseeId) return toast.error("Complete Step 1 first"), false;
+
+  if (!formData.aadharNumber.trim())
+    return toast.error("Enter Aadhaar Number"), false;
+
+  if (!formData.register_street.trim())
+    return toast.error("Enter Street"), false;
+
+  if (!formData.register_city.trim()) return toast.error("Enter City"), false;
+
+  if (!formData.register_state.trim()) return toast.error("Enter State"), false;
+
+  if (!formData.register_postalCode.trim())
+    return toast.error("Enter PIN Code"), false;
+
+  return true;
+};
 
   const saveStep2AndNext = async () => {
+      if (!validateStep2()) return;
     try {
       const aNumRaw = (formData.aadharNumber || "").replace(/\D/g, "");
       if (!aNumRaw) {
@@ -261,8 +313,39 @@ const handleChange = (date) => {
   // -------------------- GST (Step 3 — manual; file optional) --------------------
   const [gstFile, setGstFile] = useState(null);
   const onGstFileSelect = (e) => setGstFile(e.target.files?.[0] || null);
+const validateStep3 = () => {
+  if (!gstFile) return toast.error("Upload GST Certificate"), false;
+
+  if (!formData.gstNumber.trim()) return toast.error("Enter GST Number"), false;
+
+  if (!formData.gstLegalName.trim())
+    return toast.error("Enter GST Legal Name"), false;
+
+  if (!formData.constitution_of_business.trim())
+    return toast.error("Select Constitution of Business"), false;
+
+  if (!formData.gst_floorNo.trim())
+    return toast.error("Enter Floor No."), false;
+
+  if (!formData.gst_buildingNo.trim())
+    return toast.error("Enter Building/Flat No."), false;
+
+  if (!formData.gst_street.trim()) return toast.error("Enter Street"), false;
+
+  if (!formData.gst_locality.trim())
+    return toast.error("Enter Locality"), false;
+
+  if (!formData.gst_district.trim())
+    return toast.error("Enter District"), false;
+
+  if (!formData.gst_state.trim()) return toast.error("Enter State"), false;
+
+  return true;
+};
 
   const saveGstAndNext = async () => {
+      if (!validateStep3()) return;
+
     try {
       if (!franchiseeId) {
         alert("Missing franchiseeId. Complete Step 1 first.");
@@ -314,8 +397,31 @@ const handleChange = (date) => {
   });
 
   const onBankFileChange = (e) => setBankFile(e.target.files?.[0] || null);
+const validateStep4 = () => {
+  if (!bankFile)
+    return toast.error("Upload Cancelled Cheque or Bank Proof"), false;
+
+  if (!bankData.account_holder_name.trim())
+    return toast.error("Enter Account Holder Name"), false;
+
+  if (!bankData.account_no.trim())
+    return toast.error("Enter Account Number"), false;
+
+  if (!bankData.ifcs_code.trim()) return toast.error("Enter IFSC Code"), false;
+
+  if (!bankData.bank_name.trim()) return toast.error("Enter Bank Name"), false;
+
+  if (!bankData.branch_name.trim())
+    return toast.error("Enter Branch Name"), false;
+
+  if (!bankData.bank_address.trim())
+    return toast.error("Enter Bank Address"), false;
+
+  return true;
+};
 
   const saveBankDetails = async () => {
+      if (!validateStep4()) return;
     const fid = franchiseeId || localStorage.getItem("franchiseeId");
     if (!fid) {
       alert("Franchisee ID is required. Complete earlier steps first.");
@@ -406,8 +512,39 @@ const handleChange = (date) => {
     if (!r?.data?.ok) throw new Error(r?.data?.message || "Submit failed");
   };
   // ===================================================
+const validateStep5 = () => {
+  if (!outlet.outlet_name.trim())
+    return toast.error("Enter Outlet Name"), false;
+
+  if (!outlet.manager_name.trim())
+    return toast.error("Enter Manager Name"), false;
+
+  if (!outlet.manager_mobile.trim())
+    return toast.error("Enter Manager Mobile"), false;
+
+  if (!outlet.outlet_phone.trim())
+    return toast.error("Enter Outlet Phone"), false;
+
+  if (!outlet.street.trim()) return toast.error("Enter Outlet Street"), false;
+
+  if (!outlet.city.trim()) return toast.error("Enter Outlet City"), false;
+
+  if (!outlet.district.trim()) return toast.error("Enter District"), false;
+
+  if (!outlet.state.trim()) return toast.error("Enter State"), false;
+
+  if (!outlet.postalCode.trim()) return toast.error("Enter PIN Code"), false;
+
+  if (!outlet.lat || !outlet.lng)
+    return toast.error("Location Required — Use GPS button"), false;
+
+  if (!outletImage) return toast.error("Upload Outlet Nameboard Image"), false;
+
+  return true;
+};
 
   const saveOutletAndFinish = async () => {
+    if (!validateStep5()) return;
     const fid = franchiseeId || localStorage.getItem("franchiseeId");
     if (!fid) {
       alert("Missing franchiseeId. Complete earlier steps first.");
@@ -953,9 +1090,9 @@ const handleChange = (date) => {
             />
             <label>State</label>
             <input
-              value={formData.gst_district}
+              value={formData.gst_state}
               onChange={(e) =>
-                setFormData((p) => ({ ...p, gst_district: e.target.value }))
+                setFormData((p) => ({ ...p, gst_state: e.target.value }))
               }
               className="border border-dark rounded-lg my-3"
               style={{
