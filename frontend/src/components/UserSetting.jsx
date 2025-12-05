@@ -14,21 +14,35 @@ const UserSetting = () => {
 
   const [loading, setLoading] = useState(true);
 
+  // -------------------------
+  // Helper → Extract phone safely
+  // -------------------------
+  const extractPhone = (data) => {
+    return (
+      data?.phone ||
+      data?.details?.phone || // if phone is inside "details"
+      data?.user?.phone || // if backend returns nested user object
+      ""
+    );
+  };
+
+  // ----------------------------------------------------
+  // Load from localStorage
+  // ----------------------------------------------------
   useEffect(() => {
     const stored = localStorage.getItem("auth_user");
 
-    // if (!stored) {
-    //   navigate("/login");
-    //   return;
-    // }
-
     try {
       const parsed = JSON.parse(stored);
-setUser({
-  name: parsed?.name,
-  email: parsed?.email,
-  phone: parsed?.phone,
-});
+
+      if (parsed) {
+        setUser({
+          name: parsed?.name,
+          email: parsed?.email,
+          phone: extractPhone(parsed), // ← UPDATED
+        });
+      }
+
       setLoading(false);
     } catch (err) {
       console.log("Error parsing localStorage user:", err);
@@ -36,10 +50,13 @@ setUser({
     }
   }, [navigate]);
 
+  // ----------------------------------------------------
+  // Refresh latest data from backend
+  // ----------------------------------------------------
   useEffect(() => {
     const refreshFromDB = async () => {
       try {
-const stored = JSON.parse(localStorage.getItem("auth_user"));
+        const stored = JSON.parse(localStorage.getItem("auth_user"));
         if (!stored || !stored.token) return;
 
         const res = await axios.get(`${import.meta.env.VITE_API_URL}/auth/me`, {
@@ -49,13 +66,16 @@ const stored = JSON.parse(localStorage.getItem("auth_user"));
         const data = res.data;
 
         setUser({
-          name: data.name,
-          email: data.email,
-          phone: data.phone,
-          tier: data.tier || "Gold Tier",
+          name: data?.name,
+          email: data?.email,
+          phone: extractPhone(data), // ← UPDATED
+          tier: data?.tier || "Gold Tier",
         });
 
+        // Update phone inside localStorage
+        stored.phone = extractPhone(data);
         stored.user = data;
+
         localStorage.setItem("auth_user", JSON.stringify(stored));
       } catch (err) {
         console.log("DB refresh failed:", err);

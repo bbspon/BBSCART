@@ -1158,6 +1158,7 @@ export default function TerritoryHeadForm() {
     gst_street: "",
     gst_locality: "",
     gst_district: "",
+    gst_state: "",
   });
 
   const handleSelectChange = (selectedOption, field) => {
@@ -1209,8 +1210,24 @@ export default function TerritoryHeadForm() {
       setLoadingPan(false);
     }
   };
+const validateStep1 = () => {
+  if (!formData.firstName.trim()) return toast.error("Enter First Name"), false;
+
+  if (!formData.lastName.trim()) return toast.error("Enter Last Name"), false;
+
+  if (!dobValue) return toast.error("Select Date of Birth"), false;
+
+  if (!formData.panNumber.trim()) return toast.error("Enter PAN Number"), false;
+
+  // PAN must be uploaded (pan_pic stored after /step-by-key update)
+  if (!territoryHeadId && !formData.pan_pic)
+    return toast.error("Upload PAN Card"), false;
+
+  return true;
+};
 
   const saveStep1AndNext = async () => {
+     if (!validateStep1()) return;
     try {
       const payload = {
         territoryHeadId,
@@ -1318,8 +1335,27 @@ export default function TerritoryHeadForm() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, formData.register_state, formData.register_city]);
+const validateStep2 = () => {
+  if (!territoryHeadId) return toast.error("Complete Step 1 first"), false;
+
+  if (!formData.aadharNumber.trim())
+    return toast.error("Enter Aadhaar Number"), false;
+
+  if (!formData.register_street.trim())
+    return toast.error("Enter Street"), false;
+
+  if (!formData.register_city.trim()) return toast.error("Enter City"), false;
+
+  if (!formData.register_state.trim()) return toast.error("Enter State"), false;
+
+  if (!formData.register_postalCode.trim())
+    return toast.error("Enter PIN Code"), false;
+
+  return true;
+};
 
   const saveStep2AndNext = async () => {
+    if (!validateStep2()) return;
     try {
       const aNumRaw = (formData.aadharNumber || "").replace(/\D/g, "");
       if (!aNumRaw) {
@@ -1368,8 +1404,38 @@ export default function TerritoryHeadForm() {
   // -------------------- GST (Step 3 — manual; file optional) --------------------
   const [gstFile, setGstFile] = useState(null);
   const onGstFileSelect = (e) => setGstFile(e.target.files?.[0] || null);
+const validateStep3 = () => {
+  if (!gstFile) return toast.error("Upload GST Certificate"), false;
+
+  if (!formData.gstNumber.trim()) return toast.error("Enter GST Number"), false;
+
+  if (!formData.gstLegalName.trim())
+    return toast.error("Enter GST Legal Name"), false;
+
+  if (!formData.constitution_of_business.trim())
+    return toast.error("Select Constitution of Business"), false;
+
+  if (!formData.gst_floorNo.trim())
+    return toast.error("Enter Floor No."), false;
+
+  if (!formData.gst_buildingNo.trim())
+    return toast.error("Enter Building/Flat No."), false;
+
+  if (!formData.gst_street.trim()) return toast.error("Enter Street"), false;
+
+  if (!formData.gst_locality.trim())
+    return toast.error("Enter Locality"), false;
+
+  if (!formData.gst_district.trim())
+    return toast.error("Enter District"), false;
+
+  if (!formData.gst_state.trim()) return toast.error("Enter GST State"), false;
+
+  return true;
+};
 
   const saveGstAndNext = async () => {
+      if (!validateStep3()) return;
     try {
       if (!territoryHeadId) {
         alert("Missing territoryHeadId. Complete Step 1 first.");
@@ -1416,8 +1482,31 @@ export default function TerritoryHeadForm() {
   });
 
   const onBankFileChange = (e) => setBankFile(e.target.files?.[0] || null);
+const validateStep4 = () => {
+  if (!bankFile)
+    return toast.error("Upload Cancelled Cheque or Bank Proof"), false;
+
+  if (!bankData.account_holder_name.trim())
+    return toast.error("Enter Account Holder Name"), false;
+
+  if (!bankData.account_no.trim())
+    return toast.error("Enter Account Number"), false;
+
+  if (!bankData.ifcs_code.trim()) return toast.error("Enter IFSC Code"), false;
+
+  if (!bankData.bank_name.trim()) return toast.error("Enter Bank Name"), false;
+
+  if (!bankData.branch_name.trim())
+    return toast.error("Enter Branch Name"), false;
+
+  if (!bankData.bank_address.trim())
+    return toast.error("Enter Bank Address"), false;
+
+  return true;
+};
 
   const saveBankDetails = async () => {
+      if (!validateStep4()) return;
     const tid = territoryHeadId || localStorage.getItem("territoryHeadId");
     if (!tid) {
       alert("Territory Head ID is required. Complete earlier steps first.");
@@ -1501,8 +1590,41 @@ export default function TerritoryHeadForm() {
     if (!r?.data?.ok) throw new Error(r?.data?.message || "Submit failed");
   };
   // ================================
+const validateStep5 = () => {
+  if (!outlet.outlet_name.trim())
+    return toast.error("Enter Outlet Name"), false;
+
+  if (!outlet.manager_name.trim())
+    return toast.error("Enter Manager Name"), false;
+
+  if (!outlet.manager_mobile.trim())
+    return toast.error("Enter Manager Mobile"), false;
+
+  if (!outlet.outlet_phone.trim())
+    return toast.error("Enter Outlet Phone"), false;
+
+  if (!outlet.street.trim()) return toast.error("Enter Street"), false;
+
+  if (!outlet.city.trim()) return toast.error("Enter City"), false;
+
+  if (!outlet.district.trim()) return toast.error("Enter District"), false;
+
+  if (!outlet.state.trim()) return toast.error("Enter State"), false;
+
+  if (!outlet.postalCode.trim()) return toast.error("Enter PIN Code"), false;
+
+  if (!outlet.lat || !outlet.lng)
+    return (
+      toast.error("Location Required — Click 'Use current location'"), false
+    );
+
+  if (!outletImage) return toast.error("Upload Outlet Nameboard Image"), false;
+
+  return true;
+};
 
   const saveOutletAndFinish = async () => {
+      if (!validateStep5()) return;
     const tid = territoryHeadId || localStorage.getItem("territoryHeadId");
     if (!tid) {
       alert("Missing territoryHeadId. Complete earlier steps first.");
@@ -1802,7 +1924,8 @@ export default function TerritoryHeadForm() {
               <Form.Label>BPC ID (Auto)</Form.Label>
               <Form.Control value={bpcId} readOnly />
               <div className="text-muted" style={{ fontSize: 12 }}>
-                Format: TH&#123;STATE&#125;&#123;CITY&#125;&#123;DDMMYY&#125;&#123;NNNNN&#125;
+                Format:
+                TH&#123;STATE&#125;&#123;CITY&#125;&#123;DDMMYY&#125;&#123;NNNNN&#125;
               </div>
             </Col>
           </Row>
@@ -1931,9 +2054,9 @@ export default function TerritoryHeadForm() {
             />
             <label>State</label>
             <input
-              value={formData.gst_district}
+              value={formData.gst_state}
               onChange={(e) =>
-                setFormData((p) => ({ ...p, gst_district: e.target.value }))
+                setFormData((p) => ({ ...p, gst_state: e.target.value }))
               }
             />
           </div>

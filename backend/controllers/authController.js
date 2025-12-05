@@ -56,27 +56,25 @@ exports.register = async (req, res) => {
   const { name, email, phone, password, referredBy, role, confirmPassword } =
     req.body;
 
-  // Basic confirm check (optional but recommended)
+  // Basic confirm check
   if (typeof confirmPassword !== "undefined" && confirmPassword !== password) {
     return res
       .status(400)
       .json({ success: false, message: "Passwords do not match" });
   }
 
-  // whitelist role (map 'vendor' from UI to 'seller')
+  // whitelist role
   const ALLOWED = ["user", "customer"];
-  const safeRole = ALLOWED.includes(String(req.body.role))
-    ? req.body.role
-    : "customer";
+  const safeRole = ALLOWED.includes(String(role)) ? role : "customer";
 
   try {
-    // ✅ Check if user already exists
+    // Check if user already exists
     let existing = await User.findOne({ email });
     if (existing) {
       return res.status(400).json({ msg: "User already exists" });
     }
 
-    // ✅ Validate Referral Code
+    // Validate Referral Code
     let referrer = null;
     if (referredBy) {
       referrer = await UserDetails.findOne({ referralCode: referredBy });
@@ -85,72 +83,75 @@ exports.register = async (req, res) => {
       }
     }
 
-    // ✅ Generate unique referral code
+    // Generate unique referral code
     const referralCode = generateReferralCode();
 
-    // ✅ Hash the password first
+    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // ✅ Create and save the User FIRST
+    // Create User
     let user = new User({
       name,
       email,
-      phone,
+      phone, // <-- ensure persisted
       password: hashedPassword,
       role: safeRole,
+      mustChangePassword: false,
     });
-    await user.save();
 
-    // ✅ Create and save UserDetails NEXT
+    await user.save({ validateBeforeSave: false });
+
+    // Create UserDetails
     const userDetails = new UserDetails({
       userId: user._id,
       referralCode,
       referredBy: referrer ? referrer.userId : null,
-      phone,
+      phone, // <-- ensure persisted
     });
-    await userDetails.save();
 
-    // ✅ Link back on the user and save
+    await userDetails.save({ validateBeforeSave: false });
+
+    // Link back userDetails on user
     user.userdetails = userDetails._id;
-    await user.save();
+    await user.save({ validateBeforeSave: false });
 
-    // ✅ Merge guest cart if session exists (safe optional check)
+    // Merge guest cart if exists
     if (req.session?.userId) {
       await mergeGuestCartWithUser(req.session.userId, user._id);
       req.session.userId = null;
     }
 
-    // ✅ Generate Access Token (Short Expiry)
+    // Generate access token
     const accessToken = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
-    // ✅ Generate Refresh Token (Longer Expiry)
+    // Generate refresh token
     const refreshToken = jwt.sign(
       { userId: user._id },
       process.env.REFRESH_TOKEN_SECRET,
       { expiresIn: "7d" }
     );
 
-    // ✅ Set tokens as HttpOnly cookies
+    // Set cookies
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // Secure in production
+      secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 60 * 60 * 1000, // 1 hour
+      maxAge: 60 * 60 * 1000,
     });
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    // ✅ Send response without exposing tokens
+    // Send response
     return res.status(201).json({
       msg: "User registered successfully",
       user,
@@ -159,12 +160,12 @@ exports.register = async (req, res) => {
   } catch (error) {
     console.error("Registration error:", error);
     if (error.code === 11000) {
-      // MongoDB duplicate key error
       return res.status(400).json({ msg: "User already exists" });
     }
     res.status(500).json({ msg: "Server error", error: error.message });
   }
 };
+
 
 // Login controller
 // Login controller (PATCHED)

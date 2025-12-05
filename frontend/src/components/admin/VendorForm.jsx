@@ -102,6 +102,7 @@ export default function VendorForm() {
       gst_street: "",
       gst_locality: "",
       gst_district: "",
+      gst_state: "",
     });
     setBankData({
       account_holder_name: "",
@@ -187,8 +188,24 @@ export default function VendorForm() {
       setLoadingPan(false);
     }
   };
+const validateStep1 = () => {
+  if (!formData.firstName.trim()) return toast.error("Enter First Name"), false;
+
+  if (!formData.lastName.trim()) return toast.error("Enter Last Name"), false;
+
+  if (!dobValue) return toast.error("Select Date of Birth"), false;
+
+  if (!formData.panNumber.trim()) return toast.error("Enter PAN Number"), false;
+
+  // PAN file must be uploaded via step-by-key
+  if (!vendorId && !formData.pan_pic)
+    return toast.error("Upload PAN Card"), false;
+
+  return true;
+};
 
   const saveStep1AndNext = async () => {
+      if (!validateStep1()) return;
     try {
       const payload = {
         vendorId,
@@ -264,8 +281,28 @@ export default function VendorForm() {
       setLoadingABack(false);
     }
   };
+const validateStep2 = () => {
+  if (!vendorId) return toast.error("Complete Step 1 first"), false;
+
+  if (!formData.aadharNumber.trim())
+    return toast.error("Enter Aadhaar Number"), false;
+
+  if (!formData.register_street.trim())
+    return toast.error("Enter Street"), false;
+
+  if (!formData.register_city.trim()) return toast.error("Enter City"), false;
+
+  if (!formData.register_state.trim()) return toast.error("Enter State"), false;
+
+  if (!formData.register_postalCode.trim())
+    return toast.error("Enter PIN Code"), false;
+
+  return true;
+};
 
   const saveStep2AndNext = async () => {
+      if (!validateStep2()) return;
+
     try {
       const aNumRaw = (formData.aadharNumber || "").replace(/\D/g, "");
       if (!aNumRaw) {
@@ -305,8 +342,38 @@ export default function VendorForm() {
   // -------------------- GST (Step 3) --------------------
   const [gstFile, setGstFile] = useState(null);
   const onGstFileSelect = (e) => setGstFile(e.target.files?.[0] || null);
+const validateStep3 = () => {
+  if (!gstFile) return toast.error("Upload GST Certificate"), false;
+
+  if (!formData.gstNumber.trim()) return toast.error("Enter GST Number"), false;
+
+  if (!formData.gstLegalName.trim())
+    return toast.error("Enter GST Legal Name"), false;
+
+  if (!formData.constitution_of_business.trim())
+    return toast.error("Select Constitution of Business"), false;
+
+  if (!formData.gst_floorNo.trim())
+    return toast.error("Enter Floor No."), false;
+
+  if (!formData.gst_buildingNo.trim())
+    return toast.error("Enter Building/Flat No."), false;
+
+  if (!formData.gst_street.trim()) return toast.error("Enter Street"), false;
+
+  if (!formData.gst_locality.trim())
+    return toast.error("Enter Locality"), false;
+
+  if (!formData.gst_district.trim())
+    return toast.error("Enter District"), false;
+
+  if (!formData.gst_state.trim()) return toast.error("Enter GST State"), false;
+
+  return true;
+};
 
   const saveGstAndNext = async () => {
+     if (!validateStep3()) return;
     try {
       if (!vendorId) {
         alert("Missing vendorId. Complete Step 1 first.");
@@ -355,8 +422,31 @@ export default function VendorForm() {
   });
 
   const onBankFileChange = (e) => setBankFile(e.target.files?.[0] || null);
+const validateStep4 = () => {
+  if (!bankFile)
+    return toast.error("Upload Cancelled Cheque or Bank Proof"), false;
+
+  if (!bankData.account_holder_name.trim())
+    return toast.error("Enter Account Holder Name"), false;
+
+  if (!bankData.account_no.trim())
+    return toast.error("Enter Account Number"), false;
+
+  if (!bankData.ifcs_code.trim()) return toast.error("Enter IFSC Code"), false;
+
+  if (!bankData.bank_name.trim()) return toast.error("Enter Bank Name"), false;
+
+  if (!bankData.branch_name.trim())
+    return toast.error("Enter Branch Name"), false;
+
+  if (!bankData.bank_address.trim())
+    return toast.error("Enter Bank Address"), false;
+
+  return true;
+};
 
   const saveBankDetails = async () => {
+     if (!validateStep4()) return;
     const vid = vendorId || localStorage.getItem("vendorId");
     if (!vid) {
       alert("Vendor ID is required. Complete PAN/Aadhaar step first.");
@@ -444,8 +534,41 @@ export default function VendorForm() {
       throw new Error(r?.data?.message || "Submit failed");
     }
   };
+const validateStep5 = () => {
+  if (!outlet.outlet_name.trim())
+    return toast.error("Enter Outlet Name"), false;
+
+  if (!outlet.manager_name.trim())
+    return toast.error("Enter Manager Name"), false;
+
+  if (!outlet.manager_mobile.trim())
+    return toast.error("Enter Manager Mobile"), false;
+
+  if (!outlet.outlet_phone.trim())
+    return toast.error("Enter Outlet Phone"), false;
+
+  if (!outlet.street.trim()) return toast.error("Enter Street"), false;
+
+  if (!outlet.city.trim()) return toast.error("Enter City"), false;
+
+  if (!outlet.district.trim()) return toast.error("Enter District"), false;
+
+  if (!outlet.state.trim()) return toast.error("Enter State"), false;
+
+  if (!outlet.postalCode.trim()) return toast.error("Enter PIN Code"), false;
+
+  // Must have GPS coordinates
+  if (!outlet.lat || !outlet.lng)
+    return toast.error("Location Required — Use current location"), false;
+
+  // Must upload outlet nameboard
+  if (!outletImage) return toast.error("Upload Outlet Nameboard Image"), false;
+
+  return true;
+};
 
   const saveOutletAndNext = async () => {
+      if (!validateStep5()) return;
     const vid = vendorId || localStorage.getItem("vendorId");
     if (!vid) {
       alert("Missing vendorId. Complete earlier steps first.");
@@ -923,9 +1046,9 @@ export default function VendorForm() {
             />
             <label>State</label>
             <input
-              value={formData.gst_district}
+              value={formData.gst_state}
               onChange={(e) =>
-                setFormData((p) => ({ ...p, gst_district: e.target.value }))
+                setFormData((p) => ({ ...p, gst_state: e.target.value }))
               }
             />
           </div>
