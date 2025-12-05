@@ -31,6 +31,8 @@ exports.uploadDocument = async (req, res) => {
 exports.saveStepByKey = async (req, res) => {
   try {
     const b = req.body || {};
+
+    // Determine franchiseeId or create new one
     const id =
       b.franchiseeId && mongoose.Types.ObjectId.isValid(b.franchiseeId)
         ? b.franchiseeId
@@ -57,7 +59,7 @@ exports.saveStepByKey = async (req, res) => {
     if (b.aadhar_pic_back)
       set.aadhar_pic_back = String(b.aadhar_pic_back).trim();
 
-    // Registered/Business address
+    // Registered/Business Address
     if (
       b.register_business_address &&
       typeof b.register_business_address === "object"
@@ -71,6 +73,7 @@ exports.saveStepByKey = async (req, res) => {
       });
     }
 
+    // Perform upsert
     const doc = await Franchise.findOneAndUpdate(
       { _id: id },
       {
@@ -85,14 +88,30 @@ exports.saveStepByKey = async (req, res) => {
       }
     );
 
-    try { await emitFranchiseUpsert(doc); } catch (e) { console.error("[CRM] franchise-upsert failed:", e.message); }  } catch (e) {
-    return res.json({ ok: true, data: doc, franchiseeId: doc._id });
-      console.error("franchisee.saveStepByKey error:", e);
-    return res
-      .status(500)
-      .json({ ok: false, message: "Save failed", details: e.message });
+    // Emit to CRM safely
+    try {
+      await emitFranchiseUpsert(doc);
+    } catch (e) {
+      console.error("[CRM] franchise-upsert failed:", e.message);
+    }
+
+    // ✔ SUCCESS RESPONSE (This was missing!)
+    return res.json({
+      ok: true,
+      data: doc,
+      franchiseeId: doc._id,
+    });
+  } catch (e) {
+    // ✔ FIXED CATCH BLOCK
+    console.error("franchisee.saveStepByKey error:", e);
+    return res.status(500).json({
+      ok: false,
+      message: "Save failed",
+      details: e.message,
+    });
   }
 };
+
 
 /**
  * Optional legacy: PATCH /:franchiseeId/step
