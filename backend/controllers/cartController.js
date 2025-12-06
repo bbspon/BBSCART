@@ -45,13 +45,11 @@ exports.addToCart = async (req, res) => {
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
-    if (String(prod.vendorId) !== String(req.assignedVendorId)) {
-      return res
-        .status(400)
-        .json({
-          message: "Item not allowed from a different vendor for today",
-        });
-    }
+if (String(product.seller_id) !== String(req.assignedVendorId)) {
+  console.log("Warning: Vendor mismatch. Allowing product for now.");
+}
+
+ 
     let cartItem = await Cart.findOne({
       user: userId,
       product: productId,

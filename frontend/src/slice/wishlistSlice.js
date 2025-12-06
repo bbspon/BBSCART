@@ -26,7 +26,7 @@ export const addToWishlist = createAsyncThunk(
             { productId }, 
             { withCredentials: true }
         );
-
+     dispatch(fetchWishlistItems());
         return response.data;
     } catch (error) {
         return rejectWithValue(error.response?.data || "Error adding product to wishlist");

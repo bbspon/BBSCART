@@ -4,6 +4,8 @@ import { useSelector } from "react-redux";
 import ReactDOM from "react-dom";
 import CategoryMegaMenu from "../../storefront/components/CategoryMegaMenu";
 import { FaBars, FaTimes } from "react-icons/fa";
+import healthAccess from "../../../public/img/logo/logo.png";
+import ThiaLogo from "../../../public/img/logo/ThiaLogo.png";
 
 // Detect mobile width
 const useIsMobile = () => {
@@ -100,46 +102,24 @@ const MegaMenu = () => {
     return () => clearInterval(interval);
   }, [offers.length]);
 
-  const fullMenuData = [
-    {
-      id: "jewelry-1",
-      title: "Thiaworld Jewellery",
-      externalLink: "https://thiaworld.bbscart.com/",
-    },
-    {
-      id: "health-1",
-      title: "BBS Global Health Access",
-      externalLink: "http://healthcare.bbscart.com/",
-    },
-  ];
+const fullMenuData = [
+  {
+    id: "jewelry-1",
+    title: "Thiaworld Jewellery",
+    externalLink: "https://thiaworld.bbscart.com/",
+    image: ThiaLogo, // 👈 your jewellery image
+  },
+  {
+    id: "health-1",
+    title: "BBS Global Health Access",
+    externalLink: "http://healthcare.bbscart.com/",
+    image: healthAccess, // 👈 your health image
+  },
+];
+
 
   return (
     <>
-      <div className="flex justify-between items-center px-1 py-1 md:px-10">
-        <ul className="hidden lg:flex overflow-x-auto no-scrollbar justify-center space-x-2 lg:space-x-8 py-2 w-full">
-          {fullMenuData.map((item) => (
-            <li
-              key={item.id}
-              className="relative group flex-shrink-0"
-              onMouseEnter={() => setActiveMenu(item.id)}
-              onMouseLeave={() => setActiveMenu(null)}
-            >
-              <a
-                href={item.externalLink}
-                className="
-    flex items-center gap-1 px-4 py-2 rounded-md
-    font-semibold
-    bg-[#F2F2F2] text-black               /* normal background highlight */
-    hover:bg-[#37475A] hover:text-white   /* hover effect */
-    transition duration-200
-  "
-              >
-                {item.title}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </div>
       {/* === TOP NAVBAR (Amazon Style) === */}
       <nav className="relative bg-[#0B7A4B] shadow-md border-b border-[#06653D] z-30 text-white font-medium tracking-wide">
         <div className="container mx-auto px-2 flex items-center justify-between">
@@ -349,6 +329,38 @@ const MegaMenu = () => {
           .no-scrollbar::-webkit-scrollbar { display: none; }
           .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         `}</style>
+      <div className="flex justify-between items-center px-1 py-1 md:px-10">
+        <ul className="hidden lg:flex overflow-x-auto no-scrollbar justify-center space-x-2 lg:space-x-8 py-2 w-full">
+          {fullMenuData.map((item) => (
+            <li
+              key={item.id}
+              className="relative group flex-shrink-0"
+              onMouseEnter={() => setActiveMenu(item.id)}
+              onMouseLeave={() => setActiveMenu(null)}
+            >
+              <a
+                href={item.externalLink}
+                className="
+        flex items-center gap-2 px-4 py-2 rounded-md
+        font-semibold
+        bg-[#F2F2F2] text-black
+        hover:bg-[#37475A] hover:text-white
+        transition duration-200
+      "
+                style={{ display: "flex", alignItems: "center", gap: "8px" }}
+              >
+                <img
+                  src={item.image}
+                  alt={item.title}
+                  style={{ height: "30px", objectFit: "contain" }}
+                />
+
+                {item.title}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
     </>
   );
 };

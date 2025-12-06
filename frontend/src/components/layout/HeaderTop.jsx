@@ -45,7 +45,7 @@ useEffect(() => {
   const { user, isAuthenticated } = useSelector((state) => state.auth);
   const cartItems = useSelector((state) => state.cart.items);
   const wishItems = useSelector((state) => state.wishlist.items);
-  const wishCount = Object.values(wishItems).length;
+const wishCount = wishItems.length;
 
   const [showHealthcareFrame, setShowHealthcareFrame] = useState(false);
 useEffect(() => {
@@ -407,7 +407,7 @@ const closePopup = () => setShowUserPopup(false);
 
                         <li>
                           <Link
-                            to="/"
+                            to="/all-products"
                             className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
                             Create Wish List
@@ -415,7 +415,7 @@ const closePopup = () => setShowUserPopup(false);
                         </li>
                         <li>
                           <Link
-                            to="/"
+                            to="/explore"
                             className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
                             Explore Showroom
@@ -500,12 +500,20 @@ const closePopup = () => setShowUserPopup(false);
           </div>
           <NavbarCart />
           {/* Wishlist */}
-          <div className="navbar-cart">
+          <div className="navbar-cart relative">
             <Link to="/wishlist">
               <FaHandHoldingHeart
-                size={20}
-                className="text-[#0B7A4B] w-5 h-5"
+                size={22}
+                className="text-[#0B7A4B] w-6 h-6"
               />
+              {wishCount > 0 && (
+                <span
+                  className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold
+                 flex items-center justify-center rounded-full w-5 h-5"
+                >
+                  {wishCount}
+                </span>
+              )}
             </Link>
           </div>
         </div>

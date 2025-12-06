@@ -8,16 +8,53 @@ import { BsCurrencyRupee } from "react-icons/bs";
 import { PiPlusCircleBold, PiMinusCircleBold } from "react-icons/pi";
 import { TbArrowBadgeLeft } from "react-icons/tb";
 import { TbArrowBadgeRight } from "react-icons/tb";
+import {
+  addToWishlist,
+  fetchWishlistItems,
+  removeFromWishlist,
+} from "../../slice/wishlistSlice";
+
+import { useDispatch, useSelector } from "react-redux";
+import {
+  addToCart,
+  updateQuantity,
+  removeFromCart,
+  fetchCartItems,
+} from "../../slice/cartSlice";
+
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
   const STATIC_PREFIXES = ["/uploads"]; // support both roots
 
 export default function SubcategoryPage() {
   const [page, setPage] = useState(1);
   const totalPages = 10; // <-- add this line
-
+  const dispatch = useDispatch();
+  const { items: wishlist } = useSelector((state) => state.wishlist);
   const handlePrev = () => {
     if (page > 1) setPage(page - 1);
   };
+
+const toggleWishlist = async (e, productId) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  const exists = wishlist.some(
+    (w) => w.productId === productId || w?.product?._id === productId
+  );
+
+  try {
+    if (exists) {
+      await dispatch(removeFromWishlist(productId));
+    } else {
+      await dispatch(addToWishlist({ productId }));
+    }
+
+    dispatch(fetchWishlistItems());
+  } catch (err) {
+    console.log("Wishlist toggle error:", err);
+  }
+};
+
 
   const handleNext = () => {
     if (page < totalPages) setPage(page + 1);
@@ -41,25 +78,70 @@ export default function SubcategoryPage() {
     { label: "9 Kg", discount: "26% Off", price: "₹6660", oldPrice: "₹9000" },
     { label: "10 Kg", discount: "28% Off", price: "₹7200", oldPrice: "₹10000" },
   ];
-  const [inCart, setInCart] = useState(false);
-  const [quantity, setQuantity] = useState(1);
 
-  const addToCart = () => {
-    setInCart(true);
-    setQuantity(1);
-  };
 
-  const increase = () => setQuantity((prev) => prev + 1);
+  useEffect(() => {
+    dispatch(fetchWishlistItems());
+  }, []);
+const cartItems = useSelector((state) => state.cart.items);
 
-  const decrease = () => {
-    setQuantity((prev) => {
-      if (prev > 1) return prev - 1;
-      else {
-        setInCart(false); // remove from cart when qty = 0
-        return 1;
-      }
-    });
-  };
+const getQty = (id) => {
+  const found = cartItems.find((c) => c.productId === id);
+  return found ? found.quantity : 0;
+};
+
+const handleAdd = (e, product) => {
+  e.preventDefault();
+
+  const deliveryPincode = getPincode();
+  if (!deliveryPincode) {
+    alert("Please enter your delivery pincode before adding items to cart.");
+    return;
+  }
+
+  dispatch(
+    addToCart({
+      productId: product._id,
+      variantId: null,
+      quantity: 1,
+      deliveryPincode, // ← REQUIRED
+    })
+  ).then(() => dispatch(fetchCartItems(deliveryPincode)));
+};
+;
+
+const handleIncrease = (e, product) => {
+  e.preventDefault();
+  const qty = getQty(product._id);
+
+  dispatch(
+    updateQuantity({
+      productId: product._id,
+      variantId: null,
+      quantity: qty + 1,
+    })
+  ).then(() => dispatch(fetchCartItems()));
+};
+
+const handleDecrease = (e, product) => {
+  e.preventDefault();
+  const qty = getQty(product._id);
+
+  if (qty <= 1) {
+    dispatch(removeFromCart({ productId: product._id, variantId: null })).then(
+      () => dispatch(fetchCartItems())
+    );
+  } else {
+    dispatch(
+      updateQuantity({
+        productId: product._id,
+        variantId: null,
+        quantity: qty - 1,
+      })
+    ).then(() => dispatch(fetchCartItems()));
+  }
+};
+
 
   const [liked, setLiked] = useState(false);
   const { subcategoryId } = useParams();
@@ -1131,9 +1213,9 @@ export default function SubcategoryPage() {
                     src={pickImage(p)}
                     alt=""
                     className="mb-2 h-32 w-full rounded object-cover"
-                    onError={(e) =>
-                      (e.currentTarget.src = "/img/placeholder.png")
-                    }
+                    // onError={(e) =>
+                    //   (e.currentTarget.src = "/img/placeholder.png")
+                    // }
                   />
 
                   <div className="flex items-center justify-between px-1 py-2">
@@ -1147,13 +1229,14 @@ export default function SubcategoryPage() {
                     <div className="me-3">
                       <BsFillHeartFill
                         size={20}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setLiked(!liked);
-                        }}
+                        onClick={(e) => toggleWishlist(e, p._id)}
                         className={`text-xl cursor-pointer transition-colors duration-200 ${
-                          liked ? "text-red-500" : "text-gray-300"
+                          wishlist.some(
+                            (w) =>
+                              w.productId === p._id || w?.product?._id === p._id
+                          )
+                            ? "text-red-500"
+                            : "text-gray-300"
                         }`}
                       />
                     </div>
@@ -1161,14 +1244,11 @@ export default function SubcategoryPage() {
 
                   {/* ADD / BUY Section */}
                   <div className="flex gap-2 items-center justify-center sm:justify-start py-2 flex-wrap">
-                    {!inCart ? (
+                    {getQty(p._id) === 0 ? (
                       <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          addToCart();
-                        }}
+                        onClick={(e) => handleAdd(e, p)}
                         className="flex flex-row items-center gap-1 border rounded-2xl p-2 px-2 text-xs text-nowrap
-                text-white bg-rose-400 shadow-sm"
+      text-white bg-orange-500 shadow-sm"
                       >
                         <ImCart size={15} />
                         ADD TO CART
@@ -1178,29 +1258,24 @@ export default function SubcategoryPage() {
                         <span className="text-sm font-semibold text-gray-700 mr-1">
                           Qty:
                         </span>
-                        <div className="flex items-center justify-center rounded-lg overflow-hidden">
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              decrease();
-                            }}
-                            className="py-1 text-gray-600 hover:bg-gray-100 font-bold text-lg"
-                          >
-                            <PiMinusCircleBold />
-                          </button>
-                          <span className="px-2 text-gray-800 font-medium text-sm text-center">
-                            {quantity}
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              increase();
-                            }}
-                            className="py-1 text-gray-600 hover:bg-gray-100 font-bold text-lg"
-                          >
-                            <PiPlusCircleBold />
-                          </button>
-                        </div>
+
+                        <button
+                          onClick={(e) => handleDecrease(e, p)}
+                          className="py-1 text-gray-600 hover:bg-gray-100 font-bold text-lg"
+                        >
+                          <PiMinusCircleBold />
+                        </button>
+
+                        <span className="px-2 text-gray-800 font-medium text-sm text-center">
+                          {getQty(p._id)}
+                        </span>
+
+                        <button
+                          onClick={(e) => handleIncrease(e, p)}
+                          className="py-1 text-gray-600 hover:bg-gray-100 font-bold text-lg"
+                        >
+                          <PiPlusCircleBold />
+                        </button>
                       </div>
                     )}
 
@@ -1210,76 +1285,14 @@ export default function SubcategoryPage() {
                         addToCart();
                       }}
                       className="flex flex-row items-center gap-1 border rounded-2xl p-2 px-1 text-xs text-nowrap
-              text-white bg-sky-400 shadow-sm"
+              text-white bg-green-600 shadow-sm"
                     >
                       <BsCurrencyRupee size={18} />
                       BUY NOW
                     </button>
                   </div>
                 </Link>
-                <div className="relative mt-2  font-[Inter] z-9999 flex justify-center ">
-                  {/* Main Button */}
-                  <button
-                    onClick={() => setIsComboOpen(!isComboOpen)}
-                    className="  flex  items-center border border-gray-300 bg-white
-                     rounded-md px-3 py-2 text-sm font-medium shadow-sm hover:border-gray-400 transition w-full"
-                  >
-                    {selectedCombo}
-                    <span className="text-gray-500">▾</span>
-                  </button>
-
-                  {/* Dropdown */}
-                  {isComboOpen && (
-                    <div className="absolute  w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg ">
-                      {(showMoreCombos
-                        ? [...comboOptions, ...moreCombos]
-                        : comboOptions
-                      ).map((combo) => (
-                        <div
-                          key={combo.label}
-                          onClick={() => {
-                            setSelectedCombo(combo.label);
-                            setIsComboOpen(false);
-                          }}
-                          className={`p-3 cursor-pointer border-b last:border-0 ${
-                            selectedCombo === combo.label
-                              ? "border-green-400 bg-green-50"
-                              : "hover:bg-gray-50"
-                          }`}
-                        >
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-700">
-                              {combo.label}
-                            </span>
-                            {selectedCombo === combo.label && (
-                              <Check className="text-green-600 w-4 h-4" />
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs bg-green-100 text-green-700 font-semibold px-2 py-[1px] rounded">
-                              {combo.discount}
-                            </span>
-                            <span className="text-sm font-semibold text-gray-900">
-                              {combo.price}
-                            </span>
-                            <span className="text-xs line-through text-gray-400">
-                              {combo.oldPrice}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-
-                      {/* +10 More / Show Less */}
-                      <div
-                        onClick={() => setShowMoreCombos(!showMoreCombos)}
-                        className="text-center py-2 text-sm text-gray-600 hover:text-green-700 cursor-pointer font-medium border-t"
-                      >
-                        {showMoreCombos ? "Show Less" : "+10 More Combos"}
-                      </div>
-                    </div>
-                  )}
-                </div>
+            
               </div>
             ))}
           </div>

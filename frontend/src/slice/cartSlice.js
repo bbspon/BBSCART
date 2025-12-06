@@ -3,38 +3,56 @@ import api from '../utils/api';
 const BASE_URL = "/cart"; // Update this with your backend URL
 import instance from "../services/axiosInstance"
 // ✅ Fetch cart items
-export const fetchCartItems = createAsyncThunk("cart/fetchCartItems", async (_, { rejectWithValue }) => {
+export const fetchCartItems = createAsyncThunk(
+  "cart/fetchCartItems",
+  async (_, thunkAPI) => {
     try {
-        const response = await instance.get(`${BASE_URL}`, {
-          withCredentials: true,
-        });
-        return response.data;
+      const pincode = localStorage.getItem("deliveryPincode") || "";
+      const response = await axios.get(`${import.meta.env.VITE_API_URI}/cart`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "x-delivery-pincode": pincode,
+        },
+      });
+      return response.data;
     } catch (error) {
-        return rejectWithValue(error.response?.data || "Error fetching cart items");
+      return thunkAPI.rejectWithValue(error.response?.data || error.message);
     }
-});
+  }
+);
 
 // ✅ Add item to cart (handles variantId)
 export const addToCart = createAsyncThunk(
   "cart/addToCart",
   async ({ productId, variantId = null, quantity }, { rejectWithValue }) => {
-    console.log("API Request:", { productId, variantId, quantity });
+    // FIX: get deliveryPincode from localStorage
+    const deliveryPincode = localStorage.getItem("deliveryPincode");
+
+    console.log("API Request:", {
+      productId,
+      variantId,
+      quantity,
+      deliveryPincode,
+    });
+
     try {
-        if (!productId) throw new Error("Product ID is missing");
+      if (!productId) throw new Error("Product ID is missing");
 
-        const response = await instance.post(
-          `${BASE_URL}/add`,
-          { productId, variantId, quantity },
-          { withCredentials: true }
-        );
+      const response = await instance.post(
+        `${BASE_URL}/add`,
+        { productId, variantId, quantity, deliveryPincode },
+        { withCredentials: true }
+      );
 
-        console.log("API Response:", response.data);
-        return response.data;
+      return response.data;
     } catch (error) {
-        return rejectWithValue(error.response?.data || "Error adding product to cart");
+      return rejectWithValue(
+        error.response?.data || "Error adding product to cart"
+      );
     }
   }
 );
+
 
 // ✅ Update item quantity (handles variantId)
 export const updateQuantity = createAsyncThunk(

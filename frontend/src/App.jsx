@@ -117,6 +117,8 @@ import CustomerVendorIdentityCard from './components/pages/CustomerVendorIdentit
 import UserSetting from './components/UserSetting'
 import EditProfile from './components/pages/EditProfile'
 import { loadAuthFromStorage } from "./utils/loadAuth";
+import Exploreshowroom from './components/layout/ExploreShowroom'
+import LibraryPage from "./components/layout/LibraryPage";
 
 function App() {
   const dispatch = useDispatch();
@@ -239,6 +241,8 @@ useEffect(() => {
         <Route path="/franchise-card" element={<FranchiseCard />} />
         <Route path="/user-setting" element={<UserSetting />} />
         <Route path="/edit-profile" element={<EditProfile />} />
+        <Route path="/explore" element={<Exploreshowroom />} />
+        <Route path="/library" element={<LibraryPage />} />
 
         <Route
           path="/customerVendor-card"
@@ -248,7 +252,6 @@ useEffect(() => {
           path="/customer-vendor-id-card"
           element={<CustomerVendorIdentityCard />}
         />
-
         <Route
           path="/territoryCard-form"
           element={<TerrotoryIdentityCardForm />}

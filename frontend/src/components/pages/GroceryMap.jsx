@@ -48,7 +48,7 @@ const GregoryStoreHero = () => {
         />
 
         <h1 className="text-4xl font-bold text-white drop-shadow-lg">
-          Online Gregory Store & Delivery
+          Online Grocery Store & Delivery
         </h1>
 
         <button
