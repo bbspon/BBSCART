@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 
 const UserSetting = () => {
@@ -152,7 +152,9 @@ const UserSetting = () => {
 
           <div className="mt-3 space-y-2">
             <button className="block text-blue-600">Help & FAQ</button>
-            <button className="block text-blue-600">Contact Support</button>
+            <Link to="/contact">
+              <button className="block text-blue-600">Contact Support</button>
+            </Link>
             <button className="block text-blue-600">Feedback / Rate App</button>
           </div>
         </div>
