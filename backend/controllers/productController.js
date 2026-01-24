@@ -332,10 +332,87 @@ exports.importAllCSV = async (req, res) => {
         .replace(/[^\p{L}\p{N}]+/gu, "-")
         .replace(/^-+|-+$/g, "");
 
+    // Helper to clean column keys (handles BOM, newlines, case-insensitive)
+    const cleanKey = (k) => {
+      return String(k || "")
+        .replace(/^\uFEFF/, "") // Remove BOM
+        .trim()
+        .toLowerCase()
+        .replace(/[\s\-_]+/g, "")
+        .replace(/\n+/g, ""); // Remove newlines
+    };
+
+    // Case-insensitive column getter (more robust than pick)
+    const getVal = (row, ...names) => {
+      if (!row) return "";
+      const keys = Object.keys(row);
+      for (const want of names) {
+        const hit = keys.find((k) => cleanKey(k) === cleanKey(want));
+        if (hit !== undefined) {
+          const v = row[hit];
+          return typeof v === "string"
+            ? v.replace(/^\uFEFF/, "").trim()
+            : (v ?? "");
+        }
+      }
+      return "";
+    };
+
     const pick = (row, main, alts = []) => {
+      // Try getVal first for better matching
+      const val = getVal(row, main, ...alts);
+      if (val !== "") return val;
+      // Fallback to exact match
       if (row[main] != null && row[main] !== "") return row[main];
       for (const k of alts) if (row[k] != null && row[k] !== "") return row[k];
       return undefined;
+    };
+
+    // Parse category path (e.g., "HyperMarket > Beauty and Personal Care > Facial Care" -> "Beauty and Personal Care")
+    const parseCategoryPath = (pathStr) => {
+      if (!pathStr) return null;
+      const str = String(pathStr).trim();
+      if (!str) return null;
+      
+      // Split by comma first (in case multiple paths are provided)
+      const paths = str.split(",").map(p => p.trim()).filter(Boolean);
+      if (paths.length === 0) return null;
+      
+      // Take the first path and extract the category name
+      const firstPath = paths[0];
+      
+      // If it contains ">", extract the second level (category)
+      // Format: "HyperMarket > Beauty and Personal Care > Facial Care > Refreshing Face Wash"
+      if (firstPath.includes(">")) {
+        const parts = firstPath.split(">").map(p => p.trim()).filter(Boolean);
+        // Return the second part (category) if available, otherwise first part
+        return parts.length >= 2 ? parts[1] : parts[0];
+      }
+      
+      // If no ">", return as-is
+      return firstPath;
+    };
+
+    // Parse subcategory from comma-separated or path format
+    const parseSubcategory = (subcatStr) => {
+      if (!subcatStr) return null;
+      const str = String(subcatStr).trim();
+      if (!str) return null;
+      
+      // Split by comma first
+      const parts = str.split(",").map(p => p.trim()).filter(Boolean);
+      if (parts.length === 0) return null;
+      
+      // Take the last part (usually the most specific subcategory)
+      const lastPart = parts[parts.length - 1];
+      
+      // If it contains ">", extract the last part
+      if (lastPart.includes(">")) {
+        const pathParts = lastPart.split(">").map(p => p.trim()).filter(Boolean);
+        return pathParts[pathParts.length - 1];
+      }
+      
+      return lastPart;
     };
 
     const toBool = (v) => {
@@ -355,7 +432,8 @@ exports.importAllCSV = async (req, res) => {
 
     const getGallery = (row) => {
       // Accept pipe/comma separated 'gallery_imgs'
-      const main = pick(row, "gallery_imgs", ["gallery", "images"]);
+      const main = getVal(row, "gallery_imgs", "gallery", "images", "productGallery") || 
+                   pick(row, "gallery_imgs", ["gallery", "images"]);
       let list = [];
       if (main) {
         const s = String(main);
@@ -383,7 +461,7 @@ exports.importAllCSV = async (req, res) => {
 
     const getTags = (row) => {
       let tags = [];
-      const tMain = pick(row, "tags", []);
+      const tMain = getVal(row, "tags", "Tags") || pick(row, "tags", []);
       if (tMain) {
         try {
           // Allow JSON array or pipe/comma separated string
@@ -413,36 +491,70 @@ exports.importAllCSV = async (req, res) => {
     };
 
     const ensureCategory = async (nameOrId) => {
-      if (!nameOrId) return null;
+      if (!nameOrId) return { category: null, wasNew: false };
       const s = String(nameOrId).trim();
-      if (catByKey.has(s)) return catByKey.get(s);
+      if (!s) return { category: null, wasNew: false };
+      
+      // Check if it's an ObjectId
+      if (mongoose.Types.ObjectId.isValid(s)) {
+        const found = catByKey.get(s);
+        if (found) return { category: found, wasNew: false };
+      }
+      
+      // Check by name (case-insensitive)
       const byName = catByKey.get(`name:${s.toLowerCase()}`);
-      if (byName) return byName;
-      // create
-      const doc = { name: s, slug: slugify(s), is_active: true };
-      if (dryRun) return doc;
+      if (byName) return { category: byName, wasNew: false };
+      
+      // Check by slug if exists
+      const slug = slugify(s);
+      const bySlug = catByKey.get(`slug:${slug}`);
+      if (bySlug) return { category: bySlug, wasNew: false };
+      
+      // create new category
+      const doc = { name: s };
+      if (dryRun) {
+        // Return a mock object for dry run
+        return { category: { _id: null, name: s }, wasNew: true };
+      }
       const created = await Category.create(doc);
       // index for later rows
       catByKey.set(String(created._id), created);
       catByKey.set(`name:${created.name.toLowerCase()}`, created);
-      catByKey.set(`slug:${created.slug}`, created);
-      return created;
+      if (created.slug) catByKey.set(`slug:${created.slug}`, created);
+      return { category: created, wasNew: true };
     };
 
     const ensureSubcategory = async (nameOrId, category_id) => {
-      if (!nameOrId) return null;
+      if (!nameOrId) return { subcategory: null, wasNew: false };
       const s = String(nameOrId).trim();
-      const byId = subByKey.get(s);
-      if (byId) return byId;
+      if (!s) return { subcategory: null, wasNew: false };
+      
+      // Check if it's an ObjectId
+      if (mongoose.Types.ObjectId.isValid(s)) {
+        const found = subByKey.get(s);
+        if (found) return { subcategory: found, wasNew: false };
+      }
+      
+      // Check by name (case-insensitive)
       const byName = subByKey.get(`name:${s.toLowerCase()}`);
-      if (byName) return byName;
-      const doc = { name: s, slug: slugify(s), category_id, is_active: true };
-      if (dryRun) return doc;
+      if (byName) return { subcategory: byName, wasNew: false };
+      
+      // Check by slug if exists
+      const slug = slugify(s);
+      const bySlug = subByKey.get(`slug:${slug}`);
+      if (bySlug) return { subcategory: bySlug, wasNew: false };
+      
+      // create new subcategory
+      const doc = { name: s, category_id };
+      if (dryRun) {
+        // Return a mock object for dry run
+        return { subcategory: { _id: null, name: s, category_id }, wasNew: true };
+      }
       const created = await Subcategory.create(doc);
       subByKey.set(String(created._id), created);
       subByKey.set(`name:${created.name.toLowerCase()}`, created);
-      subByKey.set(`slug:${created.slug}`, created);
-      return created;
+      if (created.slug) subByKey.set(`slug:${created.slug}`, created);
+      return { subcategory: created, wasNew: true };
     };
 
     const stats = {
@@ -457,26 +569,88 @@ exports.importAllCSV = async (req, res) => {
 
       try {
         // 1) Resolve category / subcategory from CSV
-        const categoryName = pick(row, "categoryName", [
+        // Use getVal for better column matching (handles case-insensitive, BOM, newlines)
+        const categoryNameRaw = getVal(
+          row,
+          "categoryName",
           "category",
           "category_name",
           "cat",
-        ]);
-        const subcategoryName = pick(row, "subcategoryName", [
+          "Category",
+          "Categories"
+        );
+        const subcategoryNameRaw = getVal(
+          row,
+          "subcategoryName",
           "subcategory",
           "subcategory_name",
           "subcat",
-        ]);
+          "Subcategory",
+          "Subcategories"
+        );
 
-        if (!categoryName)
-          throw new Error("Missing category (column: categoryName/category)");
-        const cat = await ensureCategory(categoryName);
-        if (!cat || !cat._id) stats.createdCategories++; // dryRun case
+        // Debug logging for first few rows
+        if (i < 3) {
+          console.log(`[Row ${i + 1}] categoryNameRaw:`, JSON.stringify(categoryNameRaw));
+          console.log(`[Row ${i + 1}] subcategoryNameRaw:`, JSON.stringify(subcategoryNameRaw));
+        }
+
+        // Parse category path to extract actual category name
+        let categoryName = parseCategoryPath(categoryNameRaw);
+        if (!categoryName) {
+          // If parsing failed, try using the raw value as fallback
+          categoryName = categoryNameRaw || pick(row, "categoryName", ["category", "category_name", "cat", "Categories"]);
+        }
+        
+        if (!categoryName) {
+          throw new Error(`Row ${i + 1}: Missing category (column: categoryName/category). Available columns: ${Object.keys(row).join(", ")}`);
+        }
+
+        // Debug logging
+        if (i < 3) {
+          console.log(`[Row ${i + 1}] Parsed categoryName:`, JSON.stringify(categoryName));
+        }
+
+        const { category: cat, wasNew: wasNewCategory } = await ensureCategory(categoryName);
+        if (!cat) {
+          throw new Error(`Row ${i + 1}: Failed to create/find category: ${categoryName}`);
+        }
+        
+        // Track category creation
+        if (wasNewCategory) {
+          stats.createdCategories++;
+        }
+
+        // Ensure we have a valid category_id (required field)
+        if (!cat._id && !dryRun) {
+          throw new Error(`Row ${i + 1}: Category creation failed for: ${categoryName}`);
+        }
 
         let sub = null;
-        if (subcategoryName) {
-          sub = await ensureSubcategory(subcategoryName, cat._id);
-          if (!sub || !sub._id) stats.createdSubcategories++; // dryRun case
+        if (subcategoryNameRaw && cat._id) {
+          const parsedSubcat = parseSubcategory(subcategoryNameRaw);
+          if (parsedSubcat) {
+            // Debug logging
+            if (i < 3) {
+              console.log(`[Row ${i + 1}] Parsed subcategory:`, JSON.stringify(parsedSubcat));
+            }
+            
+            const { subcategory: subResult, wasNew: wasNewSubcategory } = await ensureSubcategory(parsedSubcat, cat._id);
+            sub = subResult;
+            if (!sub) {
+              // Subcategory creation failed, but continue without it
+              console.warn(`Row ${i + 1}: Failed to create/find subcategory: ${parsedSubcat} for category: ${categoryName}`);
+            } else {
+              // Track subcategory creation
+              if (wasNewSubcategory) {
+                stats.createdSubcategories++;
+              }
+            }
+          } else if (i < 3) {
+            console.log(`[Row ${i + 1}] Failed to parse subcategory from:`, JSON.stringify(subcategoryNameRaw));
+          }
+        } else if (!cat._id && i < 3) {
+          console.log(`[Row ${i + 1}] Skipping subcategory - no category_id (dryRun=${dryRun})`);
         }
 
         // 2) Resolve seller / global
@@ -575,8 +749,8 @@ exports.importAllCSV = async (req, res) => {
         const isGlobal = !final;
 
         // 3) Product identity
-        const _id = pick(row, "_id", ["id"]);
-        const SKU = pick(row, "SKU", ["sku"]);
+        const _id = getVal(row, "_id", "id", "ID") || pick(row, "_id", ["id"]);
+        const SKU = getVal(row, "SKU", "sku", "Sku") || pick(row, "SKU", ["sku"]);
 
         if (!_id && !SKU) {
           throw new Error("Missing identity: either _id or SKU is required");
@@ -584,41 +758,102 @@ exports.importAllCSV = async (req, res) => {
 
         // 4) Images and gallery
         const product_img =
+          getVal(row, "product_img", "productimage", "image", "image_url", "main_img") ||
           pick(row, "product_img", ["image", "image_url", "main_img"]) || "";
         const product_img2 =
+          getVal(row, "product_img2", "image2", "image_url2", "sub_img") ||
           pick(row, "product_img2", ["image2", "image_url2", "sub_img"]) || "";
         const gallery_imgs = getGallery(row);
         const tags = getTags(row);
 
         // 5) Build update doc using your schema fields
-        const name = pick(row, "name", ["product_name", "title"]) || "";
-        const price = toNumber(pick(row, "price", ["sale_price", "mrp"]));
-        const stock = toNumber(pick(row, "stock", ["qty", "quantity"]));
+        const name = getVal(row, "name", "Name", "product_name", "title") || pick(row, "name", ["product_name", "title"]) || "";
+        
+        // Price handling - check multiple fields
+        const priceRaw = getVal(row, "price", "Price", "sale_price", "Sale price", "mrp", "MRP", "Regular price") || 
+                         pick(row, "price", ["sale_price", "mrp"]);
+        const price = toNumber(priceRaw);
+        
+        // MRP handling for priceInfo
+        const mrpRaw = getVal(row, "mrp", "MRP", "priceInfo_mrp", "Regular price") || 
+                       pick(row, "mrp", ["priceInfo_mrp", "Regular price"]);
+        const mrp = toNumber(mrpRaw) || price || 0;
+        
+        // Sale price handling for priceInfo
+        const saleRaw = getVal(row, "priceInfo_sale", "Sale price", "sale_price") || 
+                        pick(row, "priceInfo_sale", ["Sale price", "sale_price"]);
+        const sale = toNumber(saleRaw) || price || 0;
+        
+        const stock = toNumber(getVal(row, "stock", "Stock", "qty", "quantity") || pick(row, "stock", ["qty", "quantity"]));
         const is_variant = toBool(
+          getVal(row, "is_variant", "isVariant", "variant", "has_variants") ||
           pick(row, "is_variant", ["variant", "has_variants"])
         );
-        const brand = pick(row, "brand", []);
+        const brand = getVal(row, "brand", "Brand", "Brands") || pick(row, "brand", []);
+        
+        // Dimensions
+        const length = toNumber(getVal(row, "length", "Length", "dimLength") || pick(row, "length", ["dimLength"]));
+        const width = toNumber(getVal(row, "width", "Width", "dimWidth") || pick(row, "width", ["dimWidth"]));
+        const height = toNumber(getVal(row, "height", "Height", "dimHeight") || pick(row, "height", ["dimHeight"]));
+        
+        // Weight
+        const weight = toNumber(getVal(row, "weight", "Weight", "Weight (lbs)") || pick(row, "weight", []));
+        
+        // Additional fields
+        const description = getVal(row, "description", "Description", "Short description") || pick(row, "description", []);
+        const is_review = toBool(getVal(row, "isReview", "is_review", "Allow customer reviews?") || pick(row, "is_review", ["isReview"]));
+        const gstInvoice = toBool(getVal(row, "gstInvoice", "gst_invoice") || pick(row, "gstInvoice", []));
+        const deliveryIn1Day = toBool(getVal(row, "deliveryIn1Day", "delivery_in_1_day") || pick(row, "deliveryIn1Day", []));
+        const assured = toBool(getVal(row, "assured") || pick(row, "assured", []));
+        const bestseller = toBool(getVal(row, "bestseller", "bestseller") || pick(row, "bestseller", []));
 
         const base = {
           name,
           SKU,
           brand,
+          description,
           product_img,
           product_img2,
           gallery_imgs,
           tags,
           price,
           stock,
+          weight,
+          dimensions: {
+            length: length || null,
+            width: width || null,
+            height: height || null,
+          },
+          priceInfo: {
+            mrp: mrp,
+            sale: sale,
+          },
           is_variant: Boolean(is_variant),
+          is_review: Boolean(is_review),
+          gstInvoice: Boolean(gstInvoice),
+          deliveryIn1Day: Boolean(deliveryIn1Day),
+          assured: Boolean(assured),
+          bestseller: Boolean(bestseller),
           seller_id: final || null,
           is_global: Boolean(isGlobal),
-          category_id: cat._id || null,
-          subcategory_id: sub ? sub._id : null,
+          category_id: cat._id || null, // Required field - must be set (null only in dry run)
+          subcategory_id: sub && sub._id ? sub._id : null,
         };
 
         if (dryRun) {
           stats.upserts++;
           continue;
+        }
+
+        // Validate required fields before upsert
+        if (!base.category_id) {
+          console.error(`[Row ${i + 1}] Category ID is null!`, {
+            categoryName,
+            cat: cat ? { _id: cat._id, name: cat.name } : null,
+            dryRun,
+            SKU: base.SKU
+          });
+          throw new Error(`Missing category_id for product: ${base.SKU || base.name}. Category: ${categoryName}, cat._id: ${cat?._id || "null"}`);
         }
 
         // 6) Upsert
@@ -638,7 +873,9 @@ exports.importAllCSV = async (req, res) => {
 
         stats.upserts++;
       } catch (rowErr) {
-        stats.errors.push({ row: i + 1, error: rowErr.message });
+        const errorMsg = `Row ${i + 1} (SKU: ${row.SKU || row.sku || "N/A"}): ${rowErr.message}`;
+        console.error(`[importAllCSV Error] ${errorMsg}`);
+        stats.errors.push({ row: i + 1, error: errorMsg, sku: row.SKU || row.sku || "N/A" });
       }
     }
 
@@ -866,7 +1103,9 @@ exports.createProduct = async (req, res) => {
       is_global: product.is_global,
     });
 
-    require('../events/productEmitter').emitUpsert(product).catch(()=>{});
+    require("../events/productEmitter")
+      .emitProductUpsert(product)
+      .catch(() => {});
     try {
   await emitProductUpsert(savedProduct);
 } catch (e) {
@@ -1216,7 +1455,7 @@ exports.updateProduct = async (req, res) => {
     );
     console.log("✅ Product Updated:", updatedProduct);
 
-    require('../events/productEmitter').emitUpsert(updatedProduct).catch(()=>{});
+    // require('../events/productEmitter').emitUpsert(updatedProduct).catch(()=>{});
 
     if (variants) {
       const existingVariants = await Variant.find({
@@ -1357,7 +1596,7 @@ exports.updateProduct = async (req, res) => {
 
       updatedProduct.variants = variantIds;
       await updatedProduct.save();
-      require('../events/productEmitter').emitUpsert(updatedProduct).catch(()=>{});
+      // require('../events/productEmitter').emitUpsert(updatedProduct).catch(()=>{});
     }
     try {
   await emitProductUpsert(updatedProduct);
@@ -2110,224 +2349,224 @@ exports.importSubcategoriesCSV = async (req, res) => {
 };
 
 // 3) Import Products from CSV (+ optional images ZIP)
-exports.importProductsCSV = async (req, res) => {
-  try {
-    // ---------- tiny inline helpers (no external files) ----------
-    const toFilename = (input) => {
-      if (!input && input !== 0) return "";
-      try {
-        const s = String(input).trim();
-        if (!s) return "";
-        const slash = Math.max(s.lastIndexOf("/"), s.lastIndexOf("\\"));
-        return slash >= 0 ? s.slice(slash + 1) : s;
-      } catch {
-        return "";
-      }
-    };
+// exports.importProductsCSV = async (req, res) => {
+//   try {
+//     // ---------- tiny inline helpers (no external files) ----------
+//     const toFilename = (input) => {
+//       if (!input && input !== 0) return "";
+//       try {
+//         const s = String(input).trim();
+//         if (!s) return "";
+//         const slash = Math.max(s.lastIndexOf("/"), s.lastIndexOf("\\"));
+//         return slash >= 0 ? s.slice(slash + 1) : s;
+//       } catch {
+//         return "";
+//       }
+//     };
 
-    const splitList = (raw) => {
-      if (!raw) return [];
-      if (Array.isArray(raw))
-        return raw.map((x) => toFilename(x)).filter(Boolean);
-      const s = String(raw).trim();
-      if (!s) return [];
-      return s
-        .split("|")
-        .join(",")
-        .split(",")
-        .map((v) => toFilename(v))
-        .filter(Boolean);
-    };
+//     const splitList = (raw) => {
+//       if (!raw) return [];
+//       if (Array.isArray(raw))
+//         return raw.map((x) => toFilename(x)).filter(Boolean);
+//       const s = String(raw).trim();
+//       if (!s) return [];
+//       return s
+//         .split("|")
+//         .join(",")
+//         .split(",")
+//         .map((v) => toFilename(v))
+//         .filter(Boolean);
+//     };
 
-    // best-effort CSV parser: prefer existing project parser if available
-    const parseCsvFile = async (absPath) => {
-      try {
-        const fs = require("fs");
-        const { parse } = require("csv-parse/sync");
-        const raw = fs.readFileSync(absPath, "utf8");
-        const records = parse(raw, {
-          columns: true,
-          skip_empty_lines: true,
-          relax_quotes: true,
-          bom: true,
-          trim: true,
-        });
-        return records;
-      } catch {
-        const fs = require("fs");
-        const raw = fs.readFileSync(absPath, "utf8");
-        const lines = raw.split(/\r?\n/).filter(Boolean);
-        if (!lines.length) return [];
-        const headers = lines[0].split(",").map((h) => h.trim());
-        const rows = [];
-        for (let i = 1; i < lines.length; i++) {
-          const cols = lines[i].split(",");
-          const obj = {};
-          headers.forEach((h, idx) => (obj[h] = (cols[idx] || "").trim()));
-          rows.push(obj);
-        }
-        return rows;
-      }
-    };
+//     // best-effort CSV parser: prefer existing project parser if available
+//     const parseCsvFile = async (absPath) => {
+//       try {
+//         const fs = require("fs");
+//         const { parse } = require("csv-parse/sync");
+//         const raw = fs.readFileSync(absPath, "utf8");
+//         const records = parse(raw, {
+//           columns: true,
+//           skip_empty_lines: true,
+//           relax_quotes: true,
+//           bom: true,
+//           trim: true,
+//         });
+//         return records;
+//       } catch {
+//         const fs = require("fs");
+//         const raw = fs.readFileSync(absPath, "utf8");
+//         const lines = raw.split(/\r?\n/).filter(Boolean);
+//         if (!lines.length) return [];
+//         const headers = lines[0].split(",").map((h) => h.trim());
+//         const rows = [];
+//         for (let i = 1; i < lines.length; i++) {
+//           const cols = lines[i].split(",");
+//           const obj = {};
+//           headers.forEach((h, idx) => (obj[h] = (cols[idx] || "").trim()));
+//           rows.push(obj);
+//         }
+//         return rows;
+//       }
+//     };
 
-    // ---------- get CSV and optional images ZIP from request ----------
-    // Route uses uploadImport.single("file") → file is in req.file (not req.files)
-    // backend/routes/productRoutes.js → uploadImport.single("file") for /import-csv. :contentReference[oaicite:2]{index=2}
-    const csvFileExisting =
-      typeof findFile === "function" ? findFile(req, "csv") : null;
-    const csvFileAlt =
-      (req.files && (req.files.csv || req.files.file || req.files["csv"])) ||
-      null;
-    const csvSingle = req.file || null; // <— NEW: accept single-file multer
-    const csvFileObj = csvFileExisting || csvFileAlt || csvSingle;
+//     // ---------- get CSV and optional images ZIP from request ----------
+//     // Route uses uploadImport.single("file") → file is in req.file (not req.files)
+//     // backend/routes/productRoutes.js → uploadImport.single("file") for /import-csv. :contentReference[oaicite:2]{index=2}
+//     const csvFileExisting =
+//       typeof findFile === "function" ? findFile(req, "csv") : null;
+//     const csvFileAlt =
+//       (req.files && (req.files.csv || req.files.file || req.files["csv"])) ||
+//       null;
+//     const csvSingle = req.file || null; // <— NEW: accept single-file multer
+//     const csvFileObj = csvFileExisting || csvFileAlt || csvSingle;
 
-    if (!csvFileObj) {
-      return res.status(400).json({ ok: false, message: "csv file required" });
-    }
+//     if (!csvFileObj) {
+//       return res.status(400).json({ ok: false, message: "csv file required" });
+//     }
 
-    const imagesZipFile =
-      (req.files && (req.files.images || req.files["images"])) || null;
+//     const imagesZipFile =
+//       (req.files && (req.files.images || req.files["images"])) || null;
 
-    // ---------- optional ZIP extraction → build name→relative path map ----------
-    const imagesMap = new Map();
-    if (imagesZipFile && (imagesZipFile.path || imagesZipFile.buffer)) {
-      const AdmZip = require("adm-zip");
-      const path = require("path");
-      const fs = require("fs");
+//     // ---------- optional ZIP extraction → build name→relative path map ----------
+//     const imagesMap = new Map();
+//     if (imagesZipFile && (imagesZipFile.path || imagesZipFile.buffer)) {
+//       const AdmZip = require("adm-zip");
+//       const path = require("path");
+//       const fs = require("fs");
 
-      const zip = new AdmZip(imagesZipFile.path || imagesZipFile.buffer);
-      const now = new Date();
-      const year = String(now.getFullYear());
-      const month = String(now.getMonth() + 1).padStart(2, "0");
+//       const zip = new AdmZip(imagesZipFile.path || imagesZipFile.buffer);
+//       const now = new Date();
+//       const year = String(now.getFullYear());
+//       const month = String(now.getMonth() + 1).padStart(2, "0");
 
-      // store under backend/uploads/products/YYYY/MM
-      const outDir = path.join(
-        process.cwd(),
-        "backend",
-        "uploads",
-        "products",
-        year,
-        month
-      );
-      fs.mkdirSync(outDir, { recursive: true });
+//       // store under backend/uploads/products/YYYY/MM
+//       const outDir = path.join(
+//         process.cwd(),
+//         "backend",
+//         "uploads",
+//         "products",
+//         year,
+//         month
+//       );
+//       fs.mkdirSync(outDir, { recursive: true });
 
-      zip.getEntries().forEach((entry) => {
-        if (entry.isDirectory) return;
-        const base = toFilename(entry.entryName);
-        const stamped =
-          `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${base}`.replace(
-            /\s+/g,
-            "-"
-          );
-        const target = path.join(outDir, stamped);
-        fs.writeFileSync(target, entry.getData());
-        // keep a relative path (from uploads root) so Express static can serve it
-        // final URL becomes /uploads-bbscart/<relative> on the UI
-        const rel = ["products", year, month, stamped].join("/");
-        imagesMap.set(base.toLowerCase(), rel);
-      });
-    }
+//       zip.getEntries().forEach((entry) => {
+//         if (entry.isDirectory) return;
+//         const base = toFilename(entry.entryName);
+//         const stamped =
+//           `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${base}`.replace(
+//             /\s+/g,
+//             "-"
+//           );
+//         const target = path.join(outDir, stamped);
+//         fs.writeFileSync(target, entry.getData());
+//         // keep a relative path (from uploads root) so Express static can serve it
+//         // final URL becomes /uploads-bbscart/<relative> on the UI
+//         const rel = ["products", year, month, stamped].join("/");
+//         imagesMap.set(base.toLowerCase(), rel);
+//       });
+//     }
 
-    // ---------- parse CSV ----------
-    const csvPath = csvFileObj.path || null;
-    const rows = csvPath ? await parseCsvFile(csvPath) : [];
-    if (!Array.isArray(rows) || rows.length === 0) {
-      return res.json({
-        ok: true,
-        created: 0,
-        updated: 0,
-        note: "CSV parsed but no rows",
-      });
-    }
+//     // ---------- parse CSV ----------
+//     const csvPath = csvFileObj.path || null;
+//     const rows = csvPath ? await parseCsvFile(csvPath) : [];
+//     if (!Array.isArray(rows) || rows.length === 0) {
+//       return res.json({
+//         ok: true,
+//         created: 0,
+//         updated: 0,
+//         note: "CSV parsed but no rows",
+//       });
+//     }
 
-    // ---------- upsert products (filenames-only in DB) ----------
-    let created = 0,
-      updated = 0;
-    const nowMs = Date.now();
+//     // ---------- upsert products (filenames-only in DB) ----------
+//     let created = 0,
+//       updated = 0;
+//     const nowMs = Date.now();
 
-    for (const r of rows) {
-      // adapt these to your CSV column names if needed
-      const sku = String(r.sku || r.SKU || r.Sku || "").trim();
-      if (!sku) continue;
+//     for (const r of rows) {
+//       // adapt these to your CSV column names if needed
+//       const sku = String(r.sku || r.SKU || r.Sku || "").trim();
+//       if (!sku) continue;
 
-      // Primary image fields
-      let f1 = toFilename(r.product_img || r.image || r.Image || "");
-      let f2 = toFilename(r.product_img2 || r.image2 || r.Image2 || "");
+//       // Primary image fields
+//       let f1 = toFilename(r.product_img || r.image || r.Image || "");
+//       let f2 = toFilename(r.product_img2 || r.image2 || r.Image2 || "");
 
-      // Collect gallery from simple fields
-      const rawGallery =
-        r.gallery_imgs || r.gallery || r.images || r.Gallery || r.Images || [];
-      let galleryList = splitList(rawGallery);
+//       // Collect gallery from simple fields
+//       const rawGallery =
+//         r.gallery_imgs || r.gallery || r.images || r.Gallery || r.Images || [];
+//       let galleryList = splitList(rawGallery);
 
-      // NEW: also collect any indexed columns like gallery_imgs[0], gallery_imgs[1], ...
-      const indexed = Object.keys(r)
-        .filter((k) => /^gallery_imgs\[\d+\]$/i.test(k))
-        .map((k) => toFilename(r[k]))
-        .filter(Boolean);
+//       // NEW: also collect any indexed columns like gallery_imgs[0], gallery_imgs[1], ...
+//       const indexed = Object.keys(r)
+//         .filter((k) => /^gallery_imgs\[\d+\]$/i.test(k))
+//         .map((k) => toFilename(r[k]))
+//         .filter(Boolean);
 
-      // Merge and uniq while preserving order
-      const seen = new Set();
-      galleryList = [...galleryList, ...indexed].filter((x) => {
-        const key = x.toLowerCase();
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
+//       // Merge and uniq while preserving order
+//       const seen = new Set();
+//       galleryList = [...galleryList, ...indexed].filter((x) => {
+//         const key = x.toLowerCase();
+//         if (seen.has(key)) return false;
+//         seen.add(key);
+//         return true;
+//       });
 
-      // ZIP remap: if images were provided via ZIP, map same-named files to extracted relative paths
-      const resolveViaZip = (fn) => {
-        if (!fn) return "";
-        const key = fn.toLowerCase();
-        return imagesMap.get(key) || fn;
-      };
+//       // ZIP remap: if images were provided via ZIP, map same-named files to extracted relative paths
+//       const resolveViaZip = (fn) => {
+//         if (!fn) return "";
+//         const key = fn.toLowerCase();
+//         return imagesMap.get(key) || fn;
+//       };
 
-      let product_img = resolveViaZip(f1);
-      let product_img2 = resolveViaZip(f2);
-      let gallery_resolved = galleryList.map(resolveViaZip).filter(Boolean);
+//       let product_img = resolveViaZip(f1);
+//       let product_img2 = resolveViaZip(f2);
+//       let gallery_resolved = galleryList.map(resolveViaZip).filter(Boolean);
 
-      // NEW fallbacks: seed product_img and product_img2 from gallery if missing
-      if (!product_img && gallery_resolved.length >= 1)
-        product_img = gallery_resolved[0];
-      if (!product_img2 && gallery_resolved.length >= 2)
-        product_img2 = gallery_resolved[1];
+//       // NEW fallbacks: seed product_img and product_img2 from gallery if missing
+//       if (!product_img && gallery_resolved.length >= 1)
+//         product_img = gallery_resolved[0];
+//       if (!product_img2 && gallery_resolved.length >= 2)
+//         product_img2 = gallery_resolved[1];
 
-      // final gallery: if still empty but product_img exists, seed it
-      const gallery_final = gallery_resolved.length
-        ? gallery_resolved
-        : product_img
-          ? [product_img]
-          : [];
+//       // final gallery: if still empty but product_img exists, seed it
+//       const gallery_final = gallery_resolved.length
+//         ? gallery_resolved
+//         : product_img
+//           ? [product_img]
+//           : [];
 
-      // build update doc (filenames only in DB)
-      const updateDoc = {
-        name: r.name || r.title || r.product_name || sku,
-        sku,
-        product_img,
-        product_img2,
-        gallery_imgs: gallery_final,
-        // keep your other mappings here if needed (category, price, vendorId, etc.)
-      };
+//       // build update doc (filenames only in DB)
+//       const updateDoc = {
+//         name: r.name || r.title || r.product_name || sku,
+//         sku,
+//         product_img,
+//         product_img2,
+//         gallery_imgs: gallery_final,
+//         // keep your other mappings here if needed (category, price, vendorId, etc.)
+//       };
 
-      const doc = await Product.findOneAndUpdate(
-        { sku },
-        { $set: updateDoc },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-      );
+//       const doc = await Product.findOneAndUpdate(
+//         { sku },
+//         { $set: updateDoc },
+//         { upsert: true, new: true, setDefaultsOnInsert: true }
+//       );
 
-      const createdLikely =
-        doc &&
-        doc.createdAt &&
-        nowMs - new Date(doc.createdAt).getTime() < 5000;
-      if (createdLikely) created++;
-      else updated++;
-    }
+//       const createdLikely =
+//         doc &&
+//         doc.createdAt &&
+//         nowMs - new Date(doc.createdAt).getTime() < 5000;
+//       if (createdLikely) created++;
+//       else updated++;
+//     }
 
-    return res.json({ ok: true, created, updated });
-  } catch (err) {
-    console.error("importProductsCSV error:", err);
-    return res.status(500).json({ ok: false, message: "Server error" });
-  }
-};
+//     return res.json({ ok: true, created, updated });
+//   } catch (err) {
+//     console.error("importProductsCSV error:", err);
+//     return res.status(500).json({ ok: false, message: "Server error" });
+//   }
+// };
 
 exports.listProducts = async (req, res) => {
   try {
@@ -2357,7 +2596,35 @@ exports.listProducts = async (req, res) => {
 
     // Optional filters (keep/extend as you already do)
     if (subcategoryId && mongoose.Types.ObjectId.isValid(subcategoryId)) {
-      match.subcategory_id = new mongoose.Types.ObjectId(subcategoryId);
+      const subcatObjId = new mongoose.Types.ObjectId(subcategoryId);
+      match.subcategory_id = subcatObjId;
+      console.log(`[listProducts] Filtering by subcategoryId: ${subcategoryId} (converted to ObjectId: ${subcatObjId})`);
+      
+      // Debug: Check how many products have this subcategory_id (with and without is_global filter)
+      const debugMatch = { subcategory_id: subcatObjId };
+      const debugMatchGlobal = { subcategory_id: subcatObjId, is_global: true };
+      const [totalWithSubcat, totalWithSubcatAndGlobal] = await Promise.all([
+        Product.countDocuments(debugMatch),
+        Product.countDocuments(debugMatchGlobal),
+      ]);
+      console.log(`[listProducts] Debug - Products with subcategory_id ${subcategoryId}:`);
+      console.log(`  - Total (any is_global): ${totalWithSubcat}`);
+      console.log(`  - With is_global=true: ${totalWithSubcatAndGlobal}`);
+      
+      // Also check a sample product to see what subcategory_id format they have
+      const sampleProduct = await Product.findOne(debugMatch).lean();
+      if (sampleProduct) {
+        console.log(`[listProducts] Sample product found:`);
+        console.log(`  - SKU: ${sampleProduct.SKU}`);
+        console.log(`  - subcategory_id type: ${typeof sampleProduct.subcategory_id}`);
+        console.log(`  - subcategory_id value: ${sampleProduct.subcategory_id}`);
+        console.log(`  - subcategory_id string: ${String(sampleProduct.subcategory_id)}`);
+        console.log(`  - is_global: ${sampleProduct.is_global}`);
+      } else {
+        console.log(`[listProducts] No products found with subcategory_id ${subcategoryId} (even without is_global filter)`);
+      }
+    } else if (subcategoryId) {
+      console.warn(`[listProducts] Invalid subcategoryId format: ${subcategoryId}`);
     }
     if (search && String(search).trim()) {
       const rx = new RegExp(String(search).trim(), "i");
@@ -2394,10 +2661,33 @@ exports.listProducts = async (req, res) => {
     const p = Math.max(1, parseInt(page, 10) || 1);
     const skip = (p - 1) * take;
 
+    // Convert ObjectId to string for JSON.stringify
+    const matchForLog = {};
+    for (const [key, value] of Object.entries(match)) {
+      if (value instanceof mongoose.Types.ObjectId) {
+        matchForLog[key] = `ObjectId("${value}")`;
+      } else {
+        matchForLog[key] = value;
+      }
+    }
+    console.log(`[listProducts] Match query:`, JSON.stringify(matchForLog, null, 2));
+    
     const [products, total] = await Promise.all([
       Product.find(match).sort(sortStage).skip(skip).limit(take).lean(),
       Product.countDocuments(match),
     ]);
+
+    console.log(`[listProducts] Found ${products.length} products (total: ${total}) for subcategoryId: ${subcategoryId || 'none'}`);
+    
+    // Additional debug: Check if any products exist with this subcategory_id but different is_global
+    if (subcategoryId && mongoose.Types.ObjectId.isValid(subcategoryId) && total === 0) {
+      const subcatObjId = new mongoose.Types.ObjectId(subcategoryId);
+      const allWithSubcat = await Product.find({ subcategory_id: subcatObjId }).limit(5).lean();
+      console.log(`[listProducts] Debug - Found ${allWithSubcat.length} products with subcategory_id (ignoring is_global):`);
+      allWithSubcat.forEach((p, idx) => {
+        console.log(`  [${idx + 1}] SKU: ${p.SKU}, is_global: ${p.is_global}, subcategory_id: ${String(p.subcategory_id)}`);
+      });
+    }
 
     return res.json({
       success: true,
@@ -3059,6 +3349,33 @@ exports.importProductsCSV = async (req, res) => {
       trim: true,
       bom: true,
     });
+    // ----- Category & Subcategory lookup -----
+    const Category = require("../models/Category");
+    const Subcategory = require("../models/Subcategory");
+
+    const allCats = await Category.find({}).lean();
+    const allSubs = await Subcategory.find({}).lean();
+
+    const catMap = new Map();
+    const subMap = new Map();
+
+    for (const c of allCats) {
+      if (c.name) catMap.set(c.name.trim().toLowerCase(), c._id);
+    }
+
+    for (const s of allSubs) {
+      if (s.name) subMap.set(s.name.trim().toLowerCase(), s._id);
+    }
+
+    function resolveCategoryId(name) {
+      if (!name) return null;
+      return catMap.get(String(name).trim().toLowerCase()) || null;
+    }
+
+    function resolveSubcategoryId(name) {
+      if (!name) return null;
+      return subMap.get(String(name).trim().toLowerCase()) || null;
+    }
 
     if (!rows.length)
       return res.json({
@@ -3130,9 +3447,30 @@ exports.importProductsCSV = async (req, res) => {
           width: getVal(r, "dimWidth", "width") || "",
           height: getVal(r, "dimHeight", "height") || "",
         },
-        category_id: getVal(r, "category_id", "categoryMongoId") || null,
+        category_id:
+          resolveCategoryId(
+            getVal(
+              r,
+              "category",
+              "categoryName",
+              "category_name",
+              "cat",
+              "Category"
+            )
+          ) || null,
+
         subcategory_id:
-          getVal(r, "subcategory_id", "subcategoryMongoId") || null,
+          resolveSubcategoryId(
+            getVal(
+              r,
+              "subcategory",
+              "subcategoryName",
+              "subcategory_name",
+              "subcat",
+              "Subcategory"
+            )
+          ) || null,
+
         seller_id: (() => {
           const sid = getVal(r, "seller_id", "sellerId");
           if (mongoose.Types.ObjectId.isValid(sid)) return sid;
@@ -3167,5 +3505,909 @@ exports.importProductsCSV = async (req, res) => {
     return res
       .status(500)
       .json({ ok: false, message: err.message || "Server error" });
+  }
+};
+
+/**
+ * Import products CSV and match to existing categories/subcategories by name
+ * Products CSV should have tags[0] column with format: "Category Name, Subcategory Name"
+ * or separate categoryName and subcategoryName columns
+ */
+// Utility: Bulk update products to set is_global=true for products with subcategory_id
+exports.bulkSetIsGlobal = async (req, res) => {
+  try {
+    const Product = require("../models/Product");
+    const result = await Product.updateMany(
+      { 
+        subcategory_id: { $exists: true, $ne: null },
+        is_global: { $ne: true }
+      },
+      { 
+        $set: { is_global: true }
+      }
+    );
+    
+    console.log(`[bulkSetIsGlobal] Updated ${result.modifiedCount} products to set is_global=true`);
+    
+    return res.json({
+      ok: true,
+      message: `Updated ${result.modifiedCount} products to set is_global=true`,
+      matched: result.matchedCount,
+      modified: result.modifiedCount,
+    });
+  } catch (err) {
+    console.error("bulkSetIsGlobal error:", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+};
+
+exports.importProductsWithCategoryMatch = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ ok: false, error: "File missing (field name: file)." });
+    }
+
+    const dryRun = String(req.query.dryRun || "").toLowerCase() === "true";
+
+    // Helper functions (same as importAllCSV)
+    const cleanKey = (k) => {
+      return String(k || "")
+        .replace(/^\uFEFF/, "") // Remove BOM
+        .trim()
+        .toLowerCase()
+        .replace(/[\s\-_]+/g, "")
+        .replace(/\n+/g, ""); // Remove newlines
+    };
+
+    const getVal = (row, ...names) => {
+      if (!row) return "";
+      const keys = Object.keys(row);
+      for (const want of names) {
+        const hit = keys.find((k) => cleanKey(k) === cleanKey(want));
+        if (hit !== undefined) {
+          const v = row[hit];
+          return typeof v === "string"
+            ? v.replace(/^\uFEFF/, "").trim()
+            : (v ?? "");
+        }
+      }
+      return "";
+    };
+
+    const pick = (row, main, alts = []) => {
+      const val = getVal(row, main, ...alts);
+      if (val !== "") return val;
+      if (row[main] != null && row[main] !== "") return row[main];
+      for (const k of alts) if (row[k] != null && row[k] !== "") return row[k];
+      return undefined;
+    };
+
+    // Parse CSV or Excel file
+    let rows = [];
+    const fileExt = path.extname(req.file.originalname || req.file.filename || "").toLowerCase();
+    
+    if (fileExt === ".xlsx" || fileExt === ".xls") {
+      // Handle Excel files
+      const XLSX = require("xlsx");
+      let workbook;
+      if (req.file.path && fs.existsSync(req.file.path)) {
+        // File saved to disk
+        workbook = XLSX.readFile(req.file.path);
+      } else if (req.file.buffer) {
+        // File in memory buffer
+        workbook = XLSX.read(req.file.buffer, { type: "buffer" });
+      } else {
+        throw new Error("Excel file not found in path or buffer");
+      }
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      rows = XLSX.utils.sheet_to_json(worksheet, { defval: "", raw: false });
+      console.log(`[importProductsWithCategoryMatch] Parsed Excel file: ${rows.length} rows from sheet "${sheetName}"`);
+    } else {
+      // Handle CSV files
+      const csvText = req.file.buffer
+        ? req.file.buffer.toString("utf8")
+        : fs.readFileSync(req.file.path, "utf8");
+      rows = parse(csvText, { columns: true, skip_empty_lines: true });
+      console.log(`[importProductsWithCategoryMatch] Parsed CSV file: ${rows.length} rows`);
+    }
+
+    if (!rows.length) {
+      return res.json({ ok: true, message: "No rows found in file", updated: 0, errors: [] });
+    }
+
+    // Load all categories and subcategories from DB
+    const [allCats, allSubs] = await Promise.all([
+      Category.find({}).lean(),
+      Subcategory.find({}).lean(),
+    ]);
+
+    // Build lookup maps by name (case-insensitive)
+    const catByName = new Map();
+    const catById = new Map();
+    for (const c of allCats) {
+      if (c._id) {
+        catById.set(String(c._id), c);
+        const nameLower = String(c.name).toLowerCase().trim();
+        // Store exact name
+        catByName.set(nameLower, c);
+        // Also add variations for plural/singular matching
+        if (nameLower.endsWith('s')) {
+          // "Frozen Foods" -> also store as "Frozen Food"
+          catByName.set(nameLower.slice(0, -1), c);
+        } else {
+          // "Frozen Food" -> also store as "Frozen Foods"
+          catByName.set(nameLower + 's', c);
+        }
+        // Also try with "ies" -> "y" (e.g., "Categories" -> "Category")
+        if (nameLower.endsWith('ies')) {
+          catByName.set(nameLower.slice(0, -3) + 'y', c);
+        } else if (nameLower.endsWith('y')) {
+          catByName.set(nameLower.slice(0, -1) + 'ies', c);
+        }
+      }
+    }
+
+    const subByName = new Map();
+    const subById = new Map();
+    const subByCategoryAndName = new Map(); // For faster lookup: "categoryId:subcategoryName"
+    for (const s of allSubs) {
+      if (s._id) {
+        subById.set(String(s._id), s);
+        const nameLower = String(s.name).toLowerCase().trim();
+        // Store exact name
+        subByName.set(nameLower, s);
+        // Also add variations for plural/singular matching
+        if (nameLower.endsWith('s')) {
+          subByName.set(nameLower.slice(0, -1), s);
+        } else {
+          subByName.set(nameLower + 's', s);
+        }
+        // Also try with "ies" -> "y"
+        if (nameLower.endsWith('ies')) {
+          subByName.set(nameLower.slice(0, -3) + 'y', s);
+        } else if (nameLower.endsWith('y')) {
+          subByName.set(nameLower.slice(0, -1) + 'ies', s);
+        }
+        // Index by category_id + name for faster lookup
+        if (s.category_id) {
+          const key = `${String(s.category_id)}:${nameLower}`;
+          subByCategoryAndName.set(key, s);
+          // Also add plural/singular variations
+          if (nameLower.endsWith('s')) {
+            subByCategoryAndName.set(`${String(s.category_id)}:${nameLower.slice(0, -1)}`, s);
+          } else {
+            subByCategoryAndName.set(`${String(s.category_id)}:${nameLower}s`, s);
+          }
+        }
+      }
+    }
+
+    console.log(`[importProductsWithCategoryMatch] Loaded ${allCats.length} categories, ${allSubs.length} subcategories`);
+    
+    // Log all category/subcategory names in database for comparison
+    const dbCategoryNames = allCats.map(c => c.name).sort();
+    const dbSubcategoryNames = allSubs.map(s => s.name).sort();
+    console.log(`[importProductsWithCategoryMatch] Database Categories (${dbCategoryNames.length}):`, dbCategoryNames.slice(0, 20));
+    if (dbCategoryNames.length > 20) {
+      console.log(`  ... and ${dbCategoryNames.length - 20} more categories`);
+    }
+    console.log(`[importProductsWithCategoryMatch] Database Subcategories (${dbSubcategoryNames.length}):`, dbSubcategoryNames.slice(0, 20));
+    if (dbSubcategoryNames.length > 20) {
+      console.log(`  ... and ${dbSubcategoryNames.length - 20} more subcategories`);
+    }
+
+    // Helper to parse category path (extract actual category name from full path)
+    const parseCategoryPath = (pathStr) => {
+      if (!pathStr) return null;
+      const str = String(pathStr).trim();
+      if (!str) return null;
+      
+      // If it's a simple name (no ">"), return as-is
+      if (!str.includes(">")) return str;
+      
+      // Split by comma first (in case multiple paths are provided)
+      const paths = str.split(",").map(p => p.trim()).filter(Boolean);
+      if (paths.length === 0) return null;
+      
+      // Take the first path and extract the category name
+      const firstPath = paths[0];
+      
+      // If it contains ">", extract the second level (category)
+      // Format: "HyperMarket > Beauty and Personal Care > Facial Care > Refreshing Face Wash"
+      // We want: "Beauty and Personal Care"
+      if (firstPath.includes(">")) {
+        const parts = firstPath.split(">").map(p => p.trim()).filter(Boolean);
+        // Return the second part (category) if available, otherwise first part
+        return parts.length >= 2 ? parts[1] : parts[0];
+      }
+      
+      return firstPath;
+    };
+
+    // Helper to parse subcategory from path or comma-separated
+    const parseSubcategoryFromPath = (pathStr) => {
+      if (!pathStr) return null;
+      const str = String(pathStr).trim();
+      if (!str) return null;
+      
+      // If it's a simple name (no ">" and no comma), return as-is
+      if (!str.includes(">") && !str.includes(",")) return str;
+      
+      // Split by comma first
+      const parts = str.split(",").map(p => p.trim()).filter(Boolean);
+      if (parts.length === 0) return null;
+      
+      // Take the last part (usually the most specific subcategory)
+      const lastPart = parts[parts.length - 1];
+      
+      // If it contains ">", extract the last part
+      if (lastPart.includes(">")) {
+        const pathParts = lastPart.split(">").map(p => p.trim()).filter(Boolean);
+        return pathParts[pathParts.length - 1];
+      }
+      
+      return lastPart;
+    };
+
+    // Helper to extract category/subcategory from tags or columns
+    const extractCategorySubcategory = (row) => {
+      // PRIORITY 1: Parse from tags column (simple names like "Beverages, Fresh Juices")
+      const tagsRaw = getVal(row, "tags[0]", "tags", "Tags", "tag");
+      let categoryName = null;
+      let subcategoryName = null;
+      
+      if (tagsRaw && tagsRaw !== "") {
+        const tags = String(tagsRaw).split(",").map(t => t.trim()).filter(Boolean);
+        
+        // Parse tags: typically "Category, Subcategory" format
+        if (tags.length >= 1) {
+          categoryName = tags[0];
+        }
+        if (tags.length >= 2) {
+          subcategoryName = tags[1];
+        } else if (tags.length === 1) {
+          // Only one tag - could be category or subcategory
+          // We'll treat it as subcategory if categoryName column exists
+          subcategoryName = tags[0];
+        }
+      }
+
+      // PRIORITY 2: If tags didn't give us category, try categoryName column
+      // But parse the path to extract actual category name
+      if (!categoryName || categoryName === "") {
+        const categoryNameRaw = getVal(row, "categoryName", "category", "Category", "Categories");
+        if (categoryNameRaw && categoryNameRaw !== "") {
+          // Parse the path to extract category name
+          categoryName = parseCategoryPath(categoryNameRaw);
+        }
+      }
+
+      // PRIORITY 3: If tags didn't give us subcategory, try subcategoryName column
+      if (!subcategoryName || subcategoryName === "") {
+        const subcategoryNameRaw = getVal(row, "subcategoryName", "subcategory", "Subcategory", "Subcategories");
+        if (subcategoryNameRaw && subcategoryNameRaw !== "") {
+          // Parse the path to extract subcategory name
+          subcategoryName = parseSubcategoryFromPath(subcategoryNameRaw);
+        }
+      }
+
+      // Final normalization
+      if (categoryName === "") categoryName = null;
+      if (subcategoryName === "") subcategoryName = null;
+
+      return { categoryName, subcategoryName };
+    };
+
+    // Helper to find category by name (fuzzy matching)
+    const findCategoryByName = (name) => {
+      if (!name) return null;
+      const nameLower = String(name).toLowerCase().trim();
+      
+      // Exact match (handles plural/singular variations already in map)
+      if (catByName.has(nameLower)) {
+        return catByName.get(nameLower);
+      }
+      
+      // Try word-by-word matching for compound names
+      // e.g., "Frozen Food" should match "Frozen Foods"
+      const words = nameLower.split(/\s+/);
+      if (words.length > 1) {
+        // Try matching last word with plural/singular
+        const lastWord = words[words.length - 1];
+        const restWords = words.slice(0, -1).join(' ');
+        
+        // Try with 's' added/removed on last word
+        if (lastWord.endsWith('s')) {
+          const singularLast = lastWord.slice(0, -1);
+          const tryMatch = `${restWords} ${singularLast}`.trim();
+          if (catByName.has(tryMatch)) {
+            return catByName.get(tryMatch);
+          }
+        } else {
+          const pluralLast = lastWord + 's';
+          const tryMatch = `${restWords} ${pluralLast}`.trim();
+          if (catByName.has(tryMatch)) {
+            return catByName.get(tryMatch);
+          }
+        }
+      }
+      
+      // Try partial match (contains) - but prefer longer matches
+      let bestMatch = null;
+      let bestMatchLength = 0;
+      for (const [key, cat] of catByName.entries()) {
+        if (key === nameLower) {
+          return cat; // Exact match
+        }
+        if (key.includes(nameLower) || nameLower.includes(key)) {
+          const matchLength = Math.min(key.length, nameLower.length);
+          if (matchLength > bestMatchLength) {
+            bestMatch = cat;
+            bestMatchLength = matchLength;
+          }
+        }
+      }
+      
+      return bestMatch;
+    };
+
+    // Helper to find subcategory by name (fuzzy matching)
+    const findSubcategoryByName = (name, categoryId = null) => {
+      if (!name) return null;
+      const nameLower = String(name).toLowerCase().trim();
+      
+      // If categoryId provided, try category-specific lookup first
+      if (categoryId) {
+        const key = `${String(categoryId)}:${nameLower}`;
+        if (subByCategoryAndName.has(key)) {
+          return subByCategoryAndName.get(key);
+        }
+        // Try with plural/singular variation
+        if (nameLower.endsWith('s')) {
+          const key2 = `${String(categoryId)}:${nameLower.slice(0, -1)}`;
+          if (subByCategoryAndName.has(key2)) {
+            return subByCategoryAndName.get(key2);
+          }
+        } else {
+          const key2 = `${String(categoryId)}:${nameLower}s`;
+          if (subByCategoryAndName.has(key2)) {
+            return subByCategoryAndName.get(key2);
+          }
+        }
+      }
+      
+      // Exact match (handles plural/singular variations already in map)
+      if (subByName.has(nameLower)) {
+        const sub = subByName.get(nameLower);
+        // If categoryId provided, verify it matches
+        if (!categoryId || String(sub.category_id) === String(categoryId)) {
+          return sub;
+        }
+      }
+      
+      // Try word-by-word matching for compound names
+      const words = nameLower.split(/\s+/);
+      if (words.length > 1) {
+        const lastWord = words[words.length - 1];
+        const restWords = words.slice(0, -1).join(' ');
+        
+        if (lastWord.endsWith('s')) {
+          const singularLast = lastWord.slice(0, -1);
+          const tryMatch = `${restWords} ${singularLast}`.trim();
+          if (subByName.has(tryMatch)) {
+            const sub = subByName.get(tryMatch);
+            if (!categoryId || String(sub.category_id) === String(categoryId)) {
+              return sub;
+            }
+          }
+        } else {
+          const pluralLast = lastWord + 's';
+          const tryMatch = `${restWords} ${pluralLast}`.trim();
+          if (subByName.has(tryMatch)) {
+            const sub = subByName.get(tryMatch);
+            if (!categoryId || String(sub.category_id) === String(categoryId)) {
+              return sub;
+            }
+          }
+        }
+      }
+      
+      // Try partial match (contains) - but prefer longer matches
+      let bestMatch = null;
+      let bestMatchLength = 0;
+      for (const [key, sub] of subByName.entries()) {
+        // If categoryId provided, verify it matches
+        if (categoryId && String(sub.category_id) !== String(categoryId)) {
+          continue;
+        }
+        if (key === nameLower) {
+          return sub; // Exact match
+        }
+        if (key.includes(nameLower) || nameLower.includes(key)) {
+          const matchLength = Math.min(key.length, nameLower.length);
+          if (matchLength > bestMatchLength) {
+            bestMatch = sub;
+            bestMatchLength = matchLength;
+          }
+        }
+      }
+      
+      return bestMatch;
+    };
+
+    // Helper to create category if missing
+    const ensureCategoryExists = async (categoryName) => {
+      if (!categoryName) return null;
+      
+      // First try to find existing
+      let category = findCategoryByName(categoryName);
+      if (category) return category;
+      
+      // Create new category
+      if (dryRun) {
+        console.log(`[DRY RUN] Would create category: "${categoryName}"`);
+        return { _id: null, name: categoryName };
+      }
+      
+      try {
+        const newCategory = await Category.create({ name: categoryName });
+        // Update lookup maps
+        const nameLower = String(categoryName).toLowerCase().trim();
+        catByName.set(nameLower, newCategory);
+        catById.set(String(newCategory._id), newCategory);
+        // Add variations
+        if (nameLower.endsWith('s')) {
+          catByName.set(nameLower.slice(0, -1), newCategory);
+        } else {
+          catByName.set(nameLower + 's', newCategory);
+        }
+        console.log(`Created new category: "${categoryName}" (${String(newCategory._id)})`);
+        return newCategory;
+      } catch (err) {
+        console.error(`Failed to create category "${categoryName}":`, err.message);
+        return null;
+      }
+    };
+
+    // Helper to create subcategory if missing
+    const ensureSubcategoryExists = async (subcategoryName, categoryId) => {
+      if (!subcategoryName) return null;
+      
+      // First try to find existing
+      let subcategory = findSubcategoryByName(subcategoryName, categoryId);
+      if (subcategory) return subcategory;
+      
+      // Need category_id to create subcategory
+      if (!categoryId) {
+        console.warn(`Cannot create subcategory "${subcategoryName}" without category_id`);
+        return null;
+      }
+      
+      // Create new subcategory
+      if (dryRun) {
+        console.log(`[DRY RUN] Would create subcategory: "${subcategoryName}" for category: ${String(categoryId)}`);
+        return { _id: null, name: subcategoryName, category_id: categoryId };
+      }
+      
+      try {
+        const newSubcategory = await Subcategory.create({ 
+          name: subcategoryName, 
+          category_id: categoryId 
+        });
+        // Update lookup maps
+        const nameLower = String(subcategoryName).toLowerCase().trim();
+        subByName.set(nameLower, newSubcategory);
+        subById.set(String(newSubcategory._id), newSubcategory);
+        // Add variations
+        if (nameLower.endsWith('s')) {
+          subByName.set(nameLower.slice(0, -1), newSubcategory);
+        } else {
+          subByName.set(nameLower + 's', newSubcategory);
+        }
+        // Index by category_id + name
+        const key = `${String(categoryId)}:${nameLower}`;
+        subByCategoryAndName.set(key, newSubcategory);
+        console.log(`Created new subcategory: "${subcategoryName}" (${String(newSubcategory._id)}) for category: ${String(categoryId)}`);
+        return newSubcategory;
+      } catch (err) {
+        console.error(`Failed to create subcategory "${subcategoryName}":`, err.message);
+        return null;
+      }
+    };
+
+    // Track all unique category/subcategory names from CSV for mismatch analysis
+    const csvCategoryNames = new Set();
+    const csvSubcategoryNames = new Set();
+    const categoryMismatches = new Map(); // CSV name -> closest DB match
+    const subcategoryMismatches = new Map();
+
+    const stats = {
+      updated: 0,
+      created: 0,
+      skipped: 0,
+      errors: [],
+      createdCategories: 0,
+      createdSubcategories: 0,
+      missingCategories: new Set(),
+      missingSubcategories: new Set(),
+    };
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      
+      try {
+        const SKU = getVal(row, "SKU", "sku", "Sku") || pick(row, "SKU", ["sku"]);
+        if (!SKU) {
+          stats.skipped++;
+          continue;
+        }
+
+        // Extract category and subcategory names
+        const { categoryName, subcategoryName } = extractCategorySubcategory(row);
+
+        // Track CSV names for mismatch analysis
+        if (categoryName) csvCategoryNames.add(categoryName);
+        if (subcategoryName) csvSubcategoryNames.add(subcategoryName);
+
+        // Debug logging for first few rows
+        if (i < 10) {
+          const tagsRaw = getVal(row, "tags[0]", "tags", "Tags", "tag");
+          console.log(`[Row ${i + 1}] SKU: ${SKU}`);
+          console.log(`[Row ${i + 1}] Tags from file:`, JSON.stringify(tagsRaw));
+          console.log(`[Row ${i + 1}] Extracted categoryName:`, JSON.stringify(categoryName));
+          console.log(`[Row ${i + 1}] Extracted subcategoryName:`, JSON.stringify(subcategoryName));
+        }
+
+        // Find or create category
+        let category = null;
+        if (categoryName) {
+          category = findCategoryByName(categoryName);
+          if (!category) {
+            // Track mismatch for reporting
+            if (!categoryMismatches.has(categoryName)) {
+              // Find closest match in DB
+              const closestMatch = dbCategoryNames.find(dbName => 
+                dbName.toLowerCase().includes(categoryName.toLowerCase()) ||
+                categoryName.toLowerCase().includes(dbName.toLowerCase())
+              );
+              categoryMismatches.set(categoryName, closestMatch || "NO_MATCH");
+            }
+            
+            // Auto-create missing category
+            category = await ensureCategoryExists(categoryName);
+            if (category && category._id) {
+              stats.createdCategories++;
+            } else if (!category) {
+              stats.missingCategories.add(categoryName);
+              if (i < 10) {
+                console.log(`[Row ${i + 1}] Failed to create category: "${categoryName}" (SKU: ${SKU})`);
+              }
+            }
+          } else if (i < 5) {
+            console.log(`[Row ${i + 1}] Found category: "${category.name}" (${String(category._id)}) for "${categoryName}"`);
+          }
+        }
+
+        // Find or create subcategory (prefer within found category)
+        let subcategory = null;
+        if (subcategoryName) {
+          const searchCategoryId = category?._id || null;
+          subcategory = findSubcategoryByName(subcategoryName, searchCategoryId);
+          
+          if (!subcategory) {
+            // Try finding without category constraint first
+            if (category) {
+              subcategory = findSubcategoryByName(subcategoryName);
+            }
+            
+            // Track mismatch for reporting
+            if (!subcategory && !subcategoryMismatches.has(subcategoryName)) {
+              // Find closest match in DB
+              const closestMatch = dbSubcategoryNames.find(dbName => 
+                dbName.toLowerCase().includes(subcategoryName.toLowerCase()) ||
+                subcategoryName.toLowerCase().includes(dbName.toLowerCase())
+              );
+              subcategoryMismatches.set(subcategoryName, closestMatch || "NO_MATCH");
+            }
+            
+            // If still not found, create it
+            if (!subcategory && category && category._id) {
+              subcategory = await ensureSubcategoryExists(subcategoryName, category._id);
+              if (subcategory && subcategory._id) {
+                stats.createdSubcategories++;
+              } else if (!subcategory) {
+                stats.missingSubcategories.add(subcategoryName);
+                if (i < 10) {
+                  console.log(`[Row ${i + 1}] Failed to create subcategory: "${subcategoryName}" (category: ${category?.name || "any"}, SKU: ${SKU})`);
+                }
+              }
+            } else if (!subcategory) {
+              stats.missingSubcategories.add(subcategoryName);
+              if (i < 10) {
+                console.log(`[Row ${i + 1}] Subcategory not found and cannot create (no category): "${subcategoryName}" (SKU: ${SKU})`);
+              }
+            }
+          } else if (i < 5) {
+            console.log(`[Row ${i + 1}] Found subcategory: "${subcategory.name}" (${String(subcategory._id)}) for "${subcategoryName}"`);
+          }
+        }
+
+        // Build update object - only include if we have valid _id
+        const updateDoc = {};
+        if (category && category._id) {
+          updateDoc.category_id = category._id;
+        }
+        if (subcategory && subcategory._id) {
+          updateDoc.subcategory_id = subcategory._id;
+        }
+
+        // In dry run mode, also count mock objects (for reporting purposes)
+        if (dryRun) {
+          const dryRunUpdateDoc = {};
+          if (category) {
+            // In dry run, use mock _id or actual _id
+            dryRunUpdateDoc.category_id = category._id || "WOULD_CREATE";
+          }
+          if (subcategory) {
+            dryRunUpdateDoc.subcategory_id = subcategory._id || "WOULD_CREATE";
+          }
+          
+          // Only count as "would update" if we have at least category or subcategory
+          if (category || subcategory) {
+            stats.updated++;
+            if (i < 5) {
+              console.log(`[Row ${i + 1}] [DRY RUN] Would update SKU: ${SKU}`, JSON.stringify(dryRunUpdateDoc, null, 2));
+            }
+          } else {
+            stats.skipped++;
+            if (i < 10) {
+              console.log(`[Row ${i + 1}] [DRY RUN] SKU: ${SKU} - Would skip (no category/subcategory)`);
+            }
+          }
+          continue;
+        }
+
+        // Skip if no updates needed (actual mode - must have valid _id)
+        if (Object.keys(updateDoc).length === 0) {
+          stats.skipped++;
+          if (i < 10) {
+            console.log(`[Row ${i + 1}] SKU: ${SKU} - Skipping because no category/subcategory found or extracted`);
+            console.log(`[Row ${i + 1}]   - categoryName: ${categoryName || "null"}`);
+            console.log(`[Row ${i + 1}]   - subcategoryName: ${subcategoryName || "null"}`);
+            console.log(`[Row ${i + 1}]   - category found: ${category ? (category._id ? `yes (${String(category._id)})` : "yes but _id is null") : "no"}`);
+            console.log(`[Row ${i + 1}]   - subcategory found: ${subcategory ? (subcategory._id ? `yes (${String(subcategory._id)})` : "yes but _id is null") : "no"}`);
+          }
+          continue;
+        }
+
+        // Check if product exists
+        const existingProduct = await Product.findOne({ SKU }).lean();
+        if (!existingProduct) {
+          // Product doesn't exist - create it with category/subcategory IDs
+          // IMPORTANT: category_id is required, so we can only create if we have it
+          if (updateDoc.category_id) {
+            try {
+              const newProduct = {
+                SKU,
+                name: getVal(row, "name", "Name", "product_name", "Product Name") || SKU,
+                description: getVal(row, "description", "Description", "desc") || "",
+                price: parseFloat(getVal(row, "price", "Price") || 0) || 0,
+                stock: parseInt(getVal(row, "stock", "Stock", "quantity", "Quantity") || 0) || 0,
+                brand: getVal(row, "brand", "Brand") || "",
+                category_id: updateDoc.category_id, // Required field
+                subcategory_id: updateDoc.subcategory_id || null,
+                is_global: true, // IMPORTANT: Set to true so products appear in public listings
+                created_at: new Date(),
+                updated_at: new Date(),
+              };
+              
+              await Product.create(newProduct);
+              stats.created++;
+              if (i < 10) {
+                console.log(`[Row ${i + 1}] ✅ Created new product SKU: ${SKU} with category/subcategory IDs`);
+                console.log(`[Row ${i + 1}]   - category_id=${String(updateDoc.category_id)}`);
+                console.log(`[Row ${i + 1}]   - subcategory_id=${updateDoc.subcategory_id ? String(updateDoc.subcategory_id) : "null"}`);
+              }
+            } catch (createErr) {
+              stats.errors.push({ row: i + 1, error: `Failed to create product: ${createErr.message}`, sku: SKU });
+              console.error(`[Row ${i + 1}] Failed to create product SKU: ${SKU}`, createErr.message);
+              if (i < 10) {
+                console.error(`[Row ${i + 1}]   - category_id=${updateDoc.category_id ? String(updateDoc.category_id) : "MISSING"}`);
+                console.error(`[Row ${i + 1}]   - subcategory_id=${updateDoc.subcategory_id ? String(updateDoc.subcategory_id) : "null"}`);
+              }
+            }
+          } else {
+            stats.skipped++;
+            if (i < 10) {
+              console.log(`[Row ${i + 1}] SKU: ${SKU} - Product not found and no category_id to set (required), skipping`);
+              console.log(`[Row ${i + 1}]   - categoryName: ${categoryName || "null"}`);
+              console.log(`[Row ${i + 1}]   - category found: ${category ? (category._id ? `yes (${String(category._id)})` : "yes but _id is null") : "no"}`);
+            }
+          }
+          continue;
+        }
+
+        // Compare existing vs new values
+        const existingCatId = existingProduct.category_id ? String(existingProduct.category_id) : null;
+        const existingSubId = existingProduct.subcategory_id ? String(existingProduct.subcategory_id) : null;
+        const newCatId = updateDoc.category_id ? String(updateDoc.category_id) : null;
+        const newSubId = updateDoc.subcategory_id ? String(updateDoc.subcategory_id) : null;
+        
+        // Check if product needs update (IDs changed OR is_global is false)
+        const needsUpdate = 
+          existingCatId !== newCatId || 
+          existingSubId !== newSubId ||
+          existingProduct.is_global !== true;
+        
+        if (!needsUpdate && existingCatId === newCatId && existingSubId === newSubId) {
+          stats.skipped++;
+          if (i < 10) {
+            console.log(`[Row ${i + 1}] SKU: ${SKU} already has correct category/subcategory IDs and is_global=true, skipping`);
+            console.log(`[Row ${i + 1}]   - Existing: category_id=${existingCatId || "null"}, subcategory_id=${existingSubId || "null"}, is_global=${existingProduct.is_global}`);
+          }
+          continue;
+        }
+
+        // Log what will be updated
+        if (i < 10) {
+          console.log(`[Row ${i + 1}] SKU: ${SKU} - Will update:`);
+          console.log(`[Row ${i + 1}]   - From: category_id=${existingCatId || "null"}, subcategory_id=${existingSubId || "null"}, is_global=${existingProduct.is_global}`);
+          console.log(`[Row ${i + 1}]   - To: category_id=${newCatId || "null"}, subcategory_id=${newSubId || "null"}, is_global=true`);
+        }
+
+        // Update product (use updateDoc directly, it already has valid _ids)
+        // Also ensure is_global is set to true so products appear in public listings
+        const finalUpdateDoc = {
+          ...updateDoc,
+          is_global: true, // Ensure products are visible in public listings
+        };
+        
+        const result = await Product.updateOne(
+          { SKU },
+          { $set: finalUpdateDoc }
+        );
+
+        if (result.matchedCount > 0) {
+          stats.updated++;
+          if (i < 10) {
+            const logDoc = {
+              category_id: updateDoc.category_id ? String(updateDoc.category_id) : null,
+              subcategory_id: updateDoc.subcategory_id ? String(updateDoc.subcategory_id) : null,
+              matchedCount: result.matchedCount,
+              modifiedCount: result.modifiedCount,
+            };
+            console.log(`[Row ${i + 1}] ✅ Updated SKU: ${SKU}`, JSON.stringify(logDoc, null, 2));
+          }
+          
+          // Warn if matched but not modified (shouldn't happen with our check above, but just in case)
+          if (result.modifiedCount === 0 && i < 10) {
+            console.warn(`[Row ${i + 1}] SKU: ${SKU} matched but not modified - values may already be set`);
+          }
+        } else {
+          stats.skipped++;
+          if (i < 10) {
+            console.log(`[Row ${i + 1}] SKU: ${SKU} - Update failed: matchedCount=${result.matchedCount}, modifiedCount=${result.modifiedCount}`);
+          }
+        }
+      } catch (rowErr) {
+        const errorMsg = `Row ${i + 1} (SKU: ${row.SKU || row.sku || "N/A"}): ${rowErr.message}`;
+        console.error(`[importProductsWithCategoryMatch Error] ${errorMsg}`);
+        stats.errors.push({ row: i + 1, error: errorMsg, sku: row.SKU || row.sku || "N/A" });
+      }
+    }
+
+    // Convert Sets to Arrays for JSON response
+    const missingCategoriesList = Array.from(stats.missingCategories).sort();
+    const missingSubcategoriesList = Array.from(stats.missingSubcategories).sort();
+
+    // Build mismatch report
+    const csvCategoryList = Array.from(csvCategoryNames).sort();
+    const csvSubcategoryList = Array.from(csvSubcategoryNames).sort();
+    const mismatchReport = {
+      categories: {
+        inCSV: csvCategoryList,
+        inDB: dbCategoryNames,
+        missing: missingCategoriesList,
+        mismatches: Array.from(categoryMismatches.entries()).map(([csv, db]) => ({
+          csvName: csv,
+          closestDBMatch: db,
+          suggestion: db !== "NO_MATCH" ? `Did you mean "${db}"?` : "No similar category found in DB"
+        }))
+      },
+      subcategories: {
+        inCSV: csvSubcategoryList,
+        inDB: dbSubcategoryNames,
+        missing: missingSubcategoriesList,
+        mismatches: Array.from(subcategoryMismatches.entries()).map(([csv, db]) => ({
+          csvName: csv,
+          closestDBMatch: db,
+          suggestion: db !== "NO_MATCH" ? `Did you mean "${db}"?` : "No similar subcategory found in DB"
+        }))
+      }
+    };
+
+    console.log(`\n[importProductsWithCategoryMatch] Summary:`);
+    console.log(`- Updated: ${stats.updated} products`);
+    console.log(`- Created: ${stats.created} products`);
+    console.log(`- Skipped: ${stats.skipped} products`);
+    console.log(`- Created: ${stats.createdCategories} categories, ${stats.createdSubcategories} subcategories`);
+    console.log(`- Errors: ${stats.errors.length}`);
+    console.log(`\n[importProductsWithCategoryMatch] Name Analysis:`);
+    console.log(`- Unique Categories in CSV/Excel: ${csvCategoryList.length}`);
+    console.log(`- Unique Subcategories in CSV/Excel: ${csvSubcategoryList.length}`);
+    console.log(`- Categories in DB: ${dbCategoryNames.length}`);
+    console.log(`- Subcategories in DB: ${dbSubcategoryNames.length}`);
+    
+    if (categoryMismatches.size > 0) {
+      console.log(`\n[importProductsWithCategoryMatch] Category Name Mismatches (${categoryMismatches.size}):`);
+      Array.from(categoryMismatches.entries()).slice(0, 20).forEach(([csv, db]) => {
+        console.log(`  - CSV: "${csv}" -> DB: ${db === "NO_MATCH" ? "NOT FOUND" : `"${db}"`}`);
+      });
+      if (categoryMismatches.size > 20) {
+        console.log(`  ... and ${categoryMismatches.size - 20} more mismatches`);
+      }
+    }
+    
+    if (subcategoryMismatches.size > 0) {
+      console.log(`\n[importProductsWithCategoryMatch] Subcategory Name Mismatches (${subcategoryMismatches.size}):`);
+      Array.from(subcategoryMismatches.entries()).slice(0, 20).forEach(([csv, db]) => {
+        console.log(`  - CSV: "${csv}" -> DB: ${db === "NO_MATCH" ? "NOT FOUND" : `"${db}"`}`);
+      });
+      if (subcategoryMismatches.size > 20) {
+        console.log(`  ... and ${subcategoryMismatches.size - 20} more mismatches`);
+      }
+    }
+    
+    if (missingCategoriesList.length > 0) {
+      console.log(`\n[importProductsWithCategoryMatch] Failed to create Categories (${missingCategoriesList.length}):`, missingCategoriesList.slice(0, 20));
+      if (missingCategoriesList.length > 20) {
+        console.log(`  ... and ${missingCategoriesList.length - 20} more categories`);
+      }
+    }
+    if (missingSubcategoriesList.length > 0) {
+      console.log(`\n[importProductsWithCategoryMatch] Failed to create Subcategories (${missingSubcategoriesList.length}):`, missingSubcategoriesList.slice(0, 20));
+      if (missingSubcategoriesList.length > 20) {
+        console.log(`  ... and ${missingSubcategoriesList.length - 20} more subcategories`);
+      }
+    }
+
+    const message = stats.createdCategories > 0 || stats.createdSubcategories > 0 || stats.created > 0
+      ? `Updated ${stats.updated} products, created ${stats.created} new products. Created ${stats.createdCategories} new categories and ${stats.createdSubcategories} new subcategories. ${stats.skipped} products were skipped.`
+      : missingCategoriesList.length > 0 || missingSubcategoriesList.length > 0
+      ? `Updated ${stats.updated} products, created ${stats.created} products, skipped ${stats.skipped} products. ⚠️ ${missingCategoriesList.length} categories and ${missingSubcategoriesList.length} subcategories failed to create (check errors).`
+      : `Successfully updated ${stats.updated} products, created ${stats.created} products with category/subcategory IDs. ${stats.skipped} products were skipped (already had correct IDs or no match found).`;
+
+    return res.status(stats.errors.length ? 207 : 200).json({
+      ok: stats.errors.length === 0,
+      updated: stats.updated,
+      created: stats.created,
+      skipped: stats.skipped,
+      createdCategories: stats.createdCategories,
+      createdSubcategories: stats.createdSubcategories,
+      errors: stats.errors,
+      missingCategories: missingCategoriesList,
+      missingSubcategories: missingSubcategoriesList,
+      mismatchReport: mismatchReport,
+      message,
+      summary: {
+        totalProcessed: rows.length,
+        updated: stats.updated,
+        created: stats.created,
+        skipped: stats.skipped,
+        createdCategories: stats.createdCategories,
+        createdSubcategories: stats.createdSubcategories,
+        errors: stats.errors.length,
+        missingCategoriesCount: missingCategoriesList.length,
+        missingSubcategoriesCount: missingSubcategoriesList.length,
+        csvCategoryCount: csvCategoryList.length,
+        csvSubcategoryCount: csvSubcategoryList.length,
+        dbCategoryCount: dbCategoryNames.length,
+        dbSubcategoryCount: dbSubcategoryNames.length,
+      },
+    });
+  } catch (e) {
+    console.error("importProductsWithCategoryMatch fatal:", e);
+    return res.status(500).json({ ok: false, error: e.message });
   }
 };

@@ -102,8 +102,18 @@ const disk = multer.diskStorage({
     cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safe}`);
   },
 });
+const csvExcelFileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (ext === ".csv" || ext === ".xlsx" || ext === ".xls" || file.mimetype === "text/csv" || 
+      file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      file.mimetype === "application/vnd.ms-excel") {
+    return cb(null, true);
+  }
+  return cb(new Error("Invalid file type. Only .csv, .xlsx, or .xls allowed"), false);
+};
 const uploadCsvZip = multer({
   storage: disk,
+  fileFilter: csvExcelFileFilter,
   limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
 });
 
@@ -116,6 +126,14 @@ router.post(
   safe(productController.importAllCSV)
 );
 // --- END: Absolute tmp + CSV+ZIP upload for /import-all ---
+
+// Import products CSV and match to existing categories/subcategories by name
+router.post(
+  "/import-with-category-match",
+  authUser,
+  uploadCsvZip.single("file"),
+  safe(productController.importProductsWithCategoryMatch)
+);
 router.get(
   "/download-row/:idOrSku",
   authUser,
@@ -296,5 +314,8 @@ router.put(
   safe(productController.updateProduct)
 );
 router.delete("/:id", auth, safe(productController.deleteProduct));
+
+// Utility endpoint: Bulk set is_global=true for products with subcategory_id
+router.post("/bulk-set-is-global", authUser, safe(productController.bulkSetIsGlobal));
 
 module.exports = router;

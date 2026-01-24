@@ -50,6 +50,13 @@ const Products = () => {
   const importAllInputRef = useRef(null);
   // --------------------------------------------------
 
+  // ---------- NEW: Import Products with Category Match UI state ----------
+  const [cmDryRun, setCmDryRun] = useState(true);
+  const [cmLoading, setCmLoading] = useState(false);
+  const [cmResult, setCmResult] = useState(null);
+  const categoryMatchInputRef = useRef(null);
+  // --------------------------------------------------
+
   const catMap = useMemo(
     () => new Map(categories.map((c) => [String(c._id), c.name])),
     [categories]
@@ -165,7 +172,7 @@ const Products = () => {
   const handleExportCsv = async () => {
     try {
       const res = await instance.get(
-        `${import.meta.env.VITE_API_URL}/products/export-csv`,
+        `${import.meta.env.VITE_API_URL}/api/products/export-csv`,
         {
           responseType: "blob",
         }
@@ -192,7 +199,7 @@ const Products = () => {
     form.append("file", file);
     try {
       const res = await instance.post(
-        `${import.meta.env.VITE_API_URL}/products/import-csv`,
+        `${import.meta.env.VITE_API_URL}/api/products/import-csv`,
         form,
         {
           headers: { "Content-Type": "multipart/form-data" },
@@ -209,39 +216,102 @@ const Products = () => {
   };
 
   // ------------ Import-All CSV (NEW) ------------
-  const handleImportAllCsv = async (file) => {
+const handleImportAllCsv = async (file) => {
+  if (!file) {
+    toast.error("Pick a CSV file");
+    return;
+  }
+
+  setIaResult(null);
+  setIaLoading(true);
+
+  const form = new FormData();
+  form.append("file", file); // MUST MATCH multer field name
+
+  try {
+    const url = `${
+      import.meta.env.VITE_API_URL
+    }/api/products/import-all?dryRun=${
+      iaDryRun ? "true" : "false"
+    }&mode=${iaMode}`;
+
+    const res = await instance.post(url, form); // <-- FIXED HERE
+
+    setIaResult(res?.data || null);
+
+    if (iaDryRun) {
+      toast.success("Dry run OK. Review the stats below.");
+    } else {
+      toast.success("Import-all completed");
+      fetchCategories();
+      fetchSubCategories();
+      fetchProducts();
+    }
+  } catch (e) {
+    const msg = e?.response?.data?.error || e?.message || "Import-all failed";
+    setIaResult(e?.response?.data || null);
+    toast.error(msg);
+  } finally {
+    setIaLoading(false);
+    if (importAllInputRef.current) importAllInputRef.current.value = "";
+  }
+};
+
+  // ------------ Bulk Set is_global=true (NEW) ------------
+  const [bulkUpdateLoading, setBulkUpdateLoading] = useState(false);
+  const [bulkUpdateResult, setBulkUpdateResult] = useState(null);
+
+  const handleBulkSetIsGlobal = async () => {
+    setBulkUpdateLoading(true);
+    setBulkUpdateResult(null);
+    try {
+      const response = await instance.post("/products/bulk-set-is-global");
+      setBulkUpdateResult(response.data);
+      toast.success(`Updated ${response.data.modified || 0} products to set is_global=true`);
+    } catch (error) {
+      const errorMsg = error?.response?.data?.error || error.message || "Failed to update products";
+      setBulkUpdateResult({ ok: false, error: errorMsg });
+      toast.error(errorMsg);
+    } finally {
+      setBulkUpdateLoading(false);
+    }
+  };
+
+  // ------------ Import Products with Category Match (NEW) ------------
+const handleImportWithCategoryMatch = async (file) => {
     if (!file) {
       toast.error("Pick a CSV file");
       return;
     }
-    setIaResult(null);
-    setIaLoading(true);
+
+    setCmResult(null);
+    setCmLoading(true);
+
     const form = new FormData();
     form.append("file", file);
+
     try {
-      const url = `${import.meta.env.VITE_API_URL}/products/import-all?dryRun=${
-        iaDryRun ? "true" : "false"
-      }&mode=${iaMode}`;
-      const res = await instance.post(url, form, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      setIaResult(res?.data || null);
-      if (iaDryRun) {
+      const url = `${import.meta.env.VITE_API_URL}/api/products/import-with-category-match?dryRun=${
+        cmDryRun ? "true" : "false"
+      }`;
+
+      const res = await instance.post(url, form);
+
+      setCmResult(res?.data || null);
+
+      if (cmDryRun) {
         toast.success("Dry run OK. Review the stats below.");
       } else {
-        toast.success("Import-all completed");
-        // refresh lists after real run
-        fetchCategories();
-        fetchSubCategories();
+        toast.success(`Updated ${res?.data?.updated || 0} products with category/subcategory IDs`);
         fetchProducts();
       }
     } catch (e) {
-      const msg = e?.response?.data?.error || e?.message || "Import-all failed";
-      setIaResult(e?.response?.data || null);
+      const msg = e?.response?.data?.error || e?.message || "Import with category match failed";
+      setCmResult(e?.response?.data || null);
       toast.error(msg);
     } finally {
-      setIaLoading(false);
-      if (importAllInputRef.current) importAllInputRef.current.value = "";
+      setCmLoading(false);
+      if (categoryMatchInputRef.current) categoryMatchInputRef.current.value = "";
     }
   };
   // ----------------------------------------------
@@ -251,7 +321,7 @@ const Products = () => {
     try {
       if (editProduct) {
         const { data } = await instance.put(
-          `${import.meta.env.VITE_API_URL}/products/${editProduct._id}`,
+          `${import.meta.env.VITE_API_URL}/api/products/${editProduct._id}`,
           payload,
           {
             headers: { "Content-Type": "multipart/form-data" },
@@ -476,6 +546,88 @@ const Products = () => {
               </div>
             </div>
 
+            {/* NEW: Import Products with Category Match */}
+            <div className="flex flex-col md:flex-row md:items-end gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 mb-4">
+              <div className="flex-1">
+                <div className="text-sm font-semibold mb-2">
+                  Import Products CSV (Match to Existing Categories/Subcategories)
+                </div>
+                <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                  Matches products to existing categories/subcategories by name from tags[0] column or categoryName/subcategoryName columns
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={cmDryRun}
+                      onChange={(e) => setCmDryRun(e.target.checked)}
+                    />
+                    Dry run (validate only)
+                  </label>
+
+                  <label
+                    className={`btn-import ${
+                      cmLoading ? "opacity-60 pointer-events-none" : ""
+                    }`}
+                    style={{ cursor: "pointer" }}
+                    title="Choose Products CSV for Category Match Import"
+                  >
+                    <i className="bx bxs-cloud-upload bx-fade-down-hover" />
+                    <span className="text">
+                      {cmLoading ? "Uploading..." : "Import Products (Category Match)"}
+                    </span>
+                    <input
+                      ref={categoryMatchInputRef}
+                      type="file"
+                      accept=".csv,.xlsx,.xls"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleImportWithCategoryMatch(f);
+                      }}
+                      style={{ display: "none" }}
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* NEW: Bulk Set is_global=true */}
+            <div className="flex flex-col md:flex-row md:items-end gap-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-xl p-4 mb-4">
+              <div className="flex-1">
+                <div className="text-sm font-semibold mb-2 text-yellow-800 dark:text-yellow-200">
+                  ⚠️ Fix: Set is_global=true for Products
+                </div>
+                <div className="text-xs text-yellow-700 dark:text-yellow-300 mb-2">
+                  Sets is_global=true for all products that have subcategory_id set. This makes products visible in public listings.
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={handleBulkSetIsGlobal}
+                    disabled={bulkUpdateLoading}
+                    className={`btn-import ${
+                      bulkUpdateLoading ? "opacity-60 pointer-events-none" : ""
+                    }`}
+                    style={{ cursor: bulkUpdateLoading ? "not-allowed" : "pointer" }}
+                    title="Set is_global=true for all products with subcategory_id"
+                  >
+                    <i className="bx bx-check-circle bx-fade-down-hover" />
+                    <span className="text">
+                      {bulkUpdateLoading ? "Updating..." : "Set is_global=true for Products"}
+                    </span>
+                  </button>
+                  {bulkUpdateResult && (
+                    <div className={`text-sm ${bulkUpdateResult.ok ? "text-green-600" : "text-red-600"}`}>
+                      {bulkUpdateResult.ok ? (
+                        <>✅ Updated {bulkUpdateResult.modified || 0} products</>
+                      ) : (
+                        <>❌ Error: {bulkUpdateResult.error}</>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* NEW: Import-All result preview */}
             {iaResult && (
               <div className="mb-4">
@@ -489,6 +641,24 @@ const Products = () => {
                     }}
                   >
                     {JSON.stringify(iaResult, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* NEW: Category Match result preview */}
+            {cmResult && (
+              <div className="mb-4">
+                <div className="overflow-auto rounded-xl shadow border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+                  <pre
+                    style={{
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                      fontSize: 12,
+                      margin: 0,
+                    }}
+                  >
+                    {JSON.stringify(cmResult, null, 2)}
                   </pre>
                 </div>
               </div>
