@@ -68,21 +68,7 @@ export default function CategoryMegaMenu() {
     }
   }, [open]);
 
-  // Close when mouse leaves button + menu
-  // useEffect(() => {
-  //   const handleMouseMove = (e) => {
-  //     if (!open) return;
-  //     const btn = btnRef.current;
-  //     const menu = menuRef.current;
-  //     if (btn && menu && !btn.contains(e.target) && !menu.contains(e.target)) {
-  //       setOpen(false);
-  //     }
-  //   };
-  //   if (open) {
-  //     document.addEventListener("mousemove", handleMouseMove);
-  //   }
-  //   return () => document.removeEventListener("mousemove", handleMouseMove);
-  // }, [open]);
+
 
   useEffect(() => {
     const timerRef = { current: null };

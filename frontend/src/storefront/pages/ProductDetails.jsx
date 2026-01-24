@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import instance from "../../services/axiosInstance";
 import { useCart } from "../../../context/CartContext";
-import { addToCart } from "../../slice/cartSlice"; // <- your existing slice action
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";   // add this at the top
 
 import {
@@ -17,6 +16,11 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
+import {
+  fetchWishlistItems,
+  addToWishlist,
+  removeFromWishlist,
+} from "../../slice/wishlistSlice";
 
 const API_BASE = import.meta.env.VITE_API_URL;
  const STATIC_PREFIX = "/uploads";
@@ -31,6 +35,7 @@ const API_BASE = import.meta.env.VITE_API_URL;
   // bare filename from DB → build full URL
    return `${API_BASE}${STATIC_PREFIX}/${encodeURIComponent(s)}`;
  };
+
 export default function ProductDetails() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -46,6 +51,7 @@ export default function ProductDetails() {
   const [showOffers, setShowOffers] = useState(false);
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
+const { items: wishlist } = useSelector((state) => state.wishlist);
 
   const [deliveryLocation, setDeliveryLocation] =
     useState("Puducherry, 605008");
@@ -104,6 +110,9 @@ setImg(primary);
     }
   })();
 }, [id]);
+useEffect(() => {
+  dispatch(fetchWishlistItems());
+}, []);
 
 // --- Thumbs order: gallery first (main set), then sub images (product_img, product_img2) ---
 const thumbs = useMemo(() => {
@@ -185,9 +194,30 @@ const thumbs = useMemo(() => {
               />
               <button
                 type="button"
-                onClick={() => setSelected((s) => !s)}
-                className={`absolute bottom-4 right-4 p-2 rounded-full shadow ${
-                  selected
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+
+                  const exists = wishlist.some(
+                    (w) => w.productId === p._id || w?.product?._id === p._id
+                  );
+
+                  if (exists) {
+                    // REMOVE
+                    dispatch(removeFromWishlist(p._id)).then(() =>
+                      dispatch(fetchWishlistItems())
+                    );
+                  } else {
+                    // ADD
+                    dispatch(addToWishlist({ productId: p._id })).then(() =>
+                      dispatch(fetchWishlistItems())
+                    );
+                  }
+                }}
+                className={`absolute bottom-4 right-4 p-2 rounded-full shadow transition ${
+                  wishlist.some(
+                    (w) => w.productId === p._id || w?.product?._id === p._id
+                  )
                     ? "bg-red-600 text-white"
                     : "bg-orange-100 text-red-500"
                 }`}
