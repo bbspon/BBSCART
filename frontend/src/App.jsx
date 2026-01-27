@@ -324,6 +324,7 @@ useEffect(() => {
           <Route path="products" element={<Products />} />
           <Route path="products/categories" element={<Categories />} />
           <Route path="products/subcategories" element={<SubCategories />} />
+          <Route path="media" element={<MediaLibrary />} />
           <Route path="orders" element={<Orders />} />
           <Route path="vendors" element={<Vendor />} />
           <Route path="customers" element={<Customers />} />
@@ -339,7 +340,6 @@ useEffect(() => {
         <Route path="/thia-jewellery-cms" element={<ThiaJewelleryCMS />}>
           <Route path="dashboard" element={<BBSCARTCMSPage />} />
         </Route>
-        <Route path="/admin/media" element={<MediaLibrary />} />
         {/*260925*/}
         <Route path="/cart" element={<NavbarCart />} />
       </Routes>

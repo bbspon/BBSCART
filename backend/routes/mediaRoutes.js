@@ -95,9 +95,9 @@ router.post("/upload", uploadMedia.array("files", 50), async (req, res) => {
   }
 });
 
-// GET /api/media
+// GET /api/media — supports page, limit, total, type, q (search filename/tags)
 router.get("/", async (req, res) => {
-  const { type, q } = req.query;
+  const { type, q, page = 1, limit: rawLimit = 40 } = req.query;
   const filter = { deleted: false };
   if (type) filter.type = type;
   if (q)
@@ -105,11 +105,14 @@ router.get("/", async (req, res) => {
       { filename: new RegExp(q, "i") },
       { tags: new RegExp(q, "i") },
     ];
-  const items = await Media.find(filter)
-    .sort({ createdAt: -1 })
-    .limit(200)
-    .lean();
-  res.json({ ok: true, items });
+  const limit = Math.min(Math.max(1, parseInt(rawLimit, 10) || 40), 200);
+  const skip = Math.max(0, (parseInt(page, 10) || 1) - 1) * limit;
+
+  const [items, total] = await Promise.all([
+    Media.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    Media.countDocuments(filter),
+  ]);
+  res.json({ ok: true, items, total });
 });
 
 // PUT /api/media/:id

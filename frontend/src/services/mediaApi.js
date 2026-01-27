@@ -1,5 +1,5 @@
 // src/services/mediaApi.js
-const API = import.meta.env.VITE_API_URL || "http://localhost:5001";
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export async function uploadMedia(files, onProgress) {
   const form = new FormData();
@@ -36,13 +36,17 @@ export async function uploadMedia(files, onProgress) {
   return promise;
 }
 
-export async function listMedia({ type, q } = {}) {
+export async function listMedia({ type, q, search, page = 1, limit = 40 } = {}) {
   const params = new URLSearchParams();
   if (type) params.set("type", type);
-  if (q) params.set("q", q);
+  const searchVal = q ?? search ?? "";
+  if (searchVal) params.set("q", searchVal);
+  if (page) params.set("page", String(page));
+  if (limit) params.set("limit", String(limit));
   const res = await fetch(`${API}/api/media?${params.toString()}`);
   if (!res.ok) throw new Error(`Failed to fetch media: ${res.status}`);
-  return res.json(); // { ok, items: [...] }
+  const data = await res.json();
+  return { items: data.items || [], total: data.total ?? (data.items?.length ?? 0) };
 }
 
 export async function updateMedia(id, body) {
