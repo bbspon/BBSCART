@@ -62,7 +62,8 @@ li {
 	font-family: var(--lato);
 	transition: .3s ease;
 	overflow-x: hidden;
-	scrollbar-width: none;
+	overflow-y: auto;
+	scrollbar-width: thin;
 }
 /* #sidebar::--webkit-scrollbar {
 	display: none;

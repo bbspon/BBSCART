@@ -27,6 +27,7 @@ const Sidebar = ({ isSidebarHidden, toggleSidebar }) => {
     "/admin/products",
     "/admin/products/categories",
     "/admin/products/subcategories",
+    "/admin/media",
   ].includes(location.pathname);
 
   const isUserRequestSectionActive =
@@ -134,6 +135,19 @@ const Sidebar = ({ isSidebarHidden, toggleSidebar }) => {
                 >
                   <i className="bx bxs-layer bx-sm" />
                   <span>SubCategories</span>
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  to="/admin/media"
+                  style={
+                    location.pathname === "/admin/media"
+                      ? { backgroundColor: "#0da89c", color: "#ffffff" }
+                      : {}
+                  }
+                >
+                  <i className="bx bxs-image bx-sm" />
+                  <span>Media Library</span>
                 </NavLink>
               </li>
             </ul>
