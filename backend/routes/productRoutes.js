@@ -214,6 +214,12 @@ router.get("/public/:id", assignVendorMiddleware, async (req, res) => {
       .lean();
     if (!product) return res.status(404).json({ message: "Product not found" });
 
+    // Allow global products (is_global: true) to be accessible regardless of vendor assignment
+    if (product.is_global === true) {
+      return res.status(200).json(product);
+    }
+
+    // For non-global products, check vendor assignment
     const sellerKey =
       product.seller_id?.toString?.() ||
       product.vendor_id?.toString?.() ||

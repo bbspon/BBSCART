@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useSearchParams, Link } from "react-router-dom";
+import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
 import instance from "../../services/axiosInstance";
 import { ChevronDown, ChevronUp, Star, Check } from "lucide-react";
 import { BsFillHeartFill } from "react-icons/bs";
@@ -21,6 +21,7 @@ import {
   removeFromCart,
   fetchCartItems,
 } from "../../slice/cartSlice";
+import toast from "react-hot-toast";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
   const STATIC_PREFIXES = ["/uploads"]; // support both roots
@@ -29,6 +30,7 @@ export default function SubcategoryPage() {
   const [page, setPage] = useState(1);
   const totalPages = 10; // <-- add this line
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { items: wishlist } = useSelector((state) => state.wishlist);
   const handlePrev = () => {
     if (page > 1) setPage(page - 1);
@@ -92,21 +94,43 @@ const getQty = (id) => {
 
 const handleAdd = (e, product) => {
   e.preventDefault();
+  e.stopPropagation(); // Prevent navigation to product page
 
   const deliveryPincode = getPincode();
   if (!deliveryPincode) {
-    alert("Please enter your delivery pincode before adding items to cart.");
+    toast.error("Please enter your delivery pincode before adding items to cart.");
     return;
   }
+
+  // Ensure pincode is stored in localStorage (cartSlice reads from there)
+  if (deliveryPincode) {
+    localStorage.setItem("deliveryPincode", deliveryPincode);
+  }
+
+  console.log("[handleAdd] Adding product to cart:", {
+    productId: product._id,
+    productName: product.name,
+    deliveryPincode,
+  });
 
   dispatch(
     addToCart({
       productId: product._id,
       variantId: null,
       quantity: 1,
-      deliveryPincode, // ← REQUIRED
     })
-  ).then(() => dispatch(fetchCartItems(deliveryPincode)));
+  )
+    .unwrap() // Use unwrap() to get the actual result/error from the thunk
+    .then((result) => {
+      console.log("[handleAdd] Success:", result);
+      dispatch(fetchCartItems());
+      toast.success("Product added to cart!");
+    })
+    .catch((error) => {
+      console.error("[handleAdd] Failed to add to cart:", error);
+      const errorMsg = error?.message || error?.error || "Failed to add product to cart. Please try again.";
+      toast.error(errorMsg);
+    });
 };
 ;
 
@@ -1282,7 +1306,25 @@ const handleDecrease = (e, product) => {
                     <button
                       onClick={(e) => {
                         e.preventDefault();
-                        addToCart();
+                        e.stopPropagation();
+                        const deliveryPincode = getPincode();
+                        if (!deliveryPincode) {
+                          alert("Please enter your delivery pincode before buying.");
+                          return;
+                        }
+                        // Add to cart and navigate to cart page
+                        dispatch(
+                          addToCart({
+                            productId: p._id,
+                            variantId: null,
+                            quantity: 1,
+                            deliveryPincode,
+                          })
+                        ).then(() => {
+                          dispatch(fetchCartItems(deliveryPincode));
+                          // Navigate to cart page
+                          navigate("/cart");
+                        });
                       }}
                       className="flex flex-row items-center gap-1 border rounded-2xl p-2 px-1 text-xs text-nowrap
               text-white bg-green-600 shadow-sm"

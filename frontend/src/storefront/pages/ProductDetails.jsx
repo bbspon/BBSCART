@@ -60,56 +60,41 @@ const { items: wishlist } = useSelector((state) => state.wishlist);
       try {
         setLoading(true);
         setP(null);
-
+        
+        console.log("[ProductDetails] Fetching product:", id);
         const { data } = await instance.get(`/products/public/${id}`);
-        setP(data);
+        console.log("[ProductDetails] Product fetched:", data?._id, data?.name);
 
-        const primary =
-          data?.product_img ||
-          data?.gallery_imgs?.[0] ||
-          "/img/placeholder.png";
+        // Normalize gallery + sub images
+        const galleryMain = Array.isArray(data?.gallery_imgs)
+          ? data.gallery_imgs.map(norm).filter(Boolean)
+          : [];
+
+        const subs = [data?.product_img, data?.product_img2].map(norm).filter(Boolean);
+
+        const primary = galleryMain[0] || subs[0] || "/img/placeholder.png";
+
+        // ✅ Save normalized structure in _norm
+        setP({
+          ...data,
+          _norm: { galleryMain, subs },
+        });
+
+        // ✅ Set main image for display
         setImg(primary);
       } catch (e) {
-        console.error("load product failed", e?.response?.data || e.message);
+        console.error("[ProductDetails] Load product failed:", {
+          id,
+          status: e?.response?.status,
+          data: e?.response?.data,
+          message: e?.message,
+        });
         setP(null);
       } finally {
         setLoading(false);
       }
     })();
   }, [id]);
-useEffect(() => {
-  (async () => {
-    try {
-      setLoading(true);
-      setP(null);
-const { data } = await instance.get(`/products/public/${id}`);
-
-// Normalize gallery + sub images
-const galleryMain = Array.isArray(data?.gallery_imgs)
-  ? data.gallery_imgs.map(norm).filter(Boolean)
-  : [];
-
-const subs = [data?.product_img, data?.product_img2].map(norm).filter(Boolean);
-
-const primary = galleryMain[0] || subs[0] || "/img/placeholder.png";
-
-// ✅ Save normalized structure in _norm
-setP({
-  ...data,
-  _norm: { galleryMain, subs },
-});
-
-// ✅ Set main image for display
-setImg(primary);
-
-    } catch (e) {
-      console.error("load product failed", e?.response?.data || e.message);
-      setP(null);
-    } finally {
-      setLoading(false);
-    }
-  })();
-}, [id]);
 useEffect(() => {
   dispatch(fetchWishlistItems());
 }, []);
@@ -157,7 +142,24 @@ const thumbs = useMemo(() => {
   };
 
   if (loading) return <div className="container py-4">Loading…</div>;
-  if (!p) return <div className="container py-4">Not found.</div>;
+  if (!p) {
+    return (
+      <div className="container py-4">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Product Not Found</h2>
+          <p className="text-gray-600 mb-4">
+            The product you're looking for doesn't exist or is no longer available.
+          </p>
+          <Link
+            to="/"
+            className="inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Go Back to Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const onAddToCart = () => {
     cart.addItem({
