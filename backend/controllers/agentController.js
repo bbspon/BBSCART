@@ -350,7 +350,11 @@ exports.registerAgentHead = async (req, res) => {
     const updated = await AgentHead.findByIdAndUpdate(
       id,
       {
-        $set: { application_status: "submitted", updated_at: new Date() },
+        $set: {
+          application_status: "submitted",
+          submitted_at: new Date(),
+          updated_at: new Date(),
+        },
         $setOnInsert: { role: "agent_head_owner" },
       },
       { new: true, upsert: true, runValidators: false }
@@ -377,7 +381,7 @@ exports.registerAgentHead = async (req, res) => {
 };
 exports.listRequests = async (_req, res) => {
   try {
-    const docs = await Agent.find({ application_status: "submitted" })
+    const docs = await AgentHead.find({ application_status: "submitted" })
       .sort({ created_at: -1 })
       .lean();
     res.json({ ok: true, data: docs });
@@ -395,7 +399,7 @@ exports.listRequests = async (_req, res) => {
 // GET /api/admin/agent/requests/:id
 exports.getRequestById = async (req, res) => {
   try {
-    const doc = await Agent.findById(req.params.id).lean();
+    const doc = await AgentHead.findById(req.params.id).lean();
     if (!doc) return res.status(404).json({ ok: false, message: "Not found" });
     res.json({ ok: true, data: doc });
   } catch (e) {
@@ -409,7 +413,7 @@ exports.getRequestById = async (req, res) => {
 exports.approve = async (req, res) => {
   try {
     const { notes } = req.body || {};
-    const updated = await Agent.findByIdAndUpdate(
+    const updated = await AgentHead.findByIdAndUpdate(
       req.params.id,
       {
         $set: {
@@ -445,7 +449,7 @@ exports.approve = async (req, res) => {
 exports.reject = async (req, res) => {
   try {
     const { reason } = req.body || {};
-    const updated = await Agent.findByIdAndUpdate(
+    const updated = await AgentHead.findByIdAndUpdate(
       req.params.id,
       {
         $set: {
@@ -481,7 +485,7 @@ exports.reject = async (req, res) => {
 // GET /api/admin/agents
 exports.listApproved = async (_req, res) => {
   try {
-    const docs = await Agent.find({ application_status: "approved" })
+    const docs = await AgentHead.find({ application_status: "approved" })
       .sort({ updated_at: -1 })
       .lean();
     res.json({ ok: true, data: docs });

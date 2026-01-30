@@ -37,6 +37,25 @@ const upload = multer({
 
 // exports – keep these names
 exports.upload = upload;
+
+// Document upload (PAN, GST, etc.): JPG, PNG, PDF
+const documentFileFilter = (_req, file, cb) => {
+  const allowed = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "application/pdf",
+  ];
+  if (allowed.includes(file.mimetype)) cb(null, true);
+  else cb(new Error("Invalid file type. Only JPG, PNG, PDF allowed"), false);
+};
+const uploadDocument = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: documentFileFilter,
+});
+exports.uploadDocument = uploadDocument;
+
 exports.uploadAny = upload.any();
 exports.uploadSingle = (name) => upload.single(name);
 exports.uploadFields = (fields) => upload.fields(fields);
