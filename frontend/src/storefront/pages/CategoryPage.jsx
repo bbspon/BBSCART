@@ -28,7 +28,7 @@ export default function CategoryPage() {
           {subs.map((s) => (
             <Link
               key={s._id}
-              to={`/c/${categoryId}/${s._id}`}
+              to={`/subcategory/${s._id}`}
               className="rounded border p-3 hover:bg-gray-50"
             >
               {s.name}

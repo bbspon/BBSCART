@@ -2586,13 +2586,24 @@ exports.listProducts = async (req, res) => {
       sort = "newest",
       page = 1,
       limit = 20,
+      categoryId,
       subcategoryId,
       groupId,
     } = req.query;
 
     // Base match: always include globals; add vendor scope if assigned (dual-id/dual-type)
     const baseMatch = buildPublicMatch(req);
-    const match = { ...baseMatch }; // NOTE: spread, not `{ .baseMatch }`
+    // When categoryId is provided, combine with $and so category filter is never lost
+    const rawCategoryId = categoryId && String(categoryId).trim();
+    const categoryObjId = rawCategoryId && mongoose.Types.ObjectId.isValid(rawCategoryId)
+      ? new mongoose.Types.ObjectId(rawCategoryId)
+      : null;
+    let match;
+    if (categoryObjId) {
+      match = { $and: [baseMatch, { category_id: categoryObjId }] };
+    } else {
+      match = { ...baseMatch };
+    }
 
     // Optional filters (keep/extend as you already do)
     if (subcategoryId && mongoose.Types.ObjectId.isValid(subcategoryId)) {
@@ -2787,7 +2798,7 @@ exports.deleteProduct = async (req, res) => {
 // PUBLIC: list all categories (minimal fields for menu)
 exports.listCategoriesPublic = async (_req, res) => {
   try {
-    const items = await Category.find({}, "name icon slug")
+    const items = await Category.find({}, "name icon slug imageUrl")
       .sort({ name: 1 })
       .lean();
     res.json({ items });
