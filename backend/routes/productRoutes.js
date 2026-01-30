@@ -184,10 +184,28 @@ router.get("/public/:id", assignVendorMiddleware, async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "Invalid product id" });
     }
+    
+    if (!Product)
+      return res.status(500).json({ message: "Product model missing" });
+    
+    // First, fetch the product to check if it exists and if it's global
+    const product = await Product.findById(id)
+      .populate("category_id subcategory_id variants")
+      .lean();
+    if (!product) return res.status(404).json({ message: "Product not found" });
+
+    // Allow global products (is_global: true) to be accessible regardless of vendor assignment
+    if (product.is_global === true) {
+      return res.status(200).json(product);
+    }
+
+    // For non-global products, check vendor assignment
     let { assignedVendorId, assignedVendorUserId } = req;
     if (!assignedVendorId && !assignedVendorUserId) {
-      return res.status(400).json({ message: "Assigned vendor missing" });
+      // No vendor assigned, but product is not global - return 404
+      return res.status(404).json({ message: "Product not available from your vendor today" });
     }
+    
     let vDoc = null;
     if (!Vendor)
       return res.status(500).json({ message: "Vendor model missing" });
@@ -207,19 +225,7 @@ router.get("/public/:id", assignVendorMiddleware, async (req, res) => {
         vDoc?.user_id?.toString(),
       ].filter(Boolean)
     );
-    if (!Product)
-      return res.status(500).json({ message: "Product model missing" });
-    const product = await Product.findById(id)
-      .populate("category_id subcategory_id variants")
-      .lean();
-    if (!product) return res.status(404).json({ message: "Product not found" });
 
-    // Allow global products (is_global: true) to be accessible regardless of vendor assignment
-    if (product.is_global === true) {
-      return res.status(200).json(product);
-    }
-
-    // For non-global products, check vendor assignment
     const sellerKey =
       product.seller_id?.toString?.() ||
       product.vendor_id?.toString?.() ||
