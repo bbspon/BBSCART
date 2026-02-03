@@ -109,17 +109,41 @@ module.exports = async function requireAssignedVendor(req, res, next) {
     if (!vendorDoc) {
       const map = await PincodeVendors.findOne({ pincode, active: true });
 
-      if (!map || !map.vendorIds?.length) {
-        return res.status(400).json({ message: "Assigned vendor missing" });
+      if (map?.vendorIds?.length) {
+        vendorDoc = await Vendor.findOne({
+          _id: map.vendorIds[0],
+          is_active: true,
+        });
       }
 
-      vendorDoc = await Vendor.findOne({
-        _id: map.vendorIds[0],
-        is_active: true,
-      });
+      // 5) Fallback: no pincode mapping — use any active vendor, or any vendor if none active (so checkout works)
+      if (!vendorDoc) {
+        vendorDoc = await Vendor.findOne({ is_active: true }).sort({ updated_at: -1 });
+        if (!vendorDoc) {
+          vendorDoc = await Vendor.findOne().sort({ updated_at: -1 });
+          if (vendorDoc) {
+            console.warn(
+              "[VENDOR] No active vendor → using any vendor for pincode",
+              pincode,
+              "vendorId=",
+              vendorDoc._id
+            );
+          }
+        } else {
+          console.warn(
+            "[VENDOR] No mapping for pincode",
+            pincode,
+            "→ using fallback vendor",
+            vendorDoc._id
+          );
+        }
+      }
 
       if (!vendorDoc) {
-        return res.status(400).json({ message: "Assigned vendor missing" });
+        return res.status(400).json({
+          message:
+            "Assigned vendor missing. Add at least one vendor (Admin → Vendors) and optionally map pincodes in Admin → Pincode Vendors.",
+        });
       }
     }
 

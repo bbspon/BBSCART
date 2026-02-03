@@ -18,7 +18,13 @@ export const placeOrder = createAsyncThunk(
      );
       return response.data;
     } catch (error) {
-      return rejectWithValue(error?.response?.data?.message || error.message || "Failed to place order.");
+      const data = error?.response?.data;
+      const message =
+        (typeof data?.message === "string" ? data.message : null) ||
+        data?.error?.description ||
+        error?.message ||
+        "Failed to place order.";
+      return rejectWithValue(message);
     }
   }
 );
@@ -63,15 +69,32 @@ export const getOrderBySellerId = createAsyncThunk(
   }
 );
 
-// ✅ Get Order by SellerID
+// ✅ Get orders by user (optional orderIds = array of order_id for guest orders to include)
 export const getOrdersByUserId = createAsyncThunk(
   "order/getOrdersByUserId",
-  async (userId, { rejectWithValue }) => {
+  async (arg, { rejectWithValue }) => {
     try {
-      const response = await instance.get(`${BASE_PATH}/user/${userId}`);
+      const userId = typeof arg === "object" ? arg.userId : arg;
+      const orderIds = typeof arg === "object" ? arg.orderIds : undefined;
+      let url = `${BASE_PATH}/user/${userId}`;
+      if (orderIds && orderIds.length) url += `?orderIds=${orderIds.join(",")}`;
+      const response = await instance.get(url);
       return response.data;
     } catch (error) {
       return rejectWithValue(error?.response?.data?.message || error.message || "Failed to fetch order.");
+    }
+  }
+);
+
+// Sync delivery status from E-Delivery so BBSCART orders show "delivered"
+export const syncDeliveryStatus = createAsyncThunk(
+  "order/syncDeliveryStatus",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await instance.post(`${BASE_PATH}/sync-delivery-status`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error?.response?.data?.message || error.message || "Sync failed.");
     }
   }
 );
@@ -202,6 +225,9 @@ const orderSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
+
+      .addCase(syncDeliveryStatus.fulfilled, () => {})
+      .addCase(syncDeliveryStatus.rejected, () => {})
 
       // 📌 Get Orders by Status
       .addCase(getOrdersByStatus.pending, (state) => {

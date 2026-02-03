@@ -122,6 +122,20 @@ function CheckoutPage() {
 
       const createdOrder = response.payload.order;
       const method = createdOrder?.payment_method || finalOrder.paymentMethod;
+      const sentToDelivery = response.payload?.sentToDelivery === true;
+      const deliveryOrderId = response.payload?.deliveryOrderId;
+      const trackingId = response.payload?.trackingId;
+      const deliverySuccessState = { sentToDelivery, deliveryOrderId, trackingId, order: createdOrder };
+
+      if (createdOrder?.order_id) {
+        try {
+          const key = "bbscart_recent_order_ids";
+          const raw = localStorage.getItem(key);
+          const arr = raw ? JSON.parse(raw) : [];
+          if (!arr.includes(createdOrder.order_id)) arr.unshift(createdOrder.order_id);
+          localStorage.setItem(key, JSON.stringify(arr.slice(0, 20)));
+        } catch (_) {}
+      }
 
       // === Razorpay path ===
       if (method === "Razorpay") {
@@ -160,8 +174,13 @@ function CheckoutPage() {
                     })
                   )
                 );
-                toast.success("Payment successful, order placed!");
-                navigate("/orders/success");
+                cart.clear();
+                toast.success(
+                  sentToDelivery
+                    ? "Payment successful, order placed! Assigned order has been sent to the delivery app."
+                    : "Payment successful, order placed!"
+                );
+                navigate("/orders/success", { state: deliverySuccessState });
               } else {
                 toast.error(verifyRes.message || "Payment verification failed");
               }
@@ -191,8 +210,17 @@ function CheckoutPage() {
           })
         )
       );
-      toast.success("Order placed successfully!");
-      navigate("/orders/success");
+      cart.clear();
+      if (sentToDelivery) {
+        toast.success(
+          trackingId
+            ? "Order placed successfully! Assigned order has been sent to the delivery app. Tracking ID: " + trackingId
+            : "Order placed successfully! Assigned order has been sent to the delivery app."
+        );
+      } else {
+        toast.success("Order placed successfully!");
+      }
+      navigate("/orders/success", { state: deliverySuccessState });
     } catch (error) {
       console.error("Order Error:", error);
       toast.error("Something went wrong. Please try again.");

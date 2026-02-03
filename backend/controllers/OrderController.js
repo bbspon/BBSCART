@@ -8,6 +8,7 @@ const crypto = require("crypto");
 const mongoose = require("mongoose");
 const { emitCreated, emitUpdated } = require("../events/orderEmitter");
 const { emitTxnUpsert } = require("../events/transactionEmitter");
+const { emitCreateDeliveryJob } = require("../services/deliveryEmitter");
 // Razorpay Instance
 const razorpay = new Razorpay({
   key_id: "rzp_test_5kdXsZAny3KeQZ",
@@ -169,8 +170,36 @@ exports.createOrder = async (req, res) => {
       },
     });
       const saved = await orderDoc.save();
-console.log("[ORDER] in", new Date().toISOString());
-      require('../events/orderEmitter').emitCreated(saved).catch(()=>{});
+      console.log("[ORDER] in", new Date().toISOString());
+      require("../events/orderEmitter").emitCreated(saved).catch(() => {});
+
+      // Send assigned order to delivery app (if configured)
+      let sentToDelivery = false;
+      let deliveryOrderId = null;
+      let trackingId = null;
+      try {
+        const deliveryResult = await emitCreateDeliveryJob(saved);
+        if (deliveryResult && (deliveryResult.deliveryOrderId || deliveryResult.trackingId)) {
+          sentToDelivery = true;
+          deliveryOrderId = deliveryResult.deliveryOrderId || null;
+          trackingId = deliveryResult.trackingId || null;
+          saved.deliveryOrderId = deliveryOrderId;
+          saved.trackingId = trackingId;
+          await saved.save();
+          console.log("[ORDER] Sent to delivery app:", deliveryOrderId, trackingId);
+        }
+      } catch (deliveryErr) {
+        console.warn("[ORDER] Delivery app send failed:", deliveryErr?.message || deliveryErr);
+      }
+
+      const orderPayload = (order) => ({
+        success: true,
+        message: order?.payment_method === "COD" ? "COD order placed successfully" : "Order created successfully",
+        order,
+        sentToDelivery,
+        deliveryOrderId,
+        trackingId,
+      });
 
     if (paymentMethod === "Razorpay") {
       const options = {
@@ -182,41 +211,24 @@ console.log("[ORDER] in", new Date().toISOString());
       saved.order_id = rpOrder.id;
       await saved.save();
 
-      return res
-        .status(201)
-        .json({
-          success: true,
-          message: "Order created successfully",
-          order: saved,
-        });
-
+      return res.status(201).json(orderPayload(saved));
     }
-console.log("[ORDER] out OK", new Date().toISOString());
-// NOTE: previous code tried to emitCreated(order) but `order` was undefined here.
-// We already emitted the created event just after the DB save above — avoid duplicate emit.
+
     if (paymentMethod === "COD") {
       saved.payment_details.payment_status = "completed";
       saved.payment_details.amount_paid = Number(totalAmount || 0);
       await saved.save();
 
-      require('../events/transactionEmitter').emitTxnUpsert(saved).catch(()=>{});
+      require("../events/transactionEmitter").emitTxnUpsert(saved).catch(() => {});
 
       await reduceStock(saved);
 
       const freshCOD = await Order.findById(saved._id);
-      return res.status(201).json({
-        success: true,
-        message: "COD order placed successfully",
-        order: freshCOD || saved,
-      });
+      return res.status(201).json(orderPayload(freshCOD || saved));
     }
 
     const fresh = await Order.findById(saved._id);
-    return res.status(201).json({
-      success: true,
-      message: "Order created successfully",
-      order: fresh || saved,
-    });
+    return res.status(201).json(orderPayload(fresh || saved));
   } catch (error) {
     console.error("Error creating order:", error);
     // use the caught variable 'error' (was 'err' previously)
@@ -379,14 +391,21 @@ exports.getOrdersBySellerId = async (req, res) => {
   }
 };
 
-// Get orders by user
+// Get orders by user (most recent first). Optional query: orderIds=COD_xxx,COD_yyy to include those orders (e.g. guest orders from this browser).
 exports.getOrdersByUserId = async (req, res) => {
   try {
     const { user_id } = req.params;
-    const orders = await Order.find({ user_id })
+    const orderIdsParam = req.query.orderIds; // comma-separated order_id values
+    const extraOrderIds = orderIdsParam ? orderIdsParam.split(",").map((s) => s.trim()).filter(Boolean) : [];
+
+    const query = extraOrderIds.length
+      ? { $or: [{ user_id }, { order_id: { $in: extraOrderIds } }] }
+      : { user_id };
+    const orders = await Order.find(query)
       .populate("user_id", "name email phone")
       .populate("orderItems.product", "name price image")
-      .populate("orderItems.variant", "name options");
+      .populate("orderItems.variant", "name options")
+      .sort({ created_at: -1 });
 
     res.status(200).json({ success: true, orders });
   } catch (error) {
@@ -395,6 +414,43 @@ exports.getOrdersByUserId = async (req, res) => {
       message: "Error fetching orders",
       error: error.message,
     });
+  }
+};
+
+// Sync delivery status from E-Delivery: for each BBSCART order with deliveryOrderId, if E-Delivery status is DELIVERED, set order.status = "delivered".
+exports.syncDeliveryStatus = async (req, res) => {
+  try {
+    const BASE = process.env.DELIVERY_BASE_URL;
+    const TOKEN = process.env.DELIVERY_INGEST_TOKEN;
+    if (!BASE || !TOKEN) {
+      return res.status(503).json({ success: false, message: "Delivery integration not configured" });
+    }
+    const fetch = (await import("node-fetch")).default;
+    const resFetch = await fetch(`${BASE}/v1/delivery/orders`, {
+      headers: { Authorization: `Bearer ${TOKEN}` },
+    });
+    if (!resFetch.ok) {
+      return res.status(502).json({ success: false, message: "Failed to fetch E-Delivery orders" });
+    }
+    const edOrders = await resFetch.json();
+    const deliveredIds = new Set();
+    (Array.isArray(edOrders) ? edOrders : []).forEach((d) => {
+      const id = d._id ? String(d._id) : null;
+      if (id && (d.status || "").toUpperCase() === "DELIVERED") deliveredIds.add(id);
+    });
+
+    const bbOrders = await Order.find({ deliveryOrderId: { $in: Array.from(deliveredIds) }, status: { $ne: "delivered" } }).lean();
+    let updated = 0;
+    for (const o of bbOrders) {
+      if (deliveredIds.has(String(o.deliveryOrderId))) {
+        await Order.updateOne({ _id: o._id }, { $set: { status: "delivered" } });
+        updated++;
+      }
+    }
+    res.status(200).json({ success: true, updated, message: `Updated ${updated} order(s) to delivered` });
+  } catch (e) {
+    console.error("[syncDeliveryStatus]", e);
+    res.status(500).json({ success: false, message: e.message || "Sync failed" });
   }
 };
 

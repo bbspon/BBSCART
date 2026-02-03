@@ -18,7 +18,8 @@ import Register from './components/auth/Register';
 import Forgot from './components/auth/ForgotPassword'; 
 import ResetPassword from "./components/auth/ResetPassword"; 
 import { Toaster } from 'react-hot-toast'; 
-import CheckoutPage from './components/pages/CheckoutPage'; 
+import CheckoutPage from './components/pages/CheckoutPage';
+import OrderSuccess from './components/pages/OrderSuccess'; 
 import WishlistPage from './components/pages/WishlistPage'; 
 import ProductsListPage from './components/pages/admin/ProductsListPage';   
 import ProtectedRoute from './components/ProtectedRoute';  
@@ -225,6 +226,7 @@ useEffect(() => {
         <Route path="/bank-cashback-policy" element={<BankCashbackPolicy />} />
         <Route path="/contact" element={<ContactUs />} />
         <Route path="/orders" element={<CustomerOrders />} />
+        <Route path="/orders/success" element={<OrderSuccess />} />
         <Route path="/orders-list" element={<OrdersPage />} />
         <Route path="/thia" element={<ThiaPage />} />
         <Route path="/vendor-success" element={<VendorSuccess />} />

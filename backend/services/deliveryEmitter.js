@@ -39,6 +39,9 @@ async function mapOrderToDeliveryPayload(orderDoc) {
   const items = Array.isArray(orderDoc?.orderItems) ? orderDoc.orderItems : [];
 
   const { name, phone } = await getUserNamePhone(orderDoc.user_id);
+  const address1 = addr.street || "";
+  const city = addr.city || addr.state || addr.postalCode || "N/A";
+  const nameOrFallback = (name && String(name).trim()) ? name : "Customer";
 
   return {
     orderId: orderDoc.order_id, // idempotency link
@@ -48,11 +51,11 @@ async function mapOrderToDeliveryPayload(orderDoc) {
       price: Number(line.price || 0),
     })),
     destination: {
-      name,
-      phone,
-      address1: addr.street || "",
+      name: nameOrFallback,
+      phone: phone || "",
+      address1,
       address2: "",
-      city: addr.city || "",
+      city,
       state: addr.state || "",
       pincode: addr.postalCode || "",
       country: countryToISO(addr.country || "IN"),

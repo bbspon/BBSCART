@@ -525,7 +525,18 @@ background-position: center;
 .bbs.table-data .order table tr td .status.pending {
 	background: var(--brown);
 }
-
+.bbs.table-data .order table tr td .status.delivered {
+	background: #22c55e;
+	color: #fff;
+}
+.bbs.table-data .order table tr td .status.shipped {
+	background: #3b82f6;
+	color: #fff;
+}
+.bbs.table-data .order table tr td .status.canceled {
+	background: #6b7280;
+	color: #fff;
+}
 
 .bbs.table-data .todo {
 	flex-grow: 1;

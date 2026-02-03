@@ -320,6 +320,7 @@ app.use("/api/admin/vendors", adminVendorRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/testimonials", testimonialRoutes);
 app.use("/api/delivery/webhooks", deliveryWebhookRoutes);
+app.use("/api/assigned-orders/public", require("./routes/assignedOrdersPublicRoutes"));
 app.use("/api", returnRoutes);
 app.use("/api/webhooks", webhookRoutes);
  app.use("/api/media", mediaRoutes);

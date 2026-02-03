@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
+const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
 const DELIVERY_PUBLIC_BASE =
   import.meta.env.VITE_DELIVERY_PUBLIC_BASE ||
-  "http://localhost:5000/api/assigned-orders/public";
+  `${API_BASE}/api/assigned-orders/public`;
 
 export default function SlotPicker({ pincode, value, onChange, disabled }) {
   const [loading, setLoading] = useState(false);
@@ -23,14 +24,12 @@ export default function SlotPicker({ pincode, value, onChange, disabled }) {
       setError(null);
       try {
         const svc = await axios.get(
-          `${DELIVERY_PUBLIC_BASE}/api/assigned-orders/public/serviceability/${pincode}`,
+          `${DELIVERY_PUBLIC_BASE}/serviceability/${pincode}`,
           { timeout: 10000 }
         );
         const sl = await axios.get(
-          `${DELIVERY_PUBLIC_BASE}/api/assigned-orders/public/slots/${pincode}`,
-          {
-            timeout: 15000,
-          }
+          `${DELIVERY_PUBLIC_BASE}/slots/${pincode}`,
+          { timeout: 15000 }
         );
         setServiceable(svc.data?.data?.serviceable === true);
         setSlots(Array.isArray(sl.data?.data?.slots) ? sl.data.data.slots : []);
