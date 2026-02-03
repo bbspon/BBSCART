@@ -19,7 +19,7 @@ import Forgot from './components/auth/ForgotPassword';
 import ResetPassword from "./components/auth/ResetPassword"; 
 import { Toaster } from 'react-hot-toast'; 
 import CheckoutPage from './components/pages/CheckoutPage';
-import OrderSuccess from './components/pages/OrderSuccess'; 
+import OrderSuccess from './components/pages/OrderSuccess.jsx'; 
 import WishlistPage from './components/pages/WishlistPage'; 
 import ProductsListPage from './components/pages/admin/ProductsListPage';   
 import ProtectedRoute from './components/ProtectedRoute';  
