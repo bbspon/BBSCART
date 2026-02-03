@@ -9,21 +9,35 @@ exports.statusWebhook = async (req, res) => {
       return res.status(401).json({ error: "unauthorized" });
     }
 
-    const { deliveryOrderId, status, note, proofs, cod } = req.body || {};
-    if (!deliveryOrderId || !status) {
-      return res
-        .status(400)
-        .json({ error: "deliveryOrderId and status required" });
+    const { deliveryOrderId, orderId: bbscartOrderId, status, note, proofs, cod } = req.body || {};
+    if (!status) {
+      return res.status(400).json({ error: "status required" });
+    }
+    if (!deliveryOrderId && !bbscartOrderId) {
+      return res.status(400).json({ error: "deliveryOrderId or orderId (BBSCART order_id) required" });
     }
 
-    const order = await Order.findOne({ deliveryOrderId });
-    if (!order) return res.status(404).json({ error: "order not found" });
+    const query = [];
+    if (deliveryOrderId) query.push({ deliveryOrderId: String(deliveryOrderId) });
+    if (bbscartOrderId) query.push({ order_id: String(bbscartOrderId) });
+    const order = await Order.findOne(query.length ? { $or: query } : { deliveryOrderId });
+    if (!order) {
+      console.warn("[webhook] order not found for", { deliveryOrderId, bbscartOrderId });
+      return res.status(404).json({ error: "order not found" });
+    }
 
     order.deliveryStatusHistory = order.deliveryStatusHistory || [];
     order.deliveryStatusHistory.push({
       code: String(status),
       note: note || "",
     });
+
+    // Sync main order status so /orders page shows "delivered" when E-Delivery marks DELIVERED
+    const statusUpper = String(status).toUpperCase();
+    if (statusUpper === "DELIVERED") order.status = "delivered";
+    else if (statusUpper === "CANCELED") order.status = "canceled";
+    else if (statusUpper === "PICKED_UP") order.status = "shipped";
+    console.log("[webhook] order", order.order_id, "-> status", order.status);
 
     if (proofs?.pickup) {
       order.proofs = order.proofs || {};

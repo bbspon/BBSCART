@@ -121,6 +121,8 @@ try {
   }
 }
 let upload = uploadModule?.upload || uploadModule;
+// Document upload (PAN/GST etc.): JPG, PNG, PDF
+let uploadDoc = uploadModule?.uploadDocument;
 if (!upload) {
   const storage = multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, "uploads/"),
@@ -130,6 +132,14 @@ if (!upload) {
     },
   });
   upload = multer({ storage });
+  const docFilter = (_req, file, cb) => {
+    const ok = ["image/jpeg", "image/jpg", "image/png", "application/pdf"].includes(file.mimetype);
+    if (!ok) return cb(new Error("Only JPG, PNG, PDF allowed"));
+    cb(null, true);
+  };
+  uploadDoc = multer({ storage, fileFilter: docFilter, limits: { fileSize: 10 * 1024 * 1024 } });
+} else if (!uploadDoc) {
+  uploadDoc = upload;
 }
 
 // Root probe
@@ -138,8 +148,8 @@ router.get("/", (_req, res) => res.json({ ok: true, msg: "vendors root" }));
 // NEW: explicitly start a brand-new application (returns _id)
 router.post("/start", vendorController.startApplication);
 
-// Simple upload (no OCR). Field name: "document"
-router.post("/upload", upload.single("document"), vendorController.uploadDocument);
+// Simple upload (no OCR). Field name: "document". Accepts JPG, PNG, PDF for PAN/GST.
+router.post("/upload", uploadDoc.single("document"), vendorController.uploadDocument);
 
 // Step save
 router.post("/step-by-key", vendorController.saveStepByKey);

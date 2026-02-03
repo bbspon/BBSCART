@@ -181,9 +181,12 @@ export default function VendorForm() {
         setVendorId(id);
         localStorage.setItem("vendorId", id);
       }
+      setFormData((prev) => ({ ...prev, pan_pic: fileUrl }));
+      toast.success("PAN document uploaded. Click Save & Continue to proceed.");
     } catch (err) {
       console.error(err);
-      alert("PAN upload failed");
+      const msg = err?.response?.data?.message || err?.response?.data?.details || err?.message;
+      toast.error(msg || "PAN upload failed. Use JPG, PNG or PDF.");
     } finally {
       setLoadingPan(false);
     }

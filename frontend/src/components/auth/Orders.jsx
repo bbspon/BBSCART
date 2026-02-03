@@ -3,7 +3,17 @@ import React, { useEffect } from "react";
 import { NavLink } from 'react-router-dom';
 import { useDispatch, useSelector } from "react-redux";
 import moment from "moment";
-import { getOrdersByUserId } from "../../slice/orderSlice";
+import { getOrdersByUserId, syncDeliveryStatus } from "../../slice/orderSlice";
+const RECENT_ORDER_IDS_KEY = "bbscart_recent_order_ids";
+
+function getStatusStyle(status) {
+    const s = String(status || "pending").toLowerCase();
+    if (s === "delivered") return { background: "#22c55e", color: "#fff", padding: "6px 14px", borderRadius: "20px", fontWeight: 700, fontSize: "12px" };
+    if (s === "shipped") return { background: "#3b82f6", color: "#fff", padding: "6px 14px", borderRadius: "20px", fontWeight: 700, fontSize: "12px" };
+    if (s === "canceled") return { background: "#6b7280", color: "#fff", padding: "6px 14px", borderRadius: "20px", fontWeight: 700, fontSize: "12px" };
+    return { background: "#dc2626", color: "#fff", padding: "6px 14px", borderRadius: "20px", fontWeight: 700, fontSize: "12px" };
+}
+
 const Orders = () => {
 
     const dispatch = useDispatch();
@@ -11,10 +21,18 @@ const Orders = () => {
     const { user, isAuthenticated } = useSelector((state) => state.auth);
 
     useEffect(() => {
-        if (user && user._id) { 
-            dispatch(getOrdersByUserId(user._id));
-        }
-    }, [dispatch, user]);  // Added `user` as dependency    
+        if (!user?._id) return;
+        (async () => {
+            await dispatch(syncDeliveryStatus()).unwrap().catch(() => {});
+            const recentIds = (() => {
+                try {
+                    const raw = localStorage.getItem(RECENT_ORDER_IDS_KEY);
+                    return raw ? JSON.parse(raw) : [];
+                } catch { return []; }
+            })();
+            dispatch(getOrdersByUserId({ userId: user._id, orderIds: recentIds }));
+        })();
+    }, [dispatch, user?._id]);    
 
     console.log(orders);
 
@@ -69,11 +87,16 @@ const Orders = () => {
                                 <td>
                                     <img src="https://placehold.co/600x400/png" />
                                     {/* <p>Order #{order._id}</p> */}
-                                    <p>{order.user_id.name}</p>
+                                    <p>{order.user_id?.name ?? "Guest"}</p>
                                 </td>
                                 <td>{moment(order.created_at).format("DD-MM-YYYY")}</td>
                                 <td>
-                                    <span className="status completed">{order.status}</span>
+                                    <span
+                                        className={`status ${(order.status || "pending").toLowerCase().replace(/\s+/g, "")}`}
+                                        style={getStatusStyle(order.status)}
+                                    >
+                                        {order.status || "pending"}
+                                    </span>
                                 </td>
                             </tr>
                             ))}

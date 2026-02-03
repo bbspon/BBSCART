@@ -105,7 +105,6 @@ exports.uploadDocument = async (req, res) => {
     await safeEmitVendor(doc, "saveStepByKey");
     LOG.info("saveStepByKey OUT", { id: String(doc?._id || "") });
     return res.json({ ok: true, data: doc });
-    return res.json({ ok: true, data: doc });
   } catch (e) {
     console.error("saveStepByKey error:", e);
     return res
