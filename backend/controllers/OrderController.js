@@ -187,6 +187,13 @@ exports.createOrder = async (req, res) => {
           saved.trackingId = trackingId;
           await saved.save();
           console.log("[ORDER] Sent to delivery app:", deliveryOrderId, trackingId);
+
+          const returnedAdmin = deliveryResult.adminId || null;
+          if (returnedAdmin) {
+            console.log(`[ORDER] Delivery app assigned adminId=${returnedAdmin} for order ${saved.order_id}`);
+          } else {
+            console.warn(`[ORDER] Delivery app did NOT assign admin for order ${saved.order_id}; it will not show on admin assigned orders page until admin mapping exists.`);
+          }
         }
       } catch (deliveryErr) {
         console.warn("[ORDER] Delivery app send failed:", deliveryErr?.message || deliveryErr);

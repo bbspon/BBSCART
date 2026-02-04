@@ -57,7 +57,7 @@ async function mapOrderToDeliveryPayload(orderDoc) {
       address2: "",
       city,
       state: addr.state || "",
-      pincode: addr.postalCode || "",
+      pincode: String(addr.postalCode || addr.pincode || addr.postal_code || "").trim(),
       country: countryToISO(addr.country || "IN"),
     },
     cod: {
@@ -121,6 +121,8 @@ async function emitCreateDeliveryJob(orderDoc) {
     d?.trackID ??
     null;
 
+  const adminId = d?.adminId ?? d?._adminId ?? null;
+
   if (!deliveryOrderId || !trackingId) {
     console.warn(
       "[deliveryEmitter] missing fields in response:",
@@ -128,7 +130,10 @@ async function emitCreateDeliveryJob(orderDoc) {
     );
   }
 
-  return { ...json, deliveryOrderId, trackingId };
+  if (adminId) console.log("[deliveryEmitter] ingest returned adminId:", adminId);
+  else console.log("[deliveryEmitter] ingest returned no adminId (order will be unassigned)");
+
+  return { ...json, deliveryOrderId, trackingId, adminId };
 }
 
 module.exports = { emitCreateDeliveryJob, createReturnPickup };
