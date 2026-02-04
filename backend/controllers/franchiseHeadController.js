@@ -102,13 +102,16 @@ exports.saveStepByKey = async (req, res) => {
       franchiseeId: doc._id,
     });
   } catch (e) {
-    // ✔ FIXED CATCH BLOCK
+    // Improved error handling for duplicate keys
     console.error("franchisee.saveStepByKey error:", e);
-    return res.status(500).json({
-      ok: false,
-      message: "Save failed",
-      details: e.message,
-    });
+
+    // Handle Mongo duplicate key error (E11000) clearly
+    if (e && (e.code === 11000 || e.codeName === 'DuplicateKey')) {
+      const dupInfo = e.keyValue ? JSON.stringify(e.keyValue) : e.message;
+      return res.status(409).json({ ok: false, message: 'Duplicate key error', details: dupInfo });
+    }
+
+    return res.status(500).json({ ok: false, message: "Save failed", details: e.message });
   }
 };
 

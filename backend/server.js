@@ -10,7 +10,17 @@ const connectDB = require('./config/db');
 
 // Load environment variables
 dotenv.config();
-connectDB();
+connectDB()
+  .then(() => {
+    // Create indexes (adds partial unique index for FranchiseHead.email)
+    try {
+      const createIndexes = require('./config/dbSetup');
+      createIndexes().catch((e) => console.error('Index creation failed:', e));
+    } catch (e) {
+      console.error('Index setup import failed:', e?.message || e);
+    }
+  })
+  .catch((e) => console.error('DB connect failed at startup:', e));
 // mongoose
 //   .connect(process.env.MONGO_URI, {
 //     useNewUrlParser: true,
