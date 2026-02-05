@@ -64,6 +64,7 @@ export default function FranchiseHeadForm({ value, onChange }) {
     firstName: "",
     lastName: "",
     dob: "",
+    email: "",
     panNumber: "",
     aadharNumber: "",
     gender: "",
@@ -181,6 +182,8 @@ const onPanUpload = async (e) => {
 
     if (!formData.lastName.trim()) return toast.error("Enter Last Name"), false;
 
+    if (!formData.email.trim()) return toast.error("Enter Email"), false;
+
     if (!dobValue) return toast.error("Select Date of Birth"), false;
 
     if (!formData.panNumber.trim())
@@ -200,6 +203,7 @@ const onPanUpload = async (e) => {
         pan_number: (formData.panNumber || "").toUpperCase(),
         vendor_fname: formData.firstName || "",
         vendor_lname: formData.lastName || "",
+        email: formData.email || "",
         dob: formData.dob || "",
       };
       const resp = await axios.post(
@@ -634,6 +638,7 @@ const onPanUpload = async (e) => {
       firstName: "",
       lastName: "",
       dob: "",
+      email: "",
       panNumber: "",
       aadharNumber: "",
       gender: "",
@@ -715,6 +720,24 @@ const onPanUpload = async (e) => {
                 value={formData.lastName}
                 onChange={(e) =>
                   setFormData((p) => ({ ...p, lastName: e.target.value }))
+                }
+                className="border border-dark rounded-lg my-3"
+                style={{
+                  border: "0.1px solid #333", // solid black border
+                  boxShadow: "none",
+                }}
+              />
+            </Col>
+          </Row>
+
+          <Row>
+            <Col md={12} className="mb-3">
+              <Form.Label>Email</Form.Label>
+              <Form.Control
+                type="email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, email: e.target.value }))
                 }
                 className="border border-dark rounded-lg my-3"
                 style={{

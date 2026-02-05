@@ -45,6 +45,7 @@ exports.saveStepByKey = async (req, res) => {
     // Identity
     if (b.vendor_fname) set.vendor_fname = String(b.vendor_fname).trim();
     if (b.vendor_lname) set.vendor_lname = String(b.vendor_lname).trim();
+    if (b.email) set.email = String(b.email).trim().toLowerCase();
     if (b.dob) set.dob = String(b.dob).trim();
 
     // PAN
