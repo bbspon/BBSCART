@@ -47,7 +47,7 @@ const FranchiseHeadSchema = new mongoose.Schema({
   contact_person: { type: String, default: null },
 
   // contact
-  email: { type: String, required: true },
+  email: { type: String },
   mobile: { type: String, required: true },
   alt_mobile: { type: String, default: null },
 
@@ -92,7 +92,6 @@ const FranchiseHeadSchema = new mongoose.Schema({
   branch_name: { type: String, required: true },
   bank_address: { type: String, default: "" },
   cancel_cheque_passbook: { type: String, default: null },
-
   // media
   profile_pic: { type: String, default: null },
   cover_pic: { type: String, default: null },
@@ -138,6 +137,9 @@ const FranchiseHeadSchema = new mongoose.Schema({
 
   // linkage
   user_id: { type: ObjectId, ref: "User", default: null },
+
+  // business partner code
+  businessPartnerCode: { type: String, index: { unique: true, sparse: true } },
 
   // status
   is_active: { type: Boolean, default: false },
