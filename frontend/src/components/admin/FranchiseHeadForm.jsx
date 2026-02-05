@@ -609,6 +609,12 @@ const onPanUpload = async (e) => {
 
     // ============ NEW: call final submit before redirect ============
     await submitFranchiseApplication();
+
+    // Clear stored id so the next flow starts fresh (prevents accidental updates)
+    try {
+      localStorage.removeItem("franchiseeId");
+    } catch (_) {}
+    setFranchiseeId("");
     // ===============================================================
 
     navigate("/franchisee-success");
@@ -619,6 +625,37 @@ const onPanUpload = async (e) => {
     if (id) setFranchiseeId(id);
   }, []);
 
+  // Start a fresh application (clears stored id and resets to step 1)
+  const handleStartNew = () => {
+    try { localStorage.removeItem("franchiseeId"); } catch (_) {}
+    setFranchiseeId("");
+    setStep(1);
+    setFormData({
+      firstName: "",
+      lastName: "",
+      dob: "",
+      panNumber: "",
+      aadharNumber: "",
+      gender: "",
+      register_street: "",
+      register_city: "",
+      register_state: "",
+      register_country: "India",
+      register_postalCode: "",
+      // GST manual fields
+      gstNumber: "",
+      gstLegalName: "",
+      constitution_of_business: "",
+      gst_floorNo: "",
+      gst_buildingNo: "",
+      gst_street: "",
+      gst_locality: "",
+      gst_district: "",
+      pan_pic: "",
+    });
+    setDobValue(null);
+  };
+
   return (
     <div>
       <h4
@@ -627,6 +664,14 @@ const onPanUpload = async (e) => {
       >
         Franchisee Owner Registration
       </h4>
+
+      {franchiseeId && (
+        <div className="text-center mb-3">
+          <Button variant="outline-secondary" size="sm" onClick={handleStartNew}>
+            Start New Application
+          </Button>
+        </div>
+      )}
       <div className="mb-3">
         <strong className="flex justify-center items-center p-2 mx-3 rounded-lg">
           Step {step} of 5
