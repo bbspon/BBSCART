@@ -17,7 +17,10 @@ filename: (_req, file, cb) => {
 // ✅ Use .any() to accept any field name, then filter in the route
 const uploadMedia = multer({
   storage,
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB
+limits: {
+  fileSize: 500 * 1024 * 1024,
+  fieldSize: 500 * 1024 * 1024,
+},
   fileFilter: (req, file, cb) => {
     // Accept all fields, we'll validate in the route
     cb(null, true);
