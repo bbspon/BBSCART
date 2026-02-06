@@ -287,8 +287,8 @@ app.use("/api", posSsoRoutes);
 const { auth } = require("./middleware/authMiddleware");
 app.use("/admin", auth, adminRoutes);
 // ✅ Body Parsers
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(express.json({ limit: "500mb" }));
+app.use(express.urlencoded({ limit: "500mb", extended: true }));
 
 // Add body-parsing middleware
 // app.use(express.json());
