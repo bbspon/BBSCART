@@ -5,6 +5,7 @@ const fs = require("fs");
 const router = express.Router();
 
 const { uploadMedia } = require("../middleware/uploadMedia");
+const { authUser } = require("../middleware/authMiddleware");
 const Media = require("../models/Media");
 const {
   processImage,
@@ -13,14 +14,23 @@ const {
   UPLOAD_ROOT,
 } = require("../services/mediaProcessor");
 
-// POST /api/media/upload  (multiple files)
-router.post("/upload", uploadMedia.array("files", 50), async (req, res) => {
+// POST /api/media/upload  (multiple files - accepts any field name)
+router.post("/upload", authUser, uploadMedia.any(), async (req, res) => {
   try {
-    if (!req.files?.length)
+    console.log("📤 Media upload request from user:", req.user?.userId);
+    console.log("📦 Files received:", req.files?.length);
+    console.log("📋 Field names:", req.files?.map(f => f.fieldname) || []);
+    
+    // ✅ Extract files from any field (supports "files", folder uploads, etc.)
+    const allFiles = req.files || [];
+    
+    if (!allFiles.length) {
+      console.warn("⚠️ No files provided");
       return res.status(400).json({ message: "No files" });
+    }
 
     const out = [];
-    for (const f of req.files) {
+    for (const f of allFiles) {
       const ext = path.extname(f.filename).toLowerCase();
       const srcPath = path.join(UPLOAD_ROOT, "tmp", f.filename);
 
@@ -44,8 +54,8 @@ router.post("/upload", uploadMedia.array("files", 50), async (req, res) => {
             { label: "thumb", ...img.thumb },
           ],
           tags: [],
-          uploadedBy: null,
-          uploaderRole: "staff",
+          uploadedBy: req.user?.userId || null,
+          uploaderRole: req.user?.role || "guest",
           accessLevel: "public",
           linkedProducts: [],
           linkedCategories: [],
@@ -54,6 +64,7 @@ router.post("/upload", uploadMedia.array("files", 50), async (req, res) => {
           deleted: false,
         });
         out.push(doc);
+        console.log(`✅ Image processed: ${img.main.filename}`);
       } else if ([".mp4", ".mov", ".mkv", ".webm"].includes(ext)) {
         const videoBase = `${path.parse(f.filename).name}${ext}`;
         const vid = await processVideo(srcPath, videoBase);
@@ -74,8 +85,8 @@ router.post("/upload", uploadMedia.array("files", 50), async (req, res) => {
           height: 0,
           variants,
           tags: [],
-          uploadedBy: null,
-          uploaderRole: "staff",
+          uploadedBy: req.user?.userId || null,
+          uploaderRole: req.user?.role || "guest",
           accessLevel: "public",
           linkedProducts: [],
           linkedCategories: [],
@@ -84,14 +95,18 @@ router.post("/upload", uploadMedia.array("files", 50), async (req, res) => {
           deleted: false,
         });
         out.push(doc);
+        console.log(`✅ Video processed: ${path.basename(vid.webm.url)}`);
       } else {
+        console.warn(`⚠️ Unsupported file type: ${f.originalname} (${ext})`);
         fs.unlink(srcPath, () => {});
       }
     }
+    
+    console.log(`✅ Successfully processed ${out.length} files out of ${allFiles.length}`);
     res.status(200).json({ ok: true, items: out });
   } catch (e) {
-    console.error("media upload error", e);
-    res.status(500).json({ ok: false, message: e.message });
+    console.error("❌ Media upload error:", e);
+    res.status(500).json({ ok: false, message: e.message || "Upload failed" });
   }
 });
 

@@ -128,10 +128,11 @@ router.post(
 // --- END: Absolute tmp + CSV+ZIP upload for /import-all ---
 
 // Import products CSV and match to existing categories/subcategories by name
+// Accept optional images ZIP (field name: "images") alongside the CSV file
 router.post(
   "/import-with-category-match",
   authUser,
-  uploadCsvZip.single("file"),
+  uploadCsvZip.fields([{ name: "file", maxCount: 1 }, { name: "images", maxCount: 1 }]),
   safe(productController.importProductsWithCategoryMatch)
 );
 router.get(

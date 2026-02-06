@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
-import HomePage from './HomePage';
-import SingleProductPage from './SingleProductPage';
-import ProductsCategoryPage from './ProductsCategoryPage';
-import CartPage from './CartPage';
+import HomePage from './components/pages/HomePage';
+import SingleProductPage from './components/pages/SingleProductPage';
+import ProductsCategoryPage from './components/pages/ProductsCategoryPage';
+import CartPage from './components/pages/CartPage';
+import CheckoutPage from './components/pages/CheckoutPage';
 import ProductsList from './components/pages/admin/ProductsListPage';
 
 function AppRoutes() {
@@ -21,6 +22,7 @@ function AppRoutes() {
             <Route path="/product/:id" element={<SingleProductPage />} />
             <Route path="/product/category/:category" element={<ProductsCategoryPage />} />
             <Route path="/cart" element={<CartPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/adminproduct" element={<ProductsList />} />
             {/* Add additional routes as needed */}
         </Routes>

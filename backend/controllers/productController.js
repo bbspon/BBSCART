@@ -3554,9 +3554,17 @@ exports.bulkSetIsGlobal = async (req, res) => {
 
 exports.importProductsWithCategoryMatch = async (req, res) => {
   try {
-    if (!req.file) {
+    // Accept multer single or fields: try req.file first, then req.files.file or req.files.csv
+    let csvFile = req.file || null;
+    if (!csvFile && req.files) {
+      if (req.files.file) csvFile = Array.isArray(req.files.file) ? req.files.file[0] : req.files.file;
+      else if (req.files.csv) csvFile = Array.isArray(req.files.csv) ? req.files.csv[0] : req.files.csv;
+    }
+    if (!csvFile) {
       return res.status(400).json({ ok: false, error: "File missing (field name: file)." });
     }
+    // normalize so later code can use req.file
+    req.file = csvFile;
 
     const dryRun = String(req.query.dryRun || "").toLowerCase() === "true";
 
@@ -3695,6 +3703,114 @@ exports.importProductsWithCategoryMatch = async (req, res) => {
     }
 
     console.log(`[importProductsWithCategoryMatch] Loaded ${allCats.length} categories, ${allSubs.length} subcategories`);
+    // Optional: extract images ZIP (field name: 'images') if provided alongside the CSV
+    // Build two maps: 1) full-filename → URL, 2) base-name (without timestamp/ext) → filename for fuzzy matching
+    const imagesMap = new Map(); // exact filename -> /uploads/... URL
+    const imagesByBaseName = new Map(); // base-name (e.g., "BBS_BPC_PF_MDII_175") -> { filename, url }
+    
+    try {
+      const imagesFile = (req.files && (req.files.images || req.files["images"])) || null;
+      const imagesPath = imagesFile && (imagesFile.path || (Array.isArray(imagesFile) && imagesFile[0]?.path));
+      if (imagesPath) {
+        let Media = null;
+        try {
+          Media = require("../models/Media");
+        } catch (_) {}
+
+        const now = new Date();
+        const Y = String(now.getFullYear());
+        const M = String(now.getMonth() + 1).padStart(2, "0");
+        const outDir = path.join(process.cwd(), "backend", "uploads", "products", Y, M);
+        fs.mkdirSync(outDir, { recursive: true });
+
+        const zip = new AdmZip(imagesPath);
+        const mediaOps = [];
+
+        const toFilename = (v) => {
+          if (!v && v !== 0) return "";
+          const s = String(v).trim();
+          if (!s) return "";
+          const slash = Math.max(s.lastIndexOf("/"), s.lastIndexOf("\\"));
+          return slash >= 0 ? s.slice(slash + 1) : s;
+        };
+
+        // Helper to extract base name: strip extension and any trailing timestamp pattern
+        // E.g., "BBS_BPC_PF_MDII_175-1770358602294.webp" -> "BBS_BPC_PF_MDII_175"
+        const extractBaseName = (filename) => {
+          // Remove extension first
+          const noExt = filename.replace(/\.[^.]+$/, "");
+          // Remove trailing -<timestamp> where timestamp is 10+ digits (Unix milliseconds)
+          return noExt.replace(/-\d{10,}$/, "");
+        };
+
+        zip.getEntries().forEach((entry) => {
+          if (entry.isDirectory) return;
+          const originalName = toFilename(entry.entryName);
+          if (!originalName) return;
+          
+          // Extract base name for matching & filename storage
+          const baseName = extractBaseName(originalName);
+          const ext = path.extname(originalName);
+          
+          // Use clean base name + extension: BBC_BC_BSII_8.webp (no timestamps)
+          const stamped = `${baseName}${ext}`.replace(/\s+/g, "-");
+          const target = path.join(outDir, stamped);
+          fs.writeFileSync(target, entry.getData());
+          
+          // store public relative URL
+          const rel = `/uploads/products/${Y}/${M}/${stamped}`;
+          
+          // Map 1: exact filename (original from ZIP)
+          imagesMap.set(originalName.toLowerCase(), rel);
+          
+          // Map 2: base name -> actual uploaded filename + URL (for fuzzy matching)
+          if (baseName) {
+            imagesByBaseName.set(baseName.toLowerCase(), { filename: stamped, url: rel });
+            if (Object.keys(row).length > 0 && row.SKU) { // Log for actual data rows only
+              console.log(`[ZIP extraction] File: "${originalName}" -> Base: "${baseName}" -> Stored: "${stamped}" -> URL: "${rel}"`);
+            }
+          }
+
+          if (Media) {
+            const ext = path.extname(stamped).toLowerCase();
+            const mime =
+              ext === ".webm"
+                ? "video/webm"
+                : ext === ".png"
+                ? "image/png"
+                : ext === ".jpg" || ext === ".jpeg"
+                ? "image/jpeg"
+                : ext === ".webp"
+                ? "image/webp"
+                : "application/octet-stream";
+
+            mediaOps.push({
+              updateOne: {
+                filter: { filename: stamped },
+                update: {
+                  $set: {
+                    filename: stamped,
+                    url: rel,
+                    size: entry.header?.size || 0,
+                    mime,
+                    uploadedBy: req.user?._id || null,
+                    updatedAt: new Date(),
+                  },
+                  $setOnInsert: { createdAt: new Date() },
+                },
+                upsert: true,
+              },
+            });
+          }
+        });
+
+        if (mediaOps.length && typeof Media?.bulkWrite === "function") {
+          await Media.bulkWrite(mediaOps, { ordered: false });
+        }
+      }
+    } catch (zipErr) {
+      console.error("import-with-category-match: images zip processing failed:", zipErr);
+    }
     
     // Log all category/subcategory names in database for comparison
     const dbCategoryNames = allCats.map(c => c.name).sort();
@@ -4153,6 +4269,81 @@ exports.importProductsWithCategoryMatch = async (req, res) => {
           updateDoc.subcategory_id = subcategory._id;
         }
 
+        // Map image filenames (from CSV) to extracted ZIP URLs when available
+        const toFilename = (v) => {
+          if (!v && v !== 0) return "";
+          try {
+            const s = String(v).trim();
+            if (!s) return "";
+            const idx = Math.max(s.lastIndexOf("/"), s.lastIndexOf("\\"));
+            return idx >= 0 ? s.slice(idx + 1) : s;
+          } catch {
+            return "";
+          }
+        };
+
+        const mainImgRawRow = getVal(row, "product_img", "productimage", "image", "image_url", "main_img") || pick(row, "product_img", ["image", "image_url", "main_img"]);
+        const secImgRawRow = getVal(row, "product_img2", "image2", "image_url2", "sub_img") || pick(row, "product_img2", ["image2", "image_url2", "sub_img"]);
+        const galleryRawRow = getVal(row, "gallery_imgs", "gallery", "images", "productGallery") || pick(row, "gallery_imgs", ["gallery", "images"]);
+
+        // Keep CSV filenames as-is (with or without extension) for base-name matching
+        const mainBase = String(mainImgRawRow || "").trim();
+        const secBase = String(secImgRawRow || "").trim();
+        let galleryList = [];
+        if (galleryRawRow) {
+          const s = String(galleryRawRow || "");
+          const delim = s.includes("|") ? "|" : ",";
+          galleryList = s.split(delim).map((x) => String(x || "").trim()).filter(Boolean);
+        }
+        // also include indexed gallery fields like gallery_imgs[0]
+        Object.keys(row)
+          .filter((k) => /^gallery_imgs\[\d+\]$/i.test(k))
+          .sort((a, b) => Number(a.match(/\[(\d+)\]/)[1]) - Number(b.match(/\[(\d+)\]/)[1]))
+          .forEach((k) => {
+            const v = String(row[k] || "").trim();
+            if (v) galleryList.push(v);
+          });
+
+        // Resolve image filename: try exact match, then base-name match
+        const resolveImg = (fn) => {
+          if (!fn) return "";
+          const fnLower = String(fn).toLowerCase();
+          
+          // Try 1: exact match (e.g., "BBC_FF_FVG_1.webp" exactly)
+          if (imagesMap.has(fnLower)) {
+            return imagesMap.get(fnLower);
+          }
+          
+          // Try 2: base-name match after removing extension
+          // E.g., CSV says "BBS_BPC_PF_MDII_175" or "BBS_BPC_PF_MDII_175.webp"
+          // Match to uploaded "BBS_BPC_PF_MDII_175-1770358602294.webp"
+          const baseForMatch = String(fn).replace(/\.[^.]*$/, "").toLowerCase(); // remove extension
+          if (imagesByBaseName.has(baseForMatch)) {
+            return imagesByBaseName.get(baseForMatch).url;
+          }
+          
+          // Not found -> return original (CSV name as fallback)
+          return fn;
+        };
+
+        const mappedMain = resolveImg(mainBase) || undefined;
+        const mappedSec = resolveImg(secBase) || undefined;
+        const mappedGallery = Array.from(new Set(galleryList.map(resolveImg).filter(Boolean)));
+
+        // Store the resolved image URLs in updateDoc
+        if (mappedMain) {
+          updateDoc.product_img = mappedMain;
+          if (i < 5) console.log(`[Row ${i + 1}] Mapped product_img: "${mainBase}" -> "${mappedMain}"`);
+        }
+        if (mappedSec) {
+          updateDoc.product_img2 = mappedSec;
+          if (i < 5) console.log(`[Row ${i + 1}] Mapped product_img2: "${secBase}" -> "${mappedSec}"`);
+        }
+        if (mappedGallery.length) {
+          updateDoc.gallery_imgs = mappedGallery;
+          if (i < 5) console.log(`[Row ${i + 1}] Mapped gallery_imgs (${galleryList.length} items):`, galleryList.map((g, idx) => `"${g}" -> "${mappedGallery[idx]}"`).join(", "));
+        }
+
         // In dry run mode, also count mock objects (for reporting purposes)
         if (dryRun) {
           const dryRunUpdateDoc = {};
@@ -4206,6 +4397,9 @@ exports.importProductsWithCategoryMatch = async (req, res) => {
                 price: parseFloat(getVal(row, "price", "Price") || 0) || 0,
                 stock: parseInt(getVal(row, "stock", "Stock", "quantity", "Quantity") || 0) || 0,
                 brand: getVal(row, "brand", "Brand") || "",
+                product_img: updateDoc.product_img || "",
+                product_img2: updateDoc.product_img2 || "",
+                gallery_imgs: updateDoc.gallery_imgs || [],
                 category_id: updateDoc.category_id, // Required field
                 subcategory_id: updateDoc.subcategory_id || null,
                 is_global: true, // IMPORTANT: Set to true so products appear in public listings

@@ -88,8 +88,11 @@ const toggleWishlist = async (e, productId) => {
 const cartItems = useSelector((state) => state.cart.items);
 
 const getQty = (id) => {
-  const found = cartItems.find((c) => c.productId === id);
-  return found ? found.quantity : 0;
+  const itemsArr = Array.isArray(cartItems) ? cartItems : Object.values(cartItems || {});
+  const found = itemsArr.find(
+    (c) => c?.product?._id === id || c?.product === id || c?.productId === id
+  );
+  return found ? (found.quantity || found.qty || 0) : 0;
 };
 
 const handleAdd = (e, product) => {
@@ -1312,7 +1315,7 @@ const handleDecrease = (e, product) => {
                           alert("Please enter your delivery pincode before buying.");
                           return;
                         }
-                        // Add to cart and navigate to cart page
+                        // Add to cart and navigate to checkout page
                         dispatch(
                           addToCart({
                             productId: p._id,
@@ -1322,8 +1325,8 @@ const handleDecrease = (e, product) => {
                           })
                         ).then(() => {
                           dispatch(fetchCartItems(deliveryPincode));
-                          // Navigate to cart page
-                          navigate("/cart");
+                          // Navigate to checkout page
+                          navigate("/checkout");
                         });
                       }}
                       className="flex flex-row items-center gap-1 border rounded-2xl p-2 px-1 text-xs text-nowrap

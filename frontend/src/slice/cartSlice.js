@@ -8,7 +8,7 @@ export const fetchCartItems = createAsyncThunk(
   async (_, thunkAPI) => {
     try {
       const pincode = localStorage.getItem("deliveryPincode") || "";
-      const response = await axios.get(`${import.meta.env.VITE_API_URI}/cart`, {
+      const response = await instance.get(`${BASE_URL}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "x-delivery-pincode": pincode,
