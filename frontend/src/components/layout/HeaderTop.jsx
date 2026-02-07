@@ -107,13 +107,17 @@ const closePopup = () => setShowUserPopup(false);
       >
         {/* Left: Logo + Mobile Toggle */}
         <div className="flex items-center justify-between w-full md:w-auto">
-          <Link to="/">
+          <button
+            onClick={() => window.location.reload()}
+            className="cursor-pointer transition-transform hover:scale-105"
+            title="Reload page"
+          >
             <img
               src="/img/logo/BBSCART_LOGO.PNG"
               alt="BBSCART Logo"
               className="w-[150px] sm:w-[200px] h-auto"
             />
-          </Link>
+          </button>
 
           {/* Hamburger button (visible only on small screens) */}
           <button

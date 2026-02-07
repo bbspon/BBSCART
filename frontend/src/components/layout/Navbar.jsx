@@ -6,6 +6,7 @@ import CategoryMegaMenu from "../../storefront/components/CategoryMegaMenu";
 import { FaBars, FaTimes } from "react-icons/fa";
 import healthAccess from "../../../public/img/logo/logo.png";
 import ThiaLogo from "../../../public/img/logo/ThiaLogo.png";
+import { useNavigate } from "react-router-dom";
 
 // Detect mobile width
 const useIsMobile = () => {
@@ -50,6 +51,7 @@ const MegaMenu = () => {
   const [isTablet, setIsTablet] = useState(false);
   const [showAllProducts, setShowAllProducts] = useState(false);
   const [openAllProductsMobile, setOpenAllProductsMobile] = useState(false);
+const navigate = useNavigate();
 
   const handleToggle = () => setShowAllProducts(!showAllProducts);
 
@@ -137,14 +139,26 @@ const fullMenuData = [
       <nav className="w-full bg-[#11A96A] text-white font-medium tracking-wide">
         <div className="hidden md:flex items-center justify-center gap-8 py-2 text-sm font-medium max-w-7xl mx-auto">
           {/* === All Products Button === */}
-          <button
-            onClick={handleToggle}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-[#11A96A] font-semibold 
-                 hover:bg-[#37475A] hover:text-white transition"
-          >
-            <FaBars />
-            <span>All Products</span>
-          </button>
+         {/* Menu Icon (opens mega menu) */}
+<button
+  onClick={() => setShowAllProducts(true)}
+  className="flex items-center gap-2 px-3 py-2 rounded-md
+             bg-white text-[#11A96A]
+             hover:bg-[#37475A] hover:text-white transition"
+  aria-label="Open menu"
+>
+  <FaBars />
+</button>
+
+{/* All Products (redirect only) */}
+<button
+  onClick={() => navigate("/all-products")}
+  className="px-4 py-2 rounded-md font-semibold
+             text-white hover:bg-[#37475A] transition"
+>
+  All Products
+</button>
+
 
           {/* === Category Mega Menu === */}
           <div className="flex-shrink-0">

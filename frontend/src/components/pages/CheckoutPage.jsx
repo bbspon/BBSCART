@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useCart } from "../../../context/CartContext";
 import Select from "react-select";
 import toast from "react-hot-toast";
 import Button from "../layout/Button";
@@ -8,8 +7,8 @@ import { ProductService } from "../../services/ProductService";
 import { useSelector, useDispatch } from "react-redux";
 import { placeOrder } from "../../slice/orderSlice";
 import { GetCountries, GetState, GetCity } from "react-country-state-city";
-import { removeFromCart } from "../../slice/cartSlice";
- import SlotPicker from "../../components/SlotPicker";
+import { removeFromCart, fetchCartItems, clearCart } from "../../slice/cartSlice";
+import SlotPicker from "../../components/SlotPicker";
 const loadRazorpay = () => {
   return new Promise((resolve) => {
     const script = document.createElement("script");
@@ -23,15 +22,49 @@ const loadRazorpay = () => {
 function CheckoutPage() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const location = useLocation();
 
   const user = useSelector((state) => state.auth.user);
   const auth = useSelector((state) => state.auth);
- console.log("CHECKOUT USER →", user);
- console.log("AUTH STATE →", auth);
+  const reduxCartItems = useSelector((state) => state.cart.items || []);
+  
+  console.log("CHECKOUT USER →", user);
+  console.log("AUTH STATE →", auth);
+  console.log("CHECKOUT LOCATION STATE →", location.state);
+  console.log("REDUX CART ITEMS →", reduxCartItems);
 
+  // Check if this is a direct purchase from Buy Now button
+  const isDirectPurchase = location.state?.directPurchase === true;
+  const directProduct = location.state?.product;
 
-  const cart = useCart();
-  const cartItems = cart.state.items;
+  // Normalize Redux cart items to a consistent format
+  const cartItems = useMemo(() => {
+    // If direct purchase, use the product passed via route state
+    if (isDirectPurchase && directProduct) {
+      return [{
+        productId: directProduct.productId,
+        variantId: directProduct.variantId || null,
+        name: directProduct.name || "Product",
+        price: Number(directProduct.price || 0),
+        qty: Number(directProduct.quantity || 1),
+        image: directProduct.image || "",
+      }];
+    }
+
+    // Otherwise, use Redux cart items
+    const itemsArray = Array.isArray(reduxCartItems) ? reduxCartItems : Object.values(reduxCartItems || {});
+    return itemsArray.map((item) => {
+      const productObj = item.product && typeof item.product === "object" ? item.product : null;
+      return {
+        productId: productObj?._id || item.productId || item.product || item._id,
+        variantId: item.variant?._id || item.variantId || item.variant || null,
+        name: productObj?.name || item.name || productObj?.title || "Product",
+        price: Number(item.quantityPrice || item.price || productObj?.price || productObj?.mrp || 0),
+        qty: Number(item.quantity || item.qty || 0),
+        image: productObj?.product_img_url || productObj?.product_img || (Array.isArray(productObj?.gallery_img_urls) && productObj.gallery_img_urls[0]) || item.image || "",
+      };
+    });
+  }, [reduxCartItems, isDirectPurchase, directProduct]);
 
   const cartTotal = useMemo(() => {
     return cartItems.reduce(
@@ -174,7 +207,7 @@ function CheckoutPage() {
                     })
                   )
                 );
-                cart.clear();
+                dispatch(clearCart());
                 toast.success(
                   sentToDelivery
                     ? "Payment successful, order placed! Assigned order has been sent to the delivery app."
@@ -210,7 +243,7 @@ function CheckoutPage() {
           })
         )
       );
-      cart.clear();
+      dispatch(clearCart());
       if (sentToDelivery) {
         toast.success(
           trackingId
@@ -293,7 +326,12 @@ function CheckoutPage() {
     if (orderData.shippingAddress.state) fetchCities();
   }, [orderData.shippingAddress.state, states]);
 
-  const location = useLocation();
+  // Fetch cart items on component mount (only if not direct purchase)
+  useEffect(() => {
+    if (!isDirectPurchase) {
+      dispatch(fetchCartItems());
+    }
+  }, [dispatch, isDirectPurchase]);
 
   useEffect(() => {
     window.scrollTo(0, 0);

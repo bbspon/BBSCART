@@ -5,22 +5,30 @@ import instance from "../../services/axiosInstance"; // adjust path as needed
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 function pickMainImage(p) {
-  // 1. Prefer first gallery image
-  let raw =
-    Array.isArray(p.gallery_imgs) && p.gallery_imgs.length > 0
-      ? p.gallery_imgs[0]
-      : "";
+  // Try multiple possible fields coming from different API shapes
+  const pickFromArray = (v) => (Array.isArray(v) && v.length ? v[0] : "");
 
-  // 2. Fallbacks if gallery is empty
-  if (!raw)
-    raw = Array.isArray(p.product_img) ? p.product_img[0] : p.product_img;
-  if (!raw)
-    raw = Array.isArray(p.product_img2) ? p.product_img2[0] : p.product_img2;
+  let raw = "";
+  raw = raw || (p.product_img_url && String(p.product_img_url));
+  raw = raw || pickFromArray(p.gallery_img_urls);
+  raw = raw || pickFromArray(p.gallery_imgs);
+  raw = raw || (Array.isArray(p.product_img) ? p.product_img[0] : p.product_img);
+  raw = raw || (Array.isArray(p.product_img2) ? p.product_img2[0] : p.product_img2);
+  raw = raw || p.image || p.img || "";
 
   if (!raw) return "/img/placeholder.png";
 
-  // 3. Normalize /uploads/ → full URL
-  return raw.startsWith("/uploads/") ? `${API_BASE}${raw}` : raw;
+  // Handle pipe-separated lists like "a.webp|b.webp"
+  if (String(raw).includes("|")) raw = String(raw).split("|")[0].trim();
+
+  // Normalize /uploads/ → full URL
+  if (String(raw).startsWith("/uploads/")) return `${API_BASE}${raw}`;
+
+  // If it's already a full URL, return as-is
+  if (/^https?:\/\//i.test(String(raw))) return raw;
+
+  // Bare filename -> assume uploads/products
+  return `${API_BASE}/uploads/${encodeURIComponent(String(raw))}`;
 }
 
 // Helpers
@@ -50,10 +58,12 @@ export default function ProductListingFull() {
   const [maxPrice, setMaxPrice] = useState(30000);
 
   const [allBrands, setAllBrands] = useState([]);
+  const [allCategories, setAllCategories] = useState([]);
   const [ramOptions, setRamOptions] = useState([]);
   const [priceRange, setPriceRange] = useState({ min: 0, max: 30000 });
 
   const [selectedBrands, setSelectedBrands] = useState(new Set());
+  const [selectedCategories, setSelectedCategories] = useState(new Set());
   const [selectedRAM, setSelectedRAM] = useState(new Set());
   const [selectedRatings, setSelectedRatings] = useState(new Set());
 
@@ -102,6 +112,7 @@ export default function ProductListingFull() {
     setMinPrice(priceRange.min);
     setMaxPrice(priceRange.max);
     setSelectedBrands(new Set());
+    setSelectedCategories(new Set());
     setSelectedRAM(new Set());
     setSelectedRatings(new Set());
     setGstInvoiceOnly(false);
@@ -118,20 +129,40 @@ export default function ProductListingFull() {
       return copy;
     });
 
-  // Fetch facets
+  // Fetch facets and categories
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         const { facets } = getApiBase(pincode);
-        const { data } = await instance.get(facets);
+        const facetsResponse = await instance.get(facets);
+        const facetsData = facetsResponse.data || {};
+        
+        // Fetch categories from the correct endpoint
+        const categoriesResponse = await instance.get("/categories", {
+          params: { pincode },
+        });
+        
+        // Handle different response shapes
+        const categoriesData = Array.isArray(categoriesResponse.data?.items)
+          ? categoriesResponse.data.items
+          : Array.isArray(categoriesResponse.data)
+          ? categoriesResponse.data
+          : [];
+        
         if (!alive) return;
-        const brands = (data.brands || []).map((b) => b.name).filter(Boolean);
-        const rams = (data.ram || [])
+        
+        const brands = (facetsData.brands || []).map((b) => b.name).filter(Boolean);
+        const categories = categoriesData
+          .map((c) => c.name || c._id || c)
+          .filter(Boolean);
+        const rams = (facetsData.ram || [])
           .map((r) => Number(r.value))
           .filter((n) => !Number.isNaN(n));
-        const price = data.price || { min: 0, max: 30000 };
+        const price = facetsData.price || { min: 0, max: 30000 };
+        
         setAllBrands(brands);
+        setAllCategories(categories);
         setRamOptions(rams.sort((a, b) => a - b));
         setPriceRange({
           min: Math.max(0, Math.floor(price.min || 0)),
@@ -140,7 +171,7 @@ export default function ProductListingFull() {
         setMinPrice(Math.max(0, Math.floor(price.min || 0)));
         setMaxPrice(Math.ceil(price.max || 30000));
       } catch (e) {
-        console.error("Failed to load facets", e);
+        console.error("Failed to load facets or categories", e);
       }
     })();
     return () => {
@@ -160,6 +191,9 @@ export default function ProductListingFull() {
       maxPrice: Number.isFinite(maxPrice) ? maxPrice : undefined,
       brands: selectedBrands.size
         ? Array.from(selectedBrands).join(",")
+        : undefined,
+      categories: selectedCategories.size
+        ? Array.from(selectedCategories).join(",")
         : undefined,
       rating_gte: selectedRatings.size
         ? Math.max(...Array.from(selectedRatings))
@@ -202,6 +236,7 @@ export default function ProductListingFull() {
     minPrice,
     maxPrice,
     selectedBrands,
+    selectedCategories,
     selectedRAM,
     selectedRatings,
     gstInvoiceOnly,
@@ -212,7 +247,8 @@ export default function ProductListingFull() {
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
-  const filtered = useMemo(() => products, [products]);
+const filtered = useMemo(() => products, [products]);
+
 
   return (
  <>
@@ -279,30 +315,37 @@ export default function ProductListingFull() {
             Range: ₹{inr(priceRange.min)} - ₹{inr(priceRange.max)}
           </div>
         </div>
+{/* Categories */}
+<div className="mb-4">
+  <label className="block text-sm font-medium mb-1">Categories</label>
 
-        {/* Brands */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Brands</label>
-          <div className="space-y-2">
-            {allBrands.map((b) => (
-              <label key={b} className="flex items-center gap-2 mx-3">
-                <input
-                  type="checkbox"
-                  checked={selectedBrands.has(b)}
-                  onChange={() => {
-                    toggleSetItem(setSelectedBrands, b);
-                    setPage(1);
-                  }}
-                  className="w-3 h-4"
-                />
-                <span className="mx-2">{b}</span>
-              </label>
-            ))}
-            {allBrands.length === 0 && (
-              <div className="text-xs text-gray-500 mx-3">No brand facets</div>
-            )}
-          </div>
-        </div>
+  <div className="space-y-2">
+    {allCategories.map((category) => (
+      <label
+        key={category}
+        className="flex items-center gap-2 px-2 py-1 cursor-pointer"
+      >
+        <input
+          type="checkbox"
+          className="w-4 h-4 cursor-pointer"
+          checked={selectedCategories.has(category)}
+          onChange={() => {
+            toggleSetItem(setSelectedCategories, category);
+            setPage(1);
+          }}
+        />
+        <span className="text-sm">{category}</span>
+      </label>
+    ))}
+
+    {allCategories.length === 0 && (
+      <div className="text-xs text-gray-500 px-2">
+        No categories available
+      </div>
+    )}
+  </div>
+</div>
+
 
         {/* Ratings */}
         <div className="mb-4">
@@ -489,7 +532,7 @@ export default function ProductListingFull() {
                 <div className="w-36 h-36 flex-shrink-0 rounded overflow-hidden bg-gray-100">
                   <img
                     src={pickMainImage(p)}
-                    alt={p.title}
+                    alt={p.name || p.title || p.product_name || "Product"}
                     className="w-full h-full object-contain"
                   />
                 </div>
@@ -497,7 +540,7 @@ export default function ProductListingFull() {
                 <div className="flex-1 ml-4">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h2 className="font-medium text-gray-800">{p.title}</h2>
+                      <h2 className="font-medium text-gray-800">{p.name || p.title || p.product_name}</h2>
                       <div className="text-xs text-gray-500 mt-1">
                         {p.reviewsText}
                       </div>
@@ -552,14 +595,14 @@ export default function ProductListingFull() {
               >
                 <div className="w-20 flex items-center">
                   <img
-                    src={p.image}
-                    alt={p.title}
+                    src={p.image || pickMainImage(p)}
+                    alt={p.name || p.title || p.product_name || "Product"}
                     className="w-full object-contain"
                   />
                 </div>
 
                 <div className="flex-1 px-4">
-                  <div className="font-medium text-gray-800">{p.title}</div>
+                  <div className="font-medium text-gray-800">{p.name || p.title || p.product_name}</div>
                   <div className="text-xs text-gray-500 mt-1">
                     {p.reviewsText}
                   </div>

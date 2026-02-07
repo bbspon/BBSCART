@@ -1312,21 +1312,26 @@ const handleDecrease = (e, product) => {
                         e.stopPropagation();
                         const deliveryPincode = getPincode();
                         if (!deliveryPincode) {
-                          alert("Please enter your delivery pincode before buying.");
+                          toast.error("Please enter your delivery pincode before buying.");
                           return;
                         }
-                        // Add to cart and navigate to checkout page
-                        dispatch(
-                          addToCart({
-                            productId: p._id,
-                            variantId: null,
-                            quantity: 1,
-                            deliveryPincode,
-                          })
-                        ).then(() => {
-                          dispatch(fetchCartItems(deliveryPincode));
-                          // Navigate to checkout page
-                          navigate("/checkout");
+
+                        // Store pincode in localStorage
+                        localStorage.setItem("deliveryPincode", deliveryPincode);
+
+                        // Pass product directly to checkout via route state
+                        navigate("/checkout", {
+                          state: {
+                            directPurchase: true,
+                            product: {
+                              productId: p._id,
+                              name: p.name,
+                              price: p.price,
+                              image: pickImage(p),
+                              quantity: 1,
+                              variantId: null,
+                            },
+                          },
                         });
                       }}
                       className="flex flex-row items-center gap-1 border rounded-2xl p-2 px-1 text-xs text-nowrap

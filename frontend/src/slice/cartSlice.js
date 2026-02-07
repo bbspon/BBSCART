@@ -123,31 +123,57 @@ const cartSlice = createSlice({
                 state.error = action.payload;
             })
             .addCase(addToCart.fulfilled, (state, action) => {
-                const { product, variant, quantity } = action.payload.cartItem;
+                // Handle the cart item from the API response
+                const cartItem = action.payload.cartItem;
+                if (!cartItem) return;
+
+                const productId = cartItem.product?._id || cartItem.product;
+                const variantId = cartItem.variant?._id || cartItem.variant;
+
                 const existingItem = state.items.find(
-                    (item) => item.product._id === product && item.variant?._id === variant
+                    (item) => {
+                        const itemProdId = item.product?._id || item.product;
+                        const itemVarId = item.variant?._id || item.variant;
+                        return itemProdId === productId && itemVarId === variantId;
+                    }
                 );
 
                 if (existingItem) {
-                    existingItem.quantity += quantity;
+                    existingItem.quantity += cartItem.quantity || 1;
                 } else {
-                    state.items.push(action.payload.cartItem);
+                    state.items.push(cartItem);
                 }
+
+                console.log("[cartSlice] Item added, current state:", state.items);
             })
             .addCase(updateQuantity.fulfilled, (state, action) => {
-                const { product, variant, quantity } = action.payload.cartItem;
+                const cartItem = action.payload.cartItem;
+                if (!cartItem) return;
+
+                const productId = cartItem.product?._id || cartItem.product;
+                const variantId = cartItem.variant?._id || cartItem.variant;
+
                 const item = state.items.find(
-                    (item) => item.product._id === product && item.variant?._id === variant
+                    (item) => {
+                        const itemProdId = item.product?._id || item.product;
+                        const itemVarId = item.variant?._id || item.variant;
+                        return itemProdId === productId && itemVarId === variantId;
+                    }
                 );
 
                 if (item) {
-                    item.quantity = quantity;
+                    item.quantity = cartItem.quantity;
                 }
             })
             .addCase(removeFromCart.fulfilled, (state, action) => {
-                state.items = state.items.filter(
-                    (item) => !(item.product._id === action.payload.productId && item.variant?._id === action.payload.variantId)
-                );
+                const productId = action.payload.productId;
+                const variantId = action.payload.variantId;
+
+                state.items = state.items.filter((item) => {
+                    const itemProdId = item.product?._id || item.product;
+                    const itemVarId = item.variant?._id || item.variant;
+                    return !(itemProdId === productId && itemVarId === variantId);
+                });
             })
             .addCase(clearCart.fulfilled, (state) => {
                 state.items = [];
