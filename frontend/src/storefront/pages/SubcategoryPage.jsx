@@ -24,7 +24,7 @@ import {
 import toast from "react-hot-toast";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
-  const STATIC_PREFIXES = ["/uploads"]; // support both roots
+const STATIC_PREFIXES = ["/uploads"]; // support both roots
 
 export default function SubcategoryPage() {
   const [page, setPage] = useState(1);
@@ -36,26 +36,26 @@ export default function SubcategoryPage() {
     if (page > 1) setPage(page - 1);
   };
 
-const toggleWishlist = async (e, productId) => {
-  e.preventDefault();
-  e.stopPropagation();
+  const toggleWishlist = async (e, productId) => {
+    e.preventDefault();
+    e.stopPropagation();
 
-  const exists = wishlist.some(
-    (w) => w.productId === productId || w?.product?._id === productId
-  );
+    const exists = wishlist.some(
+      (w) => w.productId === productId || w?.product?._id === productId
+    );
 
-  try {
-    if (exists) {
-      await dispatch(removeFromWishlist(productId));
-    } else {
-      await dispatch(addToWishlist({ productId }));
+    try {
+      if (exists) {
+        await dispatch(removeFromWishlist(productId));
+      } else {
+        await dispatch(addToWishlist({ productId }));
+      }
+
+      dispatch(fetchWishlistItems());
+    } catch (err) {
+      console.log("Wishlist toggle error:", err);
     }
-
-    dispatch(fetchWishlistItems());
-  } catch (err) {
-    console.log("Wishlist toggle error:", err);
-  }
-};
+  };
 
 
   const handleNext = () => {
@@ -85,89 +85,89 @@ const toggleWishlist = async (e, productId) => {
   useEffect(() => {
     dispatch(fetchWishlistItems());
   }, []);
-const cartItems = useSelector((state) => state.cart.items);
+  const cartItems = useSelector((state) => state.cart.items);
 
-const getQty = (id) => {
-  const itemsArr = Array.isArray(cartItems) ? cartItems : Object.values(cartItems || {});
-  const found = itemsArr.find(
-    (c) => c?.product?._id === id || c?.product === id || c?.productId === id
-  );
-  return found ? (found.quantity || found.qty || 0) : 0;
-};
-
-const handleAdd = (e, product) => {
-  e.preventDefault();
-  e.stopPropagation(); // Prevent navigation to product page
-
-  const deliveryPincode = getPincode();
-  if (!deliveryPincode) {
-    toast.error("Please enter your delivery pincode before adding items to cart.");
-    return;
-  }
-
-  // Ensure pincode is stored in localStorage (cartSlice reads from there)
-  if (deliveryPincode) {
-    localStorage.setItem("deliveryPincode", deliveryPincode);
-  }
-
-  console.log("[handleAdd] Adding product to cart:", {
-    productId: product._id,
-    productName: product.name,
-    deliveryPincode,
-  });
-
-  dispatch(
-    addToCart({
-      productId: product._id,
-      variantId: null,
-      quantity: 1,
-    })
-  )
-    .unwrap() // Use unwrap() to get the actual result/error from the thunk
-    .then((result) => {
-      console.log("[handleAdd] Success:", result);
-      dispatch(fetchCartItems());
-      toast.success("Product added to cart!");
-    })
-    .catch((error) => {
-      console.error("[handleAdd] Failed to add to cart:", error);
-      const errorMsg = error?.message || error?.error || "Failed to add product to cart. Please try again.";
-      toast.error(errorMsg);
-    });
-};
-;
-
-const handleIncrease = (e, product) => {
-  e.preventDefault();
-  const qty = getQty(product._id);
-
-  dispatch(
-    updateQuantity({
-      productId: product._id,
-      variantId: null,
-      quantity: qty + 1,
-    })
-  ).then(() => dispatch(fetchCartItems()));
-};
-
-const handleDecrease = (e, product) => {
-  e.preventDefault();
-  const qty = getQty(product._id);
-
-  if (qty <= 1) {
-    dispatch(removeFromCart({ productId: product._id, variantId: null })).then(
-      () => dispatch(fetchCartItems())
+  const getQty = (id) => {
+    const itemsArr = Array.isArray(cartItems) ? cartItems : Object.values(cartItems || {});
+    const found = itemsArr.find(
+      (c) => c?.product?._id === id || c?.product === id || c?.productId === id
     );
-  } else {
+    return found ? (found.quantity || found.qty || 0) : 0;
+  };
+
+  const handleAdd = (e, product) => {
+    e.preventDefault();
+    e.stopPropagation(); // Prevent navigation to product page
+
+    const deliveryPincode = getPincode();
+    if (!deliveryPincode) {
+      toast.error("Please enter your delivery pincode before adding items to cart.");
+      return;
+    }
+
+    // Ensure pincode is stored in localStorage (cartSlice reads from there)
+    if (deliveryPincode) {
+      localStorage.setItem("deliveryPincode", deliveryPincode);
+    }
+
+    console.log("[handleAdd] Adding product to cart:", {
+      productId: product._id,
+      productName: product.name,
+      deliveryPincode,
+    });
+
+    dispatch(
+      addToCart({
+        productId: product._id,
+        variantId: null,
+        quantity: 1,
+      })
+    )
+      .unwrap() // Use unwrap() to get the actual result/error from the thunk
+      .then((result) => {
+        console.log("[handleAdd] Success:", result);
+        dispatch(fetchCartItems());
+        toast.success("Product added to cart!");
+      })
+      .catch((error) => {
+        console.error("[handleAdd] Failed to add to cart:", error);
+        const errorMsg = error?.message || error?.error || "Failed to add product to cart. Please try again.";
+        toast.error(errorMsg);
+      });
+  };
+  ;
+
+  const handleIncrease = (e, product) => {
+    e.preventDefault();
+    const qty = getQty(product._id);
+
     dispatch(
       updateQuantity({
         productId: product._id,
         variantId: null,
-        quantity: qty - 1,
+        quantity: qty + 1,
       })
     ).then(() => dispatch(fetchCartItems()));
-  }
-};
+  };
+
+  const handleDecrease = (e, product) => {
+    e.preventDefault();
+    const qty = getQty(product._id);
+
+    if (qty <= 1) {
+      dispatch(removeFromCart({ productId: product._id, variantId: null })).then(
+        () => dispatch(fetchCartItems())
+      );
+    } else {
+      dispatch(
+        updateQuantity({
+          productId: product._id,
+          variantId: null,
+          quantity: qty - 1,
+        })
+      ).then(() => dispatch(fetchCartItems()));
+    }
+  };
 
 
   const [liked, setLiked] = useState(false);
@@ -527,8 +527,8 @@ const handleDecrease = (e, product) => {
         const arr = Array.isArray(data?.items)
           ? data.items
           : Array.isArray(data)
-          ? data
-          : [];
+            ? data
+            : [];
         console.log("[RES] /subcategories", arr.length, arr);
         setSubcategories(arr);
       } catch (err) {
@@ -551,8 +551,8 @@ const handleDecrease = (e, product) => {
         const arr = Array.isArray(data?.items)
           ? data.items
           : Array.isArray(data)
-          ? data
-          : [];
+            ? data
+            : [];
         console.log("[RES] /categories", arr.length);
         setCategories(arr);
       } catch (err) {
@@ -721,20 +721,32 @@ const handleDecrease = (e, product) => {
     : fallback.priceBands;
   function norm(u) {
     if (!u) return "";
-    const s = String(u).trim();
-    // absolute URLs as-is
-    if (/^https?:\/\//i.test(s)) return s;
 
-    // server static paths: allow /uploads and /uploads-bbscart (and nested images/YYYY/MM)
+    const s = String(u).trim();
+
+    // Absolute URL → return as-is
+    if (/^https?:\/\//i.test(s)) {
+      return s;
+    }
+
+    // Server static paths like /uploads/...
     if (STATIC_PREFIXES.some((pre) => s.startsWith(pre + "/"))) {
       return `${API_BASE}${s}`;
     }
 
-    // bare filename: fall back to the preferred products folder under /uploads
-    return `${API_BASE}/uploads/${encodeURIComponent(s)}`;
+    // Extract filename safely
+    const filename = encodeURIComponent(s.replace(/^\/+/, ""));
+
+    // If already has image extension
+    if (/\.(webp|jpg|jpeg|png)$/i.test(filename)) {
+      return `${API_BASE}/uploads/${filename}`;
+    }
+
+    // Prefer webp, fallback handled by <img onError>
+    return `${API_BASE}/uploads/${filename}.webp`;
   }
 
-  function pickImage(p) {
+  function pickMainImage(p) {
     // 1) Prefer explicit, already-built URLs from backend
     if (p.product_img_url) return p.product_img_url;
     if (Array.isArray(p.gallery_img_urls) && p.gallery_img_urls[0]) {
@@ -755,9 +767,9 @@ const handleDecrease = (e, product) => {
       const t = String(val).trim();
       return t.includes("|")
         ? t
-            .split("|")
-            .map((s) => s.trim())
-            .filter(Boolean)[0]
+          .split("|")
+          .map((s) => s.trim())
+          .filter(Boolean)[0]
         : t;
     };
 
@@ -898,7 +910,7 @@ const handleDecrease = (e, product) => {
                   type="text"
                   placeholder="Search here"
                   className="mt-2 mb-2 w-full border rounded-md px-2 py-1 text-sm"
-                  onChange={() => {}}
+                  onChange={() => { }}
                 />
                 <div className="divide-y divide-gray-100">
                   {lists.brands.map((b) => {
@@ -1237,13 +1249,22 @@ const handleDecrease = (e, product) => {
                 {/* Product Card Link */}
                 <Link to={`/p/${p._id}`} className="block ">
                   <img
-                    src={pickImage(p)}
-                    alt=""
-                    className="mb-2 h-32 w-full rounded object-cover"
-                    // onError={(e) =>
-                    //   (e.currentTarget.src = "/img/placeholder.png")
-                    // }
+                    src={pickMainImage(p)}
+                    alt={p.name || "Product"}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      const src = e.currentTarget.src;
+
+                      if (src.endsWith(".webp")) {
+                        e.currentTarget.src = src.replace(".webp", ".jpg");
+                      } else if (src.endsWith(".jpg")) {
+                        e.currentTarget.src = src.replace(".jpg", ".png");
+                      } else {
+                        e.currentTarget.src = "/img/placeholder.png";
+                      }
+                    }}
                   />
+
 
                   <div className="flex items-center justify-between px-1 py-2">
                     <div>
@@ -1257,14 +1278,13 @@ const handleDecrease = (e, product) => {
                       <BsFillHeartFill
                         size={20}
                         onClick={(e) => toggleWishlist(e, p._id)}
-                        className={`text-xl cursor-pointer transition-colors duration-200 ${
-                          wishlist.some(
-                            (w) =>
-                              w.productId === p._id || w?.product?._id === p._id
-                          )
+                        className={`text-xl cursor-pointer transition-colors duration-200 ${wishlist.some(
+                          (w) =>
+                            w.productId === p._id || w?.product?._id === p._id
+                        )
                             ? "text-red-500"
                             : "text-gray-300"
-                        }`}
+                          }`}
                       />
                     </div>
                   </div>
@@ -1342,7 +1362,7 @@ const handleDecrease = (e, product) => {
                     </button>
                   </div>
                 </Link>
-            
+
               </div>
             ))}
           </div>
@@ -1352,11 +1372,10 @@ const handleDecrease = (e, product) => {
           <button
             onClick={handlePrev}
             disabled={page === 1}
-            className={`p-1 rounded-md ${
-              page === 1
+            className={`p-1 rounded-md ${page === 1
                 ? "text-gray-300 cursor-not-allowed"
                 : "text-gray-700 hover:text-black"
-            }`}
+              }`}
           >
             <TbArrowBadgeLeft size={24} />
           </button>
@@ -1372,11 +1391,10 @@ const handleDecrease = (e, product) => {
           <button
             onClick={handleNext}
             disabled={page === totalPages}
-            className={`p-1 rounded-md ${
-              page === totalPages
+            className={`p-1 rounded-md ${page === totalPages
                 ? "text-gray-300 cursor-not-allowed"
                 : "text-gray-700 hover:text-black"
-            }`}
+              }`}
           >
             <TbArrowBadgeRight size={24} />
           </button>
