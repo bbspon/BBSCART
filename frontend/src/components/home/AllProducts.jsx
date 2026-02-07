@@ -2,6 +2,8 @@
 import { Link } from "react-router-dom";
 import React, { useEffect, useMemo, useState } from "react";
 import instance from "../../services/axiosInstance"; // adjust path as needed
+import { useSearchParams } from "react-router-dom";
+
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 function pickMainImage(p) {
@@ -61,6 +63,7 @@ export default function ProductListingFull() {
   const [allCategories, setAllCategories] = useState([]);
   const [ramOptions, setRamOptions] = useState([]);
   const [priceRange, setPriceRange] = useState({ min: 0, max: 30000 });
+const [searchParams] = useSearchParams();
 
   const [selectedBrands, setSelectedBrands] = useState(new Set());
   const [selectedCategories, setSelectedCategories] = useState(new Set());
@@ -93,6 +96,14 @@ export default function ProductListingFull() {
       return copy;
     });
   }
+  useEffect(() => {
+  const q = searchParams.get("search");
+  if (q) {
+    setSearch(q);
+    setPage(1);
+  }
+}, [searchParams]);
+
   useEffect(() => {
     if (pincode) {
       instance.defaults.headers.common["X-Pincode"] = pincode;
@@ -128,6 +139,15 @@ export default function ProductListingFull() {
       else copy.add(id);
       return copy;
     });
+// 🔁 Force reload when URL search changes
+useEffect(() => {
+  const q = searchParams.get("search");
+
+  if (q !== null) {
+    setSearch(q);
+    setPage(1);
+  }
+}, [searchParams.toString()]);
 
   // Fetch facets and categories
   useEffect(() => {
