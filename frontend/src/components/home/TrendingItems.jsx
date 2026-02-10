@@ -3,6 +3,7 @@ import Slider from "react-slick";
 import instance from "../../services/axiosInstance";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
+import { useNavigate } from "react-router-dom";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const STATIC_PREFIXES = ["/uploads"];
@@ -71,9 +72,11 @@ function pickMainImage(p) {
 
 /* ================= PRODUCT CARD ================= */
 
-const ProductCard = ({ product }) => (
-  <div className="flex items-center gap-4 border p-4 rounded-lg bg-white shadow-sm hover:shadow-md">
-    <img
+const ProductCard = ({ product,onClick  }) => (
+  <div
+    onClick={onClick}
+    className="flex items-center gap-4 border p-4 rounded-lg bg-white shadow-sm hover:shadow-md cursor-pointer"
+  >    <img
       src={pickMainImage(product)}
       alt={product.name || product.product_name}
       className="w-16 h-16 object-contain"
@@ -112,6 +115,7 @@ export default function ProductSlider() {
     rated: [],
     selling: [],
   });
+  const navigate = useNavigate();
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -153,9 +157,13 @@ export default function ProductSlider() {
           }}
         >
           <h2 className="text-xl font-bold">Our Top Most Products</h2>
-          <button className="bg-green-500 px-4 py-2 rounded self-end mt-4">
+          <button
+            onClick={() => navigate("/all-products")}
+            className="bg-green-500 px-4 py-2 rounded self-end mt-4"
+          >
             Shop Now
           </button>
+
         </div>
 
         {[
@@ -170,9 +178,13 @@ export default function ProductSlider() {
               <Slider {...settings}>
                 {products[block.key].map((p) => (
                   <div key={p._id} className="p-2">
-                    <ProductCard product={p} />
+                    <ProductCard
+                      product={p}
+                      onClick={() => navigate(`/p/${p._id}`)}
+                    />
                   </div>
                 ))}
+
               </Slider>
             ) : (
               <p className="text-sm text-gray-400">No products available</p>

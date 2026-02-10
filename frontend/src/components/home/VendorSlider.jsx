@@ -4,6 +4,7 @@ import instance from "../../services/axiosInstance";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import Vendor from "../../assets/user-avatar.png";
+import { useNavigate } from "react-router-dom";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -56,7 +57,7 @@ const settings = {
 
 /* ================= VENDOR CARD ================= */
 
-const VendorCard = ({ vendor }) => (
+const VendorCard = ({ vendor, navigate }) => (
   <div className="bg-white rounded-xl p-4 shadow-md">
     <div className="flex items-center gap-3 mb-4">
    <img
@@ -88,16 +89,21 @@ const VendorCard = ({ vendor }) => (
     </div>
 
     <div className="grid grid-cols-2 gap-2">
-      {vendor.products.map((src, i) => (
-        <div key={i} className="p-2 border rounded-md">
-          <img
-            src={src}
-            alt=""
-            className="h-16 object-contain mx-auto"
-            onError={(e) => (e.currentTarget.src = "/img/placeholder.png")}
-          />
-        </div>
-      ))}
+   {vendor.products.map((product, i) => (
+  <div
+    key={i}
+    className="p-2 border rounded-md cursor-pointer hover:shadow-md transition"
+    onClick={() => navigate(`/p/${product.id}`)}
+  >
+    <img
+      src={product.image}
+      alt=""
+      className="h-16 object-contain mx-auto"
+      onError={(e) => (e.currentTarget.src = "/img/placeholder.png")}
+    />
+  </div>
+))}
+
     </div>
   </div>
 );
@@ -106,6 +112,7 @@ const VendorCard = ({ vendor }) => (
 
 export default function VendorSlider() {
   const [vendors, setVendors] = useState([]);
+const navigate = useNavigate();
 
   useEffect(() => {
     const loadVendors = async () => {
@@ -136,7 +143,10 @@ export default function VendorSlider() {
 
           vendorMap[vid].items += 1;
 
-          vendorMap[vid].productImages.push(pickProductImage(p));
+vendorMap[vid].productImages.push({
+  id: p._id,
+  image: pickProductImage(p),
+});
         });
 
         /* ---------- STEP 2: SPLIT EACH VENDOR INTO MULTIPLE CARDS ---------- */
@@ -181,7 +191,7 @@ export default function VendorSlider() {
           <Slider {...settings}>
             {vendors.map((vendor) => (
               <div key={vendor.id} className="px-2 py-3">
-                <VendorCard vendor={vendor} />
+<VendorCard vendor={vendor} navigate={navigate} />
               </div>
             ))}
           </Slider>

@@ -18,6 +18,29 @@ const loadRazorpay = () => {
     document.body.appendChild(script);
   });
 };
+const API_BASE =
+  import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+function pickMainImage(p) {
+  const pickFromArray = (v) => (Array.isArray(v) && v.length ? v[0] : "");
+
+  let raw = "";
+  raw = raw || p?.image;
+  raw = raw || p?.product_img_url;
+  raw = raw || pickFromArray(p?.gallery_img_urls);
+  raw = raw || pickFromArray(p?.gallery_imgs);
+  raw = raw || p?.product_img;
+
+  if (!raw) return "/img/placeholder.png";
+
+  if (String(raw).includes("|")) raw = String(raw).split("|")[0].trim();
+
+  if (String(raw).startsWith("/uploads/")) return `${API_BASE}${raw}`;
+
+  if (/^https?:\/\//i.test(String(raw))) return raw;
+
+  return `${API_BASE}/uploads/${encodeURIComponent(String(raw))}`;
+}
 
 function CheckoutPage() {
   const navigate = useNavigate();
@@ -61,7 +84,12 @@ function CheckoutPage() {
         name: productObj?.name || item.name || productObj?.title || "Product",
         price: Number(item.quantityPrice || item.price || productObj?.price || productObj?.mrp || 0),
         qty: Number(item.quantity || item.qty || 0),
-        image: productObj?.product_img_url || productObj?.product_img || (Array.isArray(productObj?.gallery_img_urls) && productObj.gallery_img_urls[0]) || item.image || "",
+image: productObj?.product_img_url
+  || productObj?.product_img
+  || (Array.isArray(productObj?.gallery_img_urls) && productObj.gallery_img_urls[0])
+  || item.image
+  || ""
+
       };
     });
   }, [reduxCartItems, isDirectPurchase, directProduct]);
@@ -413,11 +441,12 @@ function CheckoutPage() {
                           className="pro-items p-[15px] bg-[#f8f8fb] border border-[#eee] rounded-[20px] flex mb-[24px] max-[420px]:flex-col"
                         >
                           <div className="image mr-[15px] max-[420px]:mr-[0] max-[420px]:mb-[15px]">
-                            <img
-                              src={item.image || ""}
-                              alt={item.name || ""}
-                              className="max-w-max w-[100px] h-[100px] border-[1px] border-solid border-[#eee] rounded-[20px] max-[1399px]:h-[80px] max-[1399px]:w-[80px]"
-                            />
+                        <img
+  src={pickMainImage(item)}
+  alt={item.name || "Product"}
+  className="max-w-max w-[100px] h-[100px] border-[1px] border-solid border-[#eee] rounded-[20px]"
+/>
+
                           </div>
                           <div className="items-contact">
                             <h4 className="text-[16px]">

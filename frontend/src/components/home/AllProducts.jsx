@@ -574,12 +574,15 @@ setAllCategories(categoriesData);
               </div>
             )}
 
-            {filtered.map((p) =>
-              view === "grid" ? (
-                <article
-                  key={p.id}
-                  className="flex border rounded-lg p-4 hover:shadow-md transition bg-white"
-                >
+         {filtered.map((p) =>
+  view === "grid" ? (
+    <Link
+      key={getProductId(p)}
+      to={`/p/${getProductId(p)}`}
+      className="block"
+    >
+      <article className="flex border rounded-lg p-4 hover:shadow-md transition bg-white cursor-pointer">
+
                   <div className="w-36 h-36 flex-shrink-0 rounded overflow-hidden bg-gray-100">
                     <img
                       src={pickMainImage(p)}
@@ -654,11 +657,15 @@ setAllCategories(categoriesData);
                     </div>
                   </div>
                 </article>
+                </Link>
               ) : (
-                <div
-                  key={p.id}
-                  className="md:flex items-center border rounded px-4 py-3 bg-white"
-                >
+               <Link
+  key={getProductId(p)}
+  to={`/p/${getProductId(p)}`}
+  className="block"
+>
+  <div className="md:flex items-center border rounded px-4 py-3 bg-white hover:shadow-md cursor-pointer">
+
                   <div className="w-20 flex items-center">
                     <img
                       src={p.image || pickMainImage(p)}
@@ -702,6 +709,7 @@ setAllCategories(categoriesData);
 
                   </div>
                 </div>
+                </Link>
               )
             )}
           </div>
