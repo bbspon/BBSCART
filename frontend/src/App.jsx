@@ -1,42 +1,42 @@
-import './common.css'; 
-import './ProductSlider.css'; 
-import './bannerOne.css'; 
-import './SingleProduct.css'; 
-import React, { useState, useEffect } from "react"; 
-import { BrowserRouter as Router, Routes, Route, useLocation, Outlet } from "react-router-dom"; 
-import HeaderTop from './components/layout/HeaderTop'; 
-import Navbar from './components/layout/Navbar'; 
-import HomePage from './components/pages/HomePage'; 
-import FooterTop from './components/layout/FooterTop'; 
-import SingleProductPage from './components/pages/SingleProductPage'; 
-import ProductsCategoryPage from './components/pages/ProductsCategoryPage'; 
-import ProductsSubCategoryPage from './components/pages/ProductsSubCategoryPage'; 
-import CartPage from './components/pages/CartPage';  
-import Login from './components/auth/Login'; 
-import Register from './components/auth/Register'; 
+import './common.css';
+import './ProductSlider.css';
+import './bannerOne.css';
+import './SingleProduct.css';
+import React, { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, useLocation, Outlet } from "react-router-dom";
+import HeaderTop from './components/layout/HeaderTop';
+import Navbar from './components/layout/Navbar';
+import HomePage from './components/pages/HomePage';
+import FooterTop from './components/layout/FooterTop';
+import SingleProductPage from './components/pages/SingleProductPage';
+import ProductsCategoryPage from './components/pages/ProductsCategoryPage';
+import ProductsSubCategoryPage from './components/pages/ProductsSubCategoryPage';
+import CartPage from './components/pages/CartPage';
+import Login from './components/auth/Login';
+import Register from './components/auth/Register';
 
-import Forgot from './components/auth/ForgotPassword'; 
-import ResetPassword from "./components/auth/ResetPassword"; 
-import { Toaster } from 'react-hot-toast'; 
+import Forgot from './components/auth/ForgotPassword';
+import ResetPassword from "./components/auth/ResetPassword";
+import { Toaster } from 'react-hot-toast';
 import CheckoutPage from './components/pages/CheckoutPage';
-import OrderSuccess from './components/pages/OrderSuccess.jsx'; 
-import WishlistPage from './components/pages/WishlistPage'; 
-import ProductsListPage from './components/pages/admin/ProductsListPage';   
-import ProtectedRoute from './components/ProtectedRoute';  
-import AdminDashboard from './components/admin/Dashboard'; 
-import Products from './components/admin/Products'; 
-import Categories from './components/admin/Categories'; 
-import SubCategories from './components/admin/SubCategories'; 
-import Orders from './components/admin/Orders';  
+import OrderSuccess from './components/pages/OrderSuccess.jsx';
+import WishlistPage from './components/pages/WishlistPage';
+import ProductsListPage from './components/pages/admin/ProductsListPage';
+import ProtectedRoute from './components/ProtectedRoute';
+import AdminDashboard from './components/admin/Dashboard';
+import Products from './components/admin/Products';
+import Categories from './components/admin/Categories';
+import SubCategories from './components/admin/SubCategories';
+import Orders from './components/admin/Orders';
 import MyAccount from './components/auth/MyAccount';
 import Vendor from './components/admin/Vendor';
 import Customers from './components/admin/Customers';
 import OtherUser from './components/admin/OtherUser';
 import UserRequest from './components/admin/UserRequest';
-import BecomeAgent from './components/auth/BecomeAgent'; 
-import BecomeFranchiseHead from './components/auth/BecomeFranchiseHead'; 
-import BecomeTerritoryHead from './components/auth/BecomeTerritoryHead'; 
-import CustomerOrders from './components/auth/Orders'; 
+import BecomeAgent from './components/auth/BecomeAgent';
+import BecomeFranchiseHead from './components/auth/BecomeFranchiseHead';
+import BecomeTerritoryHead from './components/auth/BecomeTerritoryHead';
+import CustomerOrders from './components/auth/Orders';
 
 import AboutPage from './components/pages/AboutPage';
 import TermsOfUse from './components/pages/TermsOfUse';
@@ -120,21 +120,22 @@ import EditProfile from './components/pages/EditProfile'
 import { loadAuthFromStorage } from "./utils/loadAuth";
 import Exploreshowroom from './components/layout/ExploreShowroom'
 import LibraryPage from "./components/layout/LibraryPage";
+import Compare from "./components/home/Compare";
 
 function App() {
   const dispatch = useDispatch();
   const location = useLocation(); // Get the current route
   const { user, isAuthenticated } = useSelector((state) => state.auth);
-useEffect(() => {
-  dispatch(loadAuthFromStorage());
-}, []);
+  useEffect(() => {
+    dispatch(loadAuthFromStorage());
+  }, []);
 
   useEffect(() => {
     const excludeRoutes = ['/login', '/register'];
 
     if (!excludeRoutes.includes(location.pathname)) {
       // if(isAuthenticated){
-        // dispatch(loadUser());
+      // dispatch(loadUser());
       // }
       dispatch(fetchCartItems());
       dispatch(fetchWishlistItems());
@@ -177,6 +178,11 @@ useEffect(() => {
           path="/subcategory/:subcategoryId"
           element={<SubcategoryPage />}
         />
+        <Route
+          path="/fresh"
+          element={<SubcategoryPage isFreshPage={true} />}
+        />
+
         <Route path="/p/:id" element={<ProductDetails />} />
         <Route path="/" element={<HomePage />} />
         <Route path="/product/:id" element={<SingleProductPage />} />
@@ -245,6 +251,7 @@ useEffect(() => {
         <Route path="/edit-profile" element={<EditProfile />} />
         <Route path="/explore" element={<Exploreshowroom />} />
         <Route path="/library" element={<LibraryPage />} />
+        <Route path="/compare" element={<Compare />} />
 
         <Route
           path="/customerVendor-card"

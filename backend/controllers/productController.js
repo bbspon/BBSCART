@@ -1185,6 +1185,12 @@ exports.getProductById = async (req, res) => {
     const { id } = req.params;
     const { pincode } = req.query;
 
+    // 1. Validate Mongo ID
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid product ID" });
+    }
+
+    // 2. Fetch product
     const product = await Product.findById(id).populate(
       "category_id subcategory_id variants seller_id"
     );
@@ -1193,7 +1199,7 @@ exports.getProductById = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    // ✅ Only check pincode if provided
+    // 3. Optional pincode check
     if (pincode) {
       const vendor = await Vendor.findById(product.seller_id);
       if (!vendor || vendor.pincode !== pincode) {
@@ -1203,12 +1209,14 @@ exports.getProductById = async (req, res) => {
       }
     }
 
-const decorated = await decorateProduct(product);
-  res.status(200).json(decorated);  } catch (err) {
-    res.status(500).json({ message: err.message });
+    // 4. Return product (no decoration for now)
+    return res.status(200).json(product);
+
+  } catch (err) {
+    console.error("getProductById error:", err);
+    return res.status(500).json({ message: "Server error" });
   }
 };
-
 // READ: Get a single product by seller_id
 exports.getProductsBySellerId = async (req, res) => {
   console.log("getProductsBySellerId");
@@ -1276,22 +1284,36 @@ exports.getProductByFilter = async (req, res) => {
 
     let filterConditions = {};
 
+    // 🔥 Convert category ids to ObjectId
     if (categories) {
-      const categoryArray = categories.split(",").map((id) => id.trim());
+      const categoryArray = categories
+        .split(",")
+        .map((id) => new mongoose.Types.ObjectId(id.trim()));
+
       filterConditions.category_id = { $in: categoryArray };
     }
+
+    // 🔥 Convert subcategory ids to ObjectId
     if (subcategories) {
-      const subcategoryArray = subcategories.split(",").map((id) => id.trim());
+      const subcategoryArray = subcategories
+        .split(",")
+        .map((id) => new mongoose.Types.ObjectId(id.trim()));
+
       filterConditions.subcategory_id = { $in: subcategoryArray };
     }
+
     if (colors) {
-      const colorArray = colors.split(",").map((color) => color.trim());
-      filterConditions.color = { $in: colorArray };
+      filterConditions.color = {
+        $in: colors.split(",").map((color) => color.trim()),
+      };
     }
+
     if (tags) {
-      const tagArray = tags.split(",").map((tag) => tag.trim());
-      filterConditions.tags = { $in: tagArray };
+      filterConditions.tags = {
+        $in: tags.split(",").map((tag) => tag.trim()),
+      };
     }
+
     if (minPrice || maxPrice) {
       filterConditions.price = {};
       if (minPrice) filterConditions.price.$gte = parseFloat(minPrice);
@@ -1300,22 +1322,19 @@ exports.getProductByFilter = async (req, res) => {
 
     console.log("Filter Conditions:", filterConditions);
 
-    const products = await Product.find(filterConditions).populate(
-      "category_id subcategory_id variants seller_id"
-    );
+    const products = await Product.find(filterConditions)
+      .populate("category_id subcategory_id variants seller_id")
+      .lean();
 
-    if (!products.length) {
-      return res
-        .status(404)
-        .json({ message: "No products found matching the filters." });
-    }
+    // ✅ Return empty array instead of 404
+    return res.status(200).json(products);
 
-    res.status(200).json(products);
   } catch (err) {
     console.error("Error fetching products:", err);
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: err.message });
   }
 };
+
 
 exports.getNearbySellerProducts = async (req, res) => {
   try {
@@ -2599,11 +2618,12 @@ exports.listProducts = async (req, res) => {
       ? new mongoose.Types.ObjectId(rawCategoryId)
       : null;
     let match;
-    if (categoryObjId) {
-      match = { $and: [baseMatch, { category_id: categoryObjId }] };
-    } else {
-      match = { ...baseMatch };
-    }
+  if (categoryObjId) {
+  match = { $and: [baseMatch, { category_id: categoryObjId }] };
+} else {
+  match = baseMatch;   // ✅ FIXED
+}
+
 
     // Optional filters (keep/extend as you already do)
     if (subcategoryId && mongoose.Types.ObjectId.isValid(subcategoryId)) {

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Coin from "../../assets/coin.png";
 import Franchise from "../../assets/franchise.png";
 import Territory from "../../assets/territory.png";
-import Vendor from "../../assets/vendor.png";
+import Vendor from "../../assets/user-avatar.png";
 import Agent from "../../assets/delivery.png";
 import Delivery from "../../assets/delivery.png";
 import CBAV from "../../assets/cbv.png";

@@ -3,6 +3,13 @@ import { Link } from "react-router-dom";
 import React, { useEffect, useMemo, useState } from "react";
 import instance from "../../services/axiosInstance"; // adjust path as needed
 import { useSearchParams } from "react-router-dom";
+import { BsFillHeartFill } from "react-icons/bs";
+import {
+  addToWishlist,
+  removeFromWishlist,
+  fetchWishlistItems,
+} from "../../slice/wishlistSlice";
+import { useDispatch, useSelector } from "react-redux";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -63,7 +70,7 @@ export default function ProductListingFull() {
   const [allCategories, setAllCategories] = useState([]);
   const [ramOptions, setRamOptions] = useState([]);
   const [priceRange, setPriceRange] = useState({ min: 0, max: 30000 });
-const [searchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   const [selectedBrands, setSelectedBrands] = useState(new Set());
   const [selectedCategories, setSelectedCategories] = useState(new Set());
@@ -85,8 +92,11 @@ const [searchParams] = useSearchParams();
 
   const [page, setPage] = useState(1);
   const [pincode, setPincode] = useState(getPincode());
+  const getProductId = (p) => p.id || p._id;
 
   const limit = 20;
+  const dispatch = useDispatch();
+  const { items: wishlist } = useSelector((state) => state.wishlist);
 
   function toggleSetItem(setState, value) {
     setState((prev) => {
@@ -97,12 +107,12 @@ const [searchParams] = useSearchParams();
     });
   }
   useEffect(() => {
-  const q = searchParams.get("search");
-  if (q) {
-    setSearch(q);
-    setPage(1);
-  }
-}, [searchParams]);
+    const q = searchParams.get("search");
+    if (q) {
+      setSearch(q);
+      setPage(1);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (pincode) {
@@ -131,23 +141,23 @@ const [searchParams] = useSearchParams();
     setSortBy("popularity");
     setPage(1);
   }
-
-  const toggleCompare = (id) =>
+  const toggleCompare = (productId) =>
     setCompareIds((prev) => {
       const copy = new Set(prev);
-      if (copy.has(id)) copy.delete(id);
-      else copy.add(id);
+      if (copy.has(productId)) copy.delete(productId);
+      else copy.add(productId);
       return copy;
     });
-// 🔁 Force reload when URL search changes
-useEffect(() => {
-  const q = searchParams.get("search");
 
-  if (q !== null) {
-    setSearch(q);
-    setPage(1);
-  }
-}, [searchParams.toString()]);
+  // 🔁 Force reload when URL search changes
+  useEffect(() => {
+    const q = searchParams.get("search");
+
+    if (q !== null) {
+      setSearch(q);
+      setPage(1);
+    }
+  }, [searchParams.toString()]);
 
   // Fetch facets and categories
   useEffect(() => {
@@ -157,32 +167,31 @@ useEffect(() => {
         const { facets } = getApiBase(pincode);
         const facetsResponse = await instance.get(facets);
         const facetsData = facetsResponse.data || {};
-        
+
         // Fetch categories from the correct endpoint
         const categoriesResponse = await instance.get("/categories", {
           params: { pincode },
         });
-        
+
         // Handle different response shapes
         const categoriesData = Array.isArray(categoriesResponse.data?.items)
           ? categoriesResponse.data.items
           : Array.isArray(categoriesResponse.data)
-          ? categoriesResponse.data
-          : [];
-        
+            ? categoriesResponse.data
+            : [];
+
         if (!alive) return;
-        
+
         const brands = (facetsData.brands || []).map((b) => b.name).filter(Boolean);
-        const categories = categoriesData
-          .map((c) => c.name || c._id || c)
-          .filter(Boolean);
+      setAllCategories(categoriesData);
+
         const rams = (facetsData.ram || [])
           .map((r) => Number(r.value))
           .filter((n) => !Number.isNaN(n));
         const price = facetsData.price || { min: 0, max: 30000 };
-        
+
         setAllBrands(brands);
-        setAllCategories(categories);
+setAllCategories(categoriesData);
         setRamOptions(rams.sort((a, b) => a - b));
         setPriceRange({
           min: Math.max(0, Math.floor(price.min || 0)),
@@ -267,442 +276,485 @@ useEffect(() => {
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
-const filtered = useMemo(() => products, [products]);
+  const filtered = useMemo(() => products, [products]);
+  useEffect(() => {
+    dispatch(fetchWishlistItems());
+  }, []);
+
+  const toggleWishlist = async (e, productId) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const exists = wishlist.some(
+      (w) => w.productId === productId || w?.product?._id === productId
+    );
+
+    try {
+      if (exists) {
+        await dispatch(removeFromWishlist(productId));
+      } else {
+        await dispatch(addToWishlist({ productId }));
+      }
+
+      dispatch(fetchWishlistItems());
+    } catch (err) {
+      console.log("Wishlist toggle error:", err);
+    }
+  };
 
 
   return (
- <>
-    <div className="flex gap-4 ">
-      {/* Sidebar */}
-      <aside className="w-72 border rounded bg-white p-4 sticky top-4 self-start h-fit">
-        <h3 className="text-lg font-semibold mb-3">Filters</h3>
+    <>
+      <div className="flex gap-4 ">
+        {/* Sidebar */}
+        <aside className="w-72 border rounded bg-white p-4 sticky top-4 self-start h-fit">
+          <h3 className="text-lg font-semibold mb-3">Filters</h3>
 
-        {/* Search */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Search</label>
-          <input
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Search product title..."
-            className="w-full border rounded px-2 py-1 text-sm"
-          />
-        </div>
-
-        {/* Price */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Price (₹)</label>
-          <div className="flex items-center gap-2">
+          {/* Search */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">Search</label>
             <input
-              type="number"
-              value={minPrice}
-              min={priceRange.min}
-              max={maxPrice}
+              value={search}
               onChange={(e) => {
-                setMinPrice(Number(e.target.value || 0));
+                setSearch(e.target.value);
                 setPage(1);
               }}
-              className="w-1/2 border rounded px-2 py-1 text-sm"
-              aria-label="Minimum price"
-            />
-            <input
-              type="number"
-              value={maxPrice}
-              min={minPrice}
-              max={priceRange.max}
-              onChange={(e) => {
-                setMaxPrice(Number(e.target.value || 0));
-                setPage(1);
-              }}
-              className="w-1/2 border rounded px-2 py-1 text-sm"
-              aria-label="Maximum price"
+              placeholder="Search product title..."
+              className="w-full border rounded px-2 py-1 text-sm"
             />
           </div>
-          <input
-            type="range"
-            min={priceRange.min}
-            max={priceRange.max}
-            value={maxPrice}
-            onChange={(e) => {
-              setMaxPrice(Number(e.target.value));
-              setPage(1);
-            }}
-            className="w-full mt-2"
-          />
-          <div className="text-xs text-gray-500 mt-1">
-            Range: ₹{inr(priceRange.min)} - ₹{inr(priceRange.max)}
-          </div>
-        </div>
-{/* Categories */}
-<div className="mb-4">
-  <label className="block text-sm font-medium mb-1">Categories</label>
 
-  <div className="space-y-2">
-    {allCategories.map((category) => (
-      <label
-        key={category}
-        className="flex items-center gap-2 px-2 py-1 cursor-pointer"
-      >
-        <input
-          type="checkbox"
-          className="w-4 h-4 cursor-pointer"
-          checked={selectedCategories.has(category)}
-          onChange={() => {
-            toggleSetItem(setSelectedCategories, category);
-            setPage(1);
-          }}
-        />
-        <span className="text-sm">{category}</span>
-      </label>
-    ))}
-
-    {allCategories.length === 0 && (
-      <div className="text-xs text-gray-500 px-2">
-        No categories available
-      </div>
-    )}
-  </div>
-</div>
-
-
-        {/* Ratings */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-3">
-            Customer Ratings
-          </label>
-          <div className="flex flex-col gap-2 text-sm">
-            {[5, 4, 3, 2, 1].map((rating) => (
-              <label key={rating} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={selectedRatings.has(rating)}
-                  onChange={() => {
-                    toggleSetItem(setSelectedRatings, rating);
-                    setPage(1);
-                  }}
-                  className="cursor-pointer w-3 h-4 mx-3"
-                />
-                <span>
-                  {Array.from({ length: rating })
-                    .map(() => "★")
-                    .join("")}{" "}
-                  &nbsp; &amp; above
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* RAM */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">RAM</label>
-          <div className="space-y-2 text-sm">
-            {ramOptions.map((r) => (
-              <label key={r} className="flex items-center gap-2 mx-3">
-                <input
-                  type="checkbox"
-                  checked={selectedRAM.has(r)}
-                  onChange={() => {
-                    toggleSetItem(setSelectedRAM, r);
-                    setPage(1);
-                  }}
-                  className="w-3 h-4"
-                />
-                <span>{r} GB &amp; above</span>
-              </label>
-            ))}
-            {ramOptions.length === 0 && (
-              <div className="text-xs text-gray-500 mx-3">No RAM facets</div>
-            )}
-          </div>
-        </div>
-
-        {/* GST & Delivery */}
-        <div className="mb-4 text-sm space-y-2 mx-3">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={gstInvoiceOnly}
-              onChange={() => {
-                setGstInvoiceOnly((s) => !s);
-                setPage(1);
-              }}
-              className="w-3 h-4"
-            />
-            GST Invoice Available
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={delivery1DayOnly}
-              onChange={() => {
-                setDelivery1DayOnly((s) => !s);
-                setPage(1);
-              }}
-              className="w-3 h-4"
-            />
-            Delivery in 1 day
-          </label>
-        </div>
-
-        {/* Buttons */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => setPage(1)}
-            className="flex-1 bg-blue-600 text-white py-1 rounded text-sm"
-          >
-            Apply
-          </button>
-          <button
-            onClick={resetFilters}
-            className="flex-1 border rounded py-1 text-sm"
-          >
-            Clear
-          </button>
-        </div>
-      </aside>
-
-      {/* Main */}
-      <main className="flex-1 items-center py-3 pe-8">
-        <div className="">
-          <nav className="breadcrumb mb-4">
-            <Link to="/">Home</Link>
-            <span> &gt; </span>
-            <Link to="/all-products">All Products</Link>
-          </nav>
-
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <h1 className="text-2xl font-semibold border-b mb-5">All Products</h1>
-              <div className="text-sm text-gray-600">
-                {loading
-                  ? "Loading..."
-                  : `Showing ${filtered.length} of ${total} products`}
-                {err && <span className="text-red-600 ml-2">({err})</span>}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <label className="text-sm">Sort by:</label>
-              <select
-                value={sortBy}
+          {/* Price */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">Price (₹)</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={minPrice}
+                min={priceRange.min}
+                max={maxPrice}
                 onChange={(e) => {
-                  setSortBy(e.target.value);
+                  setMinPrice(Number(e.target.value || 0));
                   setPage(1);
                 }}
-                className="border rounded px-2 py-1 text-sm"
-              >
-                <option value="popularity">Popularity</option>
-                <option value="price-asc">Price — Low to High</option>
-                <option value="price-desc">Price — High to Low</option>
-                <option value="newest">Newest First</option>
-              </select>
-
-              <div className="flex items-center gap-2 border rounded px-2">
-                <button
-                  aria-label="Grid view"
-                  onClick={() => setView("grid")}
-                  className={`px-2 py-1 text-sm ${
-                    view === "grid" ? "font-semibold" : ""
-                  }`}
-                >
-                  Grid
-                </button>
-                <button
-                  aria-label="Table / row view"
-                  onClick={() => setView("table")}
-                  className={`px-2 py-1 text-sm ${
-                    view === "table" ? "font-semibold" : ""
-                  }`}
-                >
-                  Rows
-                </button>
-              </div>
+                className="w-1/2 border rounded px-2 py-1 text-sm"
+                aria-label="Minimum price"
+              />
+              <input
+                type="number"
+                value={maxPrice}
+                min={minPrice}
+                max={priceRange.max}
+                onChange={(e) => {
+                  setMaxPrice(Number(e.target.value || 0));
+                  setPage(1);
+                }}
+                className="w-1/2 border rounded px-2 py-1 text-sm"
+                aria-label="Maximum price"
+              />
+            </div>
+            <input
+              type="range"
+              min={priceRange.min}
+              max={priceRange.max}
+              value={maxPrice}
+              onChange={(e) => {
+                setMaxPrice(Number(e.target.value));
+                setPage(1);
+              }}
+              className="w-full mt-2"
+            />
+            <div className="text-xs text-gray-500 mt-1">
+              Range: ₹{inr(priceRange.min)} - ₹{inr(priceRange.max)}
             </div>
           </div>
-        </div>
+          {/* Categories */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">Categories</label>
 
-        {/* Table header */}
-        {view === "table" && (
-          <div className="hidden md:flex items-center bg-gray-50 border rounded px-4 py-2 text-sm text-gray-700 mb-2">
-            <div className="w-20">Image</div>
-            <div className="flex-1">Product</div>
-            <div className="w-64">Key Specs</div>
-            <div className="w-40 text-right">Price &amp; Offers</div>
-            <div className="w-28 text-center">Compare</div>
-          </div>
-        )}
+            <div className="space-y-2">
+       {allCategories.map((category) => (
+  <label
+    key={category._id}
+    className="flex items-center gap-2 px-2 py-1 cursor-pointer"
+  >
+    <input
+      type="checkbox"
+      className="w-4 h-4 cursor-pointer"
+      checked={selectedCategories.has(category._id)}
+      onChange={() => {
+        toggleSetItem(setSelectedCategories, category._id);
+        setPage(1);
+      }}
+    />
+    <span className="text-sm">{category.name}</span>
+  </label>
+))}
 
-        {/* Product list */}
-        <div className="space-y-4">
-          {!loading && filtered.length === 0 && !err && (
-            <div className="text-sm text-gray-600">
-              No products match your filters.
+              {allCategories.length === 0 && (
+                <div className="text-xs text-gray-500 px-2">
+                  No categories available
+                </div>
+              )}
             </div>
-          )}
+          </div>
 
-          {filtered.map((p) =>
-            view === "grid" ? (
-              <article
-                key={p.id}
-                className="flex border rounded-lg p-4 hover:shadow-md transition bg-white"
-              >
-                <div className="w-36 h-36 flex-shrink-0 rounded overflow-hidden bg-gray-100">
-                  <img
-                    src={pickMainImage(p)}
-                    alt={p.name || p.title || p.product_name || "Product"}
-                    className="w-full h-full object-contain"
-                  />
-                </div>
 
-                <div className="flex-1 ml-4">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h2 className="font-medium text-gray-800">{p.name || p.title || p.product_name}</h2>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {p.reviewsText}
-                      </div>
-                    </div>
-
-                    <div className="text-right">
-                      <div className="text-lg font-bold">₹{inr(p.price)}</div>
-                      {p.oldPrice ? (
-                        <div className="text-xs line-through text-gray-400">
-                          ₹{inr(p.oldPrice)}
-                        </div>
-                      ) : null}
-                      <div className="text-green-600 text-sm">
-                        {p.discountText}
-                      </div>
-                    </div>
-                  </div>
-
-                  <ul className="list-disc list-inside text-sm text-gray-700 mt-3">
-                    {(p.specs || []).slice(0, 4).map((s, i) => (
-                      <li key={i}>{s}</li>
-                    ))}
-                  </ul>
-
-                  <div className="flex items-center gap-3 mt-3 text-sm">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={compareIds.has(p.id)}
-                        onChange={() => toggleCompare(p.id)}
-                      />
-                      <span>Add to Compare</span>
-                    </label>
-
-                    {p.assured && (
-                      <span className="px-2 py-0.5 border text-xs rounded text-blue-700">
-                        Assured
-                      </span>
-                    )}
-                    {p.bestseller && (
-                      <span className="px-2 py-0.5 bg-yellow-100 text-xs rounded">
-                        Bestseller
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </article>
-            ) : (
-              <div
-                key={p.id}
-                className="md:flex items-center border rounded px-4 py-3 bg-white"
-              >
-                <div className="w-20 flex items-center">
-                  <img
-                    src={p.image || pickMainImage(p)}
-                    alt={p.name || p.title || p.product_name || "Product"}
-                    className="w-full object-contain"
-                  />
-                </div>
-
-                <div className="flex-1 px-4">
-                  <div className="font-medium text-gray-800">{p.name || p.title || p.product_name}</div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    {p.reviewsText}
-                  </div>
-                </div>
-
-                <div className="w-64 text-sm text-gray-700">
-                  <ul className="list-disc list-inside">
-                    {(p.specs || []).slice(0, 3).map((s, i) => (
-                      <li key={i}>{s}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="w-40 text-right">
-                  <div className="text-lg font-bold">₹{inr(p.price)}</div>
-                  {p.oldPrice ? (
-                    <div className="text-xs line-through text-gray-400">
-                      ₹{inr(p.oldPrice)}
-                    </div>
-                  ) : null}
-                  <div className="text-green-600 text-sm">{p.discountText}</div>
-                  <div className="text-xs mt-1">{p.exchangeOffer}</div>
-                </div>
-
-                <div className="w-28 text-center">
+          {/* Ratings */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-3">
+              Customer Ratings
+            </label>
+            <div className="flex flex-col gap-2 text-sm">
+              {[5, 4, 3, 2, 1].map((rating) => (
+                <label key={rating} className="flex items-center gap-2">
                   <input
                     type="checkbox"
-                    checked={compareIds.has(p.id)}
-                    onChange={() => toggleCompare(p.id)}
+                    checked={selectedRatings.has(rating)}
+                    onChange={() => {
+                      toggleSetItem(setSelectedRatings, rating);
+                      setPage(1);
+                    }}
+                    className="cursor-pointer w-3 h-4 mx-3"
                   />
-                </div>
-              </div>
-            )
-          )}
-        </div>
-
-        {/* Pagination */}
-        <div className="flex items-center justify-between mt-6">
-          <div className="text-sm text-gray-600">
-            Page {page} of {totalPages} {total ? `• Total ${total} items` : ""}
+                  <span>
+                    {Array.from({ length: rating })
+                      .map(() => "★")
+                      .join("")}{" "}
+                    &nbsp; &amp; above
+                  </span>
+                </label>
+              ))}
+            </div>
           </div>
+
+          {/* RAM */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">RAM</label>
+            <div className="space-y-2 text-sm">
+              {ramOptions.map((r) => (
+                <label key={r} className="flex items-center gap-2 mx-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedRAM.has(r)}
+                    onChange={() => {
+                      toggleSetItem(setSelectedRAM, r);
+                      setPage(1);
+                    }}
+                    className="w-3 h-4"
+                  />
+                  <span>{r} GB &amp; above</span>
+                </label>
+              ))}
+              {ramOptions.length === 0 && (
+                <div className="text-xs text-gray-500 mx-3">No RAM facets</div>
+              )}
+            </div>
+          </div>
+
+          {/* GST & Delivery */}
+          <div className="mb-4 text-sm space-y-2 mx-3">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={gstInvoiceOnly}
+                onChange={() => {
+                  setGstInvoiceOnly((s) => !s);
+                  setPage(1);
+                }}
+                className="w-3 h-4"
+              />
+              GST Invoice Available
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={delivery1DayOnly}
+                onChange={() => {
+                  setDelivery1DayOnly((s) => !s);
+                  setPage(1);
+                }}
+                className="w-3 h-4"
+              />
+              Delivery in 1 day
+            </label>
+          </div>
+
+          {/* Buttons */}
           <div className="flex gap-2">
             <button
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className={`px-3 py-1 border rounded text-sm ${
-                page <= 1 ? "opacity-50 cursor-not-allowed" : ""
-              }`}
+              onClick={() => setPage(1)}
+              className="flex-1 bg-blue-600 text-white py-1 rounded text-sm"
             >
-              Prev
+              Apply
             </button>
             <button
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className={`px-3 py-1 border rounded text-sm ${
-                page >= totalPages ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-
-        {/* Compare bar */}
-        {compareIds.size > 0 && (
-          <div className="fixed bottom-4 right-4 bg-white border rounded p-3 shadow-md flex items-center gap-4">
-            <div className="text-sm">{compareIds.size} product(s) selected</div>
-            <button className="bg-blue-600 text-white rounded px-3 py-1 text-sm">
-              Compare
-            </button>
-            <button
-              className="text-sm underline"
-              onClick={() => setCompareIds(new Set())}
+              onClick={resetFilters}
+              className="flex-1 border rounded py-1 text-sm"
             >
               Clear
             </button>
           </div>
-        )}
-      </main>
-    </div>
- </>
+        </aside>
+
+        {/* Main */}
+        <main className="flex-1 items-center py-3 pe-8">
+          <div className="">
+            <nav className="breadcrumb mb-4">
+              <Link to="/">Home</Link>
+              <span> &gt; </span>
+              <Link to="/all-products">All Products</Link>
+            </nav>
+
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <h1 className="text-2xl font-semibold border-b mb-5">All Products</h1>
+                <div className="text-sm text-gray-600">
+                  {loading
+                    ? "Loading..."
+                    : `Showing ${filtered.length} of ${total} products`}
+                  {err && <span className="text-red-600 ml-2">({err})</span>}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <label className="text-sm">Sort by:</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => {
+                    setSortBy(e.target.value);
+                    setPage(1);
+                  }}
+                  className="border rounded px-2 py-1 text-sm"
+                >
+                  <option value="popularity">Popularity</option>
+                  <option value="price-asc">Price — Low to High</option>
+                  <option value="price-desc">Price — High to Low</option>
+                  <option value="newest">Newest First</option>
+                </select>
+
+                <div className="flex items-center gap-2 border rounded px-2">
+                  <button
+                    aria-label="Grid view"
+                    onClick={() => setView("grid")}
+                    className={`px-2 py-1 text-sm ${view === "grid" ? "font-semibold" : ""
+                      }`}
+                  >
+                    Grid
+                  </button>
+                  <button
+                    aria-label="Table / row view"
+                    onClick={() => setView("table")}
+                    className={`px-2 py-1 text-sm ${view === "table" ? "font-semibold" : ""
+                      }`}
+                  >
+                    Rows
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Table header */}
+          {view === "table" && (
+            <div className="hidden md:flex items-center bg-gray-50 border rounded px-4 py-2 text-sm text-gray-700 mb-2">
+              <div className="w-20">Image</div>
+              <div className="flex-1">Product</div>
+              <div className="w-64">Key Specs</div>
+              <div className="w-40 text-right">Price &amp; Offers</div>
+              <div className="w-28 text-center">Compare</div>
+            </div>
+          )}
+
+          {/* Product list */}
+          <div className="space-y-4">
+            {!loading && filtered.length === 0 && !err && (
+              <div className="text-sm text-gray-600">
+                No products match your filters.
+              </div>
+            )}
+
+            {filtered.map((p) =>
+              view === "grid" ? (
+                <article
+                  key={p.id}
+                  className="flex border rounded-lg p-4 hover:shadow-md transition bg-white"
+                >
+                  <div className="w-36 h-36 flex-shrink-0 rounded overflow-hidden bg-gray-100">
+                    <img
+                      src={pickMainImage(p)}
+                      alt={p.name || p.title || p.product_name || "Product"}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+
+                  <div className="flex-1 ml-4">
+                    <div className="flex items-start justify-between">
+                      <BsFillHeartFill
+                        size={20}
+                        onClick={(e) => toggleWishlist(e, getProductId(p))}
+                        className={`cursor-pointer transition-colors duration-200 ${wishlist.some(
+                          (w) =>
+                            w.productId === (p.id || p._id) ||
+                            w?.product?._id === (p.id || p._id)
+                        )
+                            ? "text-red-500"
+                            : "text-gray-300"
+                          }`}
+                      />
+
+                      <div>
+                        <h2 className="font-medium text-gray-800">{p.name || p.title || p.product_name}</h2>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {p.reviewsText}
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <div className="text-lg font-bold">₹{inr(p.price)}</div>
+                        {p.oldPrice ? (
+                          <div className="text-xs line-through text-gray-400">
+                            ₹{inr(p.oldPrice)}
+                          </div>
+                        ) : null}
+                        <div className="text-green-600 text-sm">
+                          {p.discountText}
+                        </div>
+                      </div>
+                    </div>
+
+                    <ul className="list-disc list-inside text-sm text-gray-700 mt-3">
+                      {(p.specs || []).slice(0, 4).map((s, i) => (
+                        <li key={i}>{s}</li>
+                      ))}
+                    </ul>
+
+                    <div className="flex items-center gap-3 mt-3 text-sm">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={compareIds.has(getProductId(p))}
+                          onChange={() => toggleCompare(getProductId(p))}
+
+                        />
+
+                        <span>Add to Compare</span>
+                      </label>
+
+                      {p.assured && (
+                        <span className="px-2 py-0.5 border text-xs rounded text-blue-700">
+                          Assured
+                        </span>
+                      )}
+                      {p.bestseller && (
+                        <span className="px-2 py-0.5 bg-yellow-100 text-xs rounded">
+                          Bestseller
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              ) : (
+                <div
+                  key={p.id}
+                  className="md:flex items-center border rounded px-4 py-3 bg-white"
+                >
+                  <div className="w-20 flex items-center">
+                    <img
+                      src={p.image || pickMainImage(p)}
+                      alt={p.name || p.title || p.product_name || "Product"}
+                      className="w-full object-contain"
+                    />
+                  </div>
+
+                  <div className="flex-1 px-4">
+                    <div className="font-medium text-gray-800">{p.name || p.title || p.product_name}</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {p.reviewsText}
+                    </div>
+                  </div>
+
+                  <div className="w-64 text-sm text-gray-700">
+                    <ul className="list-disc list-inside">
+                      {(p.specs || []).slice(0, 3).map((s, i) => (
+                        <li key={i}>{s}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="w-40 text-right">
+                    <div className="text-lg font-bold">₹{inr(p.price)}</div>
+                    {p.oldPrice ? (
+                      <div className="text-xs line-through text-gray-400">
+                        ₹{inr(p.oldPrice)}
+                      </div>
+                    ) : null}
+                    <div className="text-green-600 text-sm">{p.discountText}</div>
+                    <div className="text-xs mt-1">{p.exchangeOffer}</div>
+                  </div>
+
+                  <div className="w-28 text-center">
+                    <input
+                      type="checkbox"
+                      checked={compareIds.has(getProductId(p))}
+                      onChange={() => toggleCompare(getProductId(p))}
+                    />
+
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+
+          {/* Pagination */}
+          <div className="flex items-center justify-between mt-6">
+            <div className="text-sm text-gray-600">
+              Page {page} of {totalPages} {total ? `• Total ${total} items` : ""}
+            </div>
+            <div className="flex gap-2">
+              <button
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className={`px-3 py-1 border rounded text-sm ${page <= 1 ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+              >
+                Prev
+              </button>
+              <button
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className={`px-3 py-1 border rounded text-sm ${page >= totalPages ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+
+          {/* Compare bar */}
+          {compareIds.size > 0 && (
+            <div className="fixed bottom-4 right-4 bg-white border rounded p-3 shadow-md flex items-center gap-4">
+              <div className="text-sm">{compareIds.size} product(s) selected</div>
+              <button
+                className="bg-blue-600 text-white rounded px-3 py-1 text-sm"
+                onClick={() => {
+                  const ids = Array.from(compareIds).join(",");
+                  window.location.href = `/compare?ids=${ids}`;
+                }}
+              >
+                Compare
+              </button>
+
+              <button
+                className="text-sm underline"
+                onClick={() => setCompareIds(new Set())}
+              >
+                Clear
+              </button>
+            </div>
+          )}
+        </main>
+      </div>
+    </>
   );
 }

@@ -6,7 +6,7 @@ import CategoryMegaMenu from "../../storefront/components/CategoryMegaMenu";
 import { FaBars, FaTimes } from "react-icons/fa";
 import healthAccess from "../../../public/img/logo/logo.png";
 import ThiaLogo from "../../../public/img/logo/ThiaLogo.png";
-import { useNavigate } from "react-router-dom";
+import { useNavigate,Link } from "react-router-dom";
 
 // Detect mobile width
 const useIsMobile = () => {
@@ -19,26 +19,54 @@ const useIsMobile = () => {
   }, []);
   return isMobile;
 };
+const MENU_LINKS = {
+  // User
+  "Account Settings": "/user-setting",
+  Orders: "/orders",
+  Wishlist: "/wishlist",
+
+  // Trending
+  "Top Sellers": "/trending?type=top-sellers",
+  "New Launches": "/trending?type=new-launches",
+  Offers: "/offers",
+
+  // Digital
+  "MX Player": "/mx-player",
+  Music: "/music",
+  Games: "/games",
+
+  // Categories
+  "Toys & Stationery": "/subcategory/6974c2f8087410f5634717fe",
+  "Fruits & Vegetables": "/fresh",
+  Groceries: "/all-products",
+  Electronics: "/category/electronics",
+
+  // Programs
+  Prime: "/prime",
+  Membership: "/membership",
+  "Deals Zone": "/deals",
+
+  // Help
+  "Customer Service": "/contact",
+  Returns: "/returns",
+  Language: "/language",
+};
 
 // Mock All Products Data
 export const allProductsData = [
   { title: "User Name", items: ["Account Settings", "Orders", "Wishlist"] },
-  { title: "Trending", items: ["Top Sellers", "New Launches", "Offers"] },
-  {
-    title: "Digital Content & Devices",
-    items: ["MX Player", "Music", "Games"],
-  },
+  // { title: "Trending", items: [ "New Launches", "Offers"] },
   {
     title: "Shop by Category",
-    items: ["Mobiles", "Fashion", "Groceries", "Electronics"],
+    items: ["Toys & Stationery", "Fruits & Vegetables", "Groceries", "Electronics"],
   },
-  {
-    title: "Programs & Features",
-    items: ["Prime", "Membership", "Deals Zone"],
-  },
+  // {
+  //   title: "Programs & Features",
+  //   items: ["Prime", "Membership", "Deals Zone"],
+  // },
   {
     title: "Help & Settings",
-    items: ["Customer Service", "Returns", "Language"],
+    items: ["Customer Service"],
   },
 ];
 
@@ -55,7 +83,11 @@ const navigate = useNavigate();
 
   const handleToggle = () => setShowAllProducts(!showAllProducts);
 
-  const topLinks = ["Fresh", "Trending", "Best Sellers"];
+const topLinks = [
+  { label: "Fresh", path: "/fresh" },
+  { label: "Trending", path: "/trending" },
+  { label: "Groceries", path: "/all-products" },
+];
 
   // Tablet screen detection
   useEffect(() => {
@@ -166,18 +198,20 @@ const fullMenuData = [
           </div>
 
           {/* === Top Links (Fresh / Trending / Best Sellers etc.) === */}
-          <ul className="flex items-center gap-6">
-            {topLinks.map((item, idx) => (
-              <li key={idx}>
-                <button
-                  className="px-4 py-2 rounded-md font-semibold 
-                       hover:bg-[#37475A] hover:text-white transition"
-                >
-                  {item}
-                </button>
-              </li>
-            ))}
-          </ul>
+  <ul className="flex items-center gap-6">
+  {topLinks.map((item, idx) => (
+    <li key={idx}>
+      <Link
+        to={item.path}
+        className="px-4 py-2 rounded-md font-semibold 
+             hover:bg-[#37475A] hover:text-white transition inline-block"
+      >
+        {item.label}
+      </Link>
+    </li>
+  ))}
+</ul>
+
         </div>
 
         {/* === All Products Dropdown === */}
@@ -190,11 +224,27 @@ const fullMenuData = [
               {allProductsData.map((section, idx) => (
                 <div key={idx}>
                   <h3 className="font-bold mb-2 text-black">{section.title}</h3>
-                  <ul className="space-y-1 text-black">
-                    {section.items.map((item, itemIdx) => (
-                      <li key={itemIdx}>{item}</li>
-                    ))}
-                  </ul>
+            <ul className="space-y-1 text-black">
+  {section.items.map((item, itemIdx) => {
+    const path = MENU_LINKS[item];
+    return (
+      <li key={itemIdx}>
+        {path ? (
+          <Link
+            to={path}
+            onClick={() => setShowAllProducts(false)}
+            className="hover:underline hover:text-[#0B7A4B]"
+          >
+            {item}
+          </Link>
+        ) : (
+          <span>{item}</span>
+        )}
+      </li>
+    );
+  })}
+</ul>
+
                 </div>
               ))}
 
@@ -280,16 +330,30 @@ const fullMenuData = [
                       <h3 className="font-semibold text-white mb-2">
                         {section.title}
                       </h3>
-                      <ul className="space-y-1">
-                        {section.items.map((item, itemIdx) => (
-                          <li
-                            key={itemIdx}
-                            className="py-1 px-2 rounded hover:bg-[#37475A] transition"
-                          >
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
+               <ul className="space-y-1">
+  {section.items.map((item, itemIdx) => {
+    const path = MENU_LINKS[item];
+    return (
+      <li key={itemIdx}>
+        {path ? (
+          <Link
+            to={path}
+            onClick={() => {
+              setOpenAllProductsMobile(false);
+              setMobileSidebarOpen(false);
+            }}
+            className="block py-1 px-2 rounded hover:bg-[#37475A] transition"
+          >
+            {item}
+          </Link>
+        ) : (
+          <span className="block py-1 px-2">{item}</span>
+        )}
+      </li>
+    );
+  })}
+</ul>
+
                     </div>
                   ))}
                 </div>

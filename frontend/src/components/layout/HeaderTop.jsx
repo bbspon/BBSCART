@@ -357,14 +357,6 @@ const closePopup = () => setShowUserPopup(false);
                         </li>
                       )}
 
-                      <li>
-                        <Link
-                          to="/checkout"
-                          className="px-3 py-1 hover:bg-gray-100 rounded"
-                        >
-                          Checkout
-                        </Link>
-                      </li>
 
                       <li>
                         <button
@@ -384,31 +376,13 @@ const closePopup = () => setShowUserPopup(false);
                       <ul className="flex-1 space-y-1">
                         <li>
                           <Link
-                            to="/your-lists"
+                            to="/orders"
                             className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
                             Shopping List
                           </Link>
                         </li>
-                        <li>
-                          <Link
-                            to="/your-lists"
-                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
-                          >
-                            Wish List
-                          </Link>
-                        </li>
-                        <li>
-                          <Link
-                            to="/"
-                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
-                          >
-                            See More
-                          </Link>
-                        </li>
-
-                        <hr className="border-gray-300" />
-
+                      
                         <li>
                           <Link
                             to="/all-products"
@@ -417,6 +391,17 @@ const closePopup = () => setShowUserPopup(false);
                             Create Wish List
                           </Link>
                         </li>
+                    
+
+                        <hr className="border-gray-300" />
+  <li>
+                        <Link
+                          to="/checkout"
+                            className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
+                        >
+                          Checkout
+                        </Link>
+                      </li> 
                         <li>
                           <Link
                             to="/explore"
@@ -453,14 +438,14 @@ const closePopup = () => setShowUserPopup(false);
                             Wishlist
                           </Link>
                         </li>
-                        <li>
+                        {/* <li>
                           <Link
                             to="/plans"
                             className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
                             Subscriptions
                           </Link>
-                        </li>
+                        </li> */}
                         <li>
                           <Link
                             to="/library"

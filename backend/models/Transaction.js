@@ -1,16 +1,46 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+// models/Transaction.js
+const mongoose = require("mongoose");
 
-// Explicitly import ObjectId from mongoose.Schema.Types
-const { ObjectId } = mongoose.Schema.Types;
+const TransactionSchema = new mongoose.Schema(
+  {
+    orderId: { type: String, index: true },
+    transactionId: { type: String, index: true, unique: true, sparse: true },
 
-const TransactionSchema = new mongoose.Schema({
-  order_id: ObjectId, // Associated order ID (reference to Orders collection)
-  payment_method: String, // Payment method used (e.g., card, COD)
-  payment_status: { type: String, default: 'success' }, // Payment status (e.g., success, failed)
-  amount: Number, // Total amount paid
-  created_at: { type: Date, default: Date.now }, // Transaction creation date
-});
+    platform: { type: String, index: true }, // BBSCART / Thiaworld / Golddex
+    buyerName: { type: String },
+    buyerPhone: { type: String },
 
-const Transaction = mongoose.model('Transaction', TransactionSchema);
-module.exports = Transaction;
+    sellerName: { type: String },
+    sellerRole: { type: String, index: true }, // Agent / Vendor / Franchisee / CBAV etc.
+
+    productTitles: [{ type: String }],
+    totalQuantity: { type: Number, default: 0 },
+
+    isGSTApplicable: { type: Boolean, default: false },
+    gstType: { type: String }, // CGST_SGST / IGST
+    cgstPercentage: { type: Number, default: 0 },
+    sgstPercentage: { type: Number, default: 0 },
+    igstPercentage: { type: Number, default: 0 },
+
+    cgst: { type: Number, default: 0 },
+    sgst: { type: Number, default: 0 },
+    igst: { type: Number, default: 0 },
+    totalGSTAmount: { type: Number, default: 0 },
+
+    amount: { type: Number, default: 0 },
+    finalAmount: { type: Number, default: 0 },
+    commissionApplied: { type: Number, default: 0 },
+
+    paymentStatus: { type: String, index: true }, // paid / failed / escrow
+    orderStatus: { type: String, index: true }, // delivered / returned / cancelled etc.
+    paymentMethod: { type: String, index: true }, // COD / UPI / Razorpay / Wallet / Netbanking
+    payoutStatus: { type: String, index: true }, // paid / pending / on-hold
+
+    status: { type: String, index: true }, // success etc.
+
+    date: { type: Date, index: true }, // main transaction date
+  },
+  { timestamps: true, collection: "transactions" }
+);
+
+module.exports = mongoose.model("Transaction", TransactionSchema);

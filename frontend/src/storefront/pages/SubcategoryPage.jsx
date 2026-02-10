@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
+import { useParams, useSearchParams, Link, useNavigate, useLocation } from "react-router-dom";
 import instance from "../../services/axiosInstance";
 import { ChevronDown, ChevronUp, Star, Check } from "lucide-react";
 import { BsFillHeartFill } from "react-icons/bs";
@@ -25,6 +25,8 @@ import toast from "react-hot-toast";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const STATIC_PREFIXES = ["/uploads"]; // support both roots
+const FRESH_FRUITS_SUBCATEGORY_ID = "6974c2fc087410f563473e21";
+const FRESH_VEGETABLES_SUBCATEGORY_ID = "6974c2f9087410f5634721ad";
 
 export default function SubcategoryPage() {
   const [page, setPage] = useState(1);
@@ -64,6 +66,7 @@ export default function SubcategoryPage() {
   const [isComboOpen, setIsComboOpen] = useState(false);
   const [showMoreCombos, setShowMoreCombos] = useState(false);
   const [selectedCombo, setSelectedCombo] = useState("Select Combo");
+  const [freshTab, setFreshTab] = useState("fruits"); // "fruits" | "vegetables"
 
   const comboOptions = [
     { label: "1 Kg", discount: "10% Off", price: "₹900", oldPrice: "₹1000" },
@@ -172,6 +175,17 @@ export default function SubcategoryPage() {
 
   const [liked, setLiked] = useState(false);
   const { subcategoryId } = useParams();
+  const location = useLocation();
+
+const isFreshPage = location.pathname === "/fresh";
+
+const effectiveSubcategoryId = isFreshPage
+  ? freshTab === "fruits"
+    ? FRESH_FRUITS_SUBCATEGORY_ID
+    : FRESH_VEGETABLES_SUBCATEGORY_ID
+  : subcategoryId;
+
+
   const [params, setParams] = useSearchParams();
   // --- pincode helper (kept) ---
   const urlPincode = params.get("pincode") || "";
@@ -435,7 +449,7 @@ export default function SubcategoryPage() {
 
   const buildQuery = () => {
     const qobj = {
-      subcategoryId,
+      subcategoryId: effectiveSubcategoryId,
       groupId: groupId || undefined,
       product: groupId ? undefined : product || undefined,
       group: groupId || product ? undefined : group || undefined,
@@ -574,7 +588,7 @@ export default function SubcategoryPage() {
     loadProducts();
     loadFacets();
   }, [
-    subcategoryId,
+    effectiveSubcategoryId,
     q,
     brandSingle,
     organic,
@@ -1150,9 +1164,38 @@ export default function SubcategoryPage() {
       <div className="mx-auto max-w-6xl p-4">
         {label && <h2 className="mb-2 text-lg font-semibold">{label}</h2>}
         <div className="flex justify-between my-2 border-b border-b-black  pb-2">
-          <h6 className="border border-gray-300 rounded-md px-5 py-2 bg-orange-50  font-semibold hover:bg-orange-100 hover:shadow-md transition shadow-sm">
-            Egg, Meat, and Fish
-          </h6>
+     {isFreshPage ? (
+  <div className="flex gap-3">
+    <button
+      onClick={() => setFreshTab("fruits")}
+      className={`border rounded-md px-5 py-2 font-semibold transition
+        ${
+          freshTab === "fruits"
+            ? "bg-green-100 border-green-600"
+            : "bg-gray-50 hover:bg-green-50"
+        }`}
+    >
+      Fresh Fruits
+    </button>
+
+    <button
+      onClick={() => setFreshTab("vegetables")}
+      className={`border rounded-md px-5 py-2 font-semibold transition
+        ${
+          freshTab === "vegetables"
+            ? "bg-green-100 border-green-600"
+            : "bg-gray-50 hover:bg-green-50"
+        }`}
+    >
+      Fresh Vegetables
+    </button>
+  </div>
+) : (
+  <h6 className="border border-gray-300 rounded-md px-5 py-2 bg-orange-50 font-semibold">
+    Egg, Meat, and Fish
+  </h6>
+)}
+
           <h6 className="border border-gray-300 rounded-md px-5 py-2 bg-gray-50  font-semibold hover:bg-blue-100 hover:shadow-md transition shadow-sm">
             Thiaworld
           </h6>
@@ -1282,8 +1325,8 @@ export default function SubcategoryPage() {
                           (w) =>
                             w.productId === p._id || w?.product?._id === p._id
                         )
-                            ? "text-red-500"
-                            : "text-gray-300"
+                          ? "text-red-500"
+                          : "text-gray-300"
                           }`}
                       />
                     </div>
@@ -1373,8 +1416,8 @@ export default function SubcategoryPage() {
             onClick={handlePrev}
             disabled={page === 1}
             className={`p-1 rounded-md ${page === 1
-                ? "text-gray-300 cursor-not-allowed"
-                : "text-gray-700 hover:text-black"
+              ? "text-gray-300 cursor-not-allowed"
+              : "text-gray-700 hover:text-black"
               }`}
           >
             <TbArrowBadgeLeft size={24} />
@@ -1392,8 +1435,8 @@ export default function SubcategoryPage() {
             onClick={handleNext}
             disabled={page === totalPages}
             className={`p-1 rounded-md ${page === totalPages
-                ? "text-gray-300 cursor-not-allowed"
-                : "text-gray-700 hover:text-black"
+              ? "text-gray-300 cursor-not-allowed"
+              : "text-gray-700 hover:text-black"
               }`}
           >
             <TbArrowBadgeRight size={24} />

@@ -53,6 +53,7 @@ const webhookRoutes = require("./routes/webhookRoutes");
 const mediaRoutes = require("./routes/mediaRoutes");
 const vendorIdentityRoutes = require("./routes/vendorIdentityRoutes");
 const territoryIdentityRoutes = require("./routes/territoryIdentityRoutes");
+const transactionRoutes  = require("./routes/transactionRoutes");
 
 const app = express();
 
@@ -339,7 +340,8 @@ app.use("/api/webhooks", webhookRoutes);
 app.use("/api/agent-identity", require("./routes/agentIdentityRoutes"));
 app.use("/api/franchise-identity", require("./routes/franchiseIdentityRoutes"));
 app.use("/api/customer-vendor", require("./routes/customerBecomeVendorRoutes"));
-
+app.use("/api/transactions", transactionRoutes);
+ 
 app.use("/uploads", express.static("uploads"));
 
 // ✅ Global Error Handler
