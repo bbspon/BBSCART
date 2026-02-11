@@ -9,6 +9,8 @@ import {
   removeFromWishlist,
   fetchWishlistItems,
 } from "../../slice/wishlistSlice";
+import { addToCart, fetchCartItems } from "../../slice/cartSlice";
+import toast from "react-hot-toast";
 import { useDispatch, useSelector } from "react-redux";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
@@ -107,7 +109,8 @@ export default function ProductListingFull() {
     });
   }
   useEffect(() => {
-    const q = searchParams.get("search");
+    // Accept multiple possible query param names for compatibility
+    const q = searchParams.get("search") || searchParams.get("q") || searchParams.get("s");
     if (q) {
       setSearch(q);
       setPage(1);
@@ -151,7 +154,8 @@ export default function ProductListingFull() {
 
   // 🔁 Force reload when URL search changes
   useEffect(() => {
-    const q = searchParams.get("search");
+    // support legacy param names
+    const q = searchParams.get("search") || searchParams.get("q") || searchParams.get("s");
 
     if (q !== null) {
       setSearch(q);
@@ -240,14 +244,46 @@ setAllCategories(categoriesData);
     (async () => {
       try {
         const { list, extraParams } = getApiBase(pincode);
+        // Debug log: outgoing params
+        console.debug("Fetching products with params:", { ...params, ...extraParams });
         const { data } = await instance.get(list, {
           params: { ...params, ...extraParams },
           signal: controller.signal,
         });
         console.log(data, "API Data LIST");
 
-        setProducts(Array.isArray(data.products) ? data.products : []);
-        setTotal(Number.isFinite(data.total) ? data.total : 0);
+        let fetched = Array.isArray(data.products) ? data.products : [];
+        let fetchedTotal = Number.isFinite(data.total) ? data.total : 0;
+
+        // If a specific search term was provided but the returned products
+        // do not appear to match that term (or zero results), try the
+        // dedicated search endpoint as a fallback which uses a different
+        // query strategy and may return better results for exact product titles.
+        if (search && String(search).trim()) {
+          const norm = String(search).trim().toLowerCase();
+          const anyMatch = fetched.some((p) => {
+            const fields = [p.name, p.title, p.description].filter(Boolean).join(" ").toLowerCase();
+            return fields.includes(norm);
+          });
+
+          if (!anyMatch) {
+            console.debug("No local matches found, trying /products/search fallback for:", search);
+            try {
+              const sRes = await instance.get(`/products/search`, {
+                params: { q: search, page: 1, limit },
+              });
+              if (sRes?.data?.products && Array.isArray(sRes.data.products)) {
+                fetched = sRes.data.products;
+                fetchedTotal = sRes.data.pagination?.total || fetched.length;
+              }
+            } catch (fErr) {
+              console.debug("Fallback search failed:", fErr?.message || fErr);
+            }
+          }
+        }
+
+        setProducts(fetched);
+        setTotal(fetchedTotal);
       } catch (e) {
         setErr(
           e?.response?.data?.error || e?.message || "Failed to load products"
@@ -280,6 +316,34 @@ setAllCategories(categoriesData);
   useEffect(() => {
     dispatch(fetchWishlistItems());
   }, []);
+
+  const handleAdd = (e, product) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const deliveryPincode = getPincode();
+    if (!deliveryPincode) {
+      toast.error("Please enter your delivery pincode before adding items to cart.");
+      return;
+    }
+
+    if (deliveryPincode) {
+      localStorage.setItem("deliveryPincode", deliveryPincode);
+    }
+
+    dispatch(
+      addToCart({ productId: product._id || product.id, variantId: null, quantity: 1 })
+    )
+      .unwrap()
+      .then((res) => {
+        dispatch(fetchCartItems());
+        toast.success("Product added to cart!");
+      })
+      .catch((err) => {
+        const msg = err?.message || err?.error || "Failed to add to cart";
+        toast.error(msg);
+      });
+  };
 
   const toggleWishlist = async (e, productId) => {
     e.preventDefault();
@@ -637,12 +701,32 @@ setAllCategories(categoriesData);
                         <input
                           type="checkbox"
                           checked={compareIds.has(getProductId(p))}
-                          onChange={() => toggleCompare(getProductId(p))}
-
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                          onMouseDown={(e) => {
+                            // Prevent Link from receiving the mouse down and navigating
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            toggleCompare(getProductId(p));
+                          }}
                         />
 
                         <span>Add to Compare</span>
                       </label>
+
+                      <div className="ml-auto">
+                        <button
+                          onClick={(e) => handleAdd(e, p)}
+                          className="text-xs py-1 px-3 bg-primary text-white rounded-md hover:opacity-90"
+                        >
+                          Add to Cart
+                        </button>
+                      </div>
 
                       {p.assured && (
                         <span className="px-2 py-0.5 border text-xs rounded text-blue-700">
@@ -704,8 +788,28 @@ setAllCategories(categoriesData);
                     <input
                       type="checkbox"
                       checked={compareIds.has(getProductId(p))}
-                      onChange={() => toggleCompare(getProductId(p))}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        toggleCompare(getProductId(p));
+                      }}
                     />
+
+                    <div className="mt-2">
+                      <button
+                        onClick={(e) => handleAdd(e, p)}
+                        className="text-xs py-1 px-2 bg-primary text-white rounded-md hover:opacity-90"
+                      >
+                        Add to Cart
+                      </button>
+                    </div>
 
                   </div>
                 </div>

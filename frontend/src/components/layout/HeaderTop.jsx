@@ -162,7 +162,7 @@ const closePopup = () => setShowUserPopup(false);
               </button>
             ))}
             <div className="flex flex-row justify-center items-center">
-              <ProductSearch />
+              <ProductSearch onClose={() => setMenuOpen(false)} />
             </div>
           </div>
         )}
@@ -482,7 +482,7 @@ const closePopup = () => setShowUserPopup(false);
                     <MdCancel />
                   </button>
 
-                  <ProductSearch />
+                  <ProductSearch onClose={() => setOpen(false)} />
                 </div>
               </div>
             )}

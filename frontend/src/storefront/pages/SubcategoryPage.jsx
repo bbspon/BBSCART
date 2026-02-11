@@ -221,6 +221,7 @@ const effectiveSubcategoryId = isFreshPage
   // --- NEW: all subcategories (direct) ---
   const [subcategories, setSubcategories] = useState([]);
   const [subcatSearch, setSubcatSearch] = useState("");
+  const [brandSearchTerm, setBrandSearchTerm] = useState("");
   const [expandedSubcats, setExpandedSubcats] = useState(true);
 
   // --- other route params (kept) ---
@@ -286,6 +287,23 @@ const effectiveSubcategoryId = isFreshPage
     packSizes: ["100g", "250g", "500g", "1kg", "2kg", "5kg", "10kg"],
     brands: ["Agar", "Amazon", "Ambrane", "Amkette", "Apple", "Boat"],
     ratings: [5, 4, 3, 2, 1],
+  };
+
+  // --- small helpers ---
+  const pickImage = (p) => {
+    if (!p) return "/img/placeholder.png";
+    const pickFromArray = (v) => (Array.isArray(v) && v.length ? v[0] : "");
+    let raw = "";
+    raw = raw || p.image;
+    raw = raw || p.product_img;
+    raw = raw || pickFromArray(p.gallery_imgs);
+    raw = raw || pickFromArray(p.gallery_img_urls);
+    raw = raw || p.product_img2;
+    if (!raw) return "/img/placeholder.png";
+    if (String(raw).includes("|")) raw = String(raw).split("|")[0].trim();
+    if (String(raw).startsWith("/uploads/")) return `${API_BASE}${raw}`;
+    if (/^https?:\/\//i.test(String(raw))) return raw;
+    return `${API_BASE}/uploads/${encodeURIComponent(String(raw))}`;
   };
 
   const [facets, setFacets] = useState(null);
@@ -446,8 +464,13 @@ const effectiveSubcategoryId = isFreshPage
     productTypesList,
     returnPoliciesList,
   } = deriveFilters();
-
+const effectiveMin = minPrice !== "" ? minPrice : derivedMinPrice;
+const effectiveMax = maxPrice !== "" ? maxPrice : derivedMaxPrice;
   const buildQuery = () => {
+    // Ensure we send numeric values for price filters
+    const minVal = effectiveMin !== undefined && effectiveMin !== "" ? Number(effectiveMin) : undefined;
+    const maxVal = effectiveMax !== undefined && effectiveMax !== "" ? Number(effectiveMax) : undefined;
+
     const qobj = {
       subcategoryId: effectiveSubcategoryId,
       groupId: groupId || undefined,
@@ -457,8 +480,8 @@ const effectiveSubcategoryId = isFreshPage
       brand: brandSingle || undefined,
       organic: organic !== "" ? organic : undefined,
 
-      minPrice: (minPrice || derivedMinPrice) ?? undefined,
-      maxPrice: (maxPrice || derivedMaxPrice) ?? undefined,
+      minPrice: minVal,
+      maxPrice: maxVal,
 
       brands: brandsList,
       materials: materialsList,
@@ -501,9 +524,9 @@ const effectiveSubcategoryId = isFreshPage
 
   function loadFacets() {
     const query = buildQuery();
-    console.log("[REQ] /facets", query);
+    console.log("[REQ] /products/facets", query);
     instance
-      .get("/facets", { params: query })
+      .get("/products/facets", { params: query })
       .then(({ data }) => {
         const f = data?.facets || data || {};
         console.log("[RES] /facets", f);
@@ -612,8 +635,12 @@ const effectiveSubcategoryId = isFreshPage
   const applyClientFilters = (list) => {
     const term = (q || "").trim().toLowerCase();
 
-    const priceMinEff = Number(minPrice || derivedMinPrice);
-    const priceMaxEff = Number(maxPrice || derivedMaxPrice);
+ const priceMinEff =
+  minPrice !== "" ? Number(minPrice) : Number(derivedMinPrice);
+
+const priceMaxEff =
+  maxPrice !== "" ? Number(maxPrice) : Number(derivedMaxPrice);
+
     const hasPriceMin = Number.isFinite(priceMinEff);
     const hasPriceMax = Number.isFinite(priceMaxEff);
 
@@ -794,6 +821,9 @@ const effectiveSubcategoryId = isFreshPage
     // 3) Normalize into a usable URL (handles absolute, /uploads, /uploads-bbscart, bare filename)
     return norm(chosen);
   }
+console.log("priceBandsCSV:", priceBandsCSV);
+console.log("priceBandsFinal:", priceBandsFinal);
+console.log("selected.priceBands:", [...selected.priceBands]);
 
   // ------ UI ------
   return (
@@ -924,10 +954,16 @@ const effectiveSubcategoryId = isFreshPage
                   type="text"
                   placeholder="Search here"
                   className="mt-2 mb-2 w-full border rounded-md px-2 py-1 text-sm"
-                  onChange={() => { }}
+                  value={brandSearchTerm}
+                  onChange={(e) => setBrandSearchTerm(e.target.value)}
                 />
                 <div className="divide-y divide-gray-100">
-                  {lists.brands.map((b) => {
+                  {lists.brands
+                    .filter((b) => {
+                      if (!brandSearchTerm.trim()) return true;
+                      return b.toLowerCase().includes(brandSearchTerm.trim().toLowerCase());
+                    })
+                    .map((b) => {
                     const checked = selected.brands.has(b);
                     return (
                       <label
@@ -938,7 +974,16 @@ const effectiveSubcategoryId = isFreshPage
                           type="checkbox"
                           className="w-4 h-4"
                           checked={checked}
-                          onChange={() => toggleValue("brands", b)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                          }}
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                          }}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            toggleValue("brands", b);
+                          }}
                         />
                         <span className="text-gray-700">{b}</span>
                       </label>
@@ -974,7 +1019,16 @@ const effectiveSubcategoryId = isFreshPage
                         type="checkbox"
                         className="w-4 h-4"
                         checked={checked}
-                        onChange={() => toggleValue("priceBands", label)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                        }}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          toggleValue("priceBands", label);
+                        }}
                       />
                       <span className="text-gray-700">{label}</span>
                     </label>
@@ -984,6 +1038,8 @@ const effectiveSubcategoryId = isFreshPage
             )}
           </div>
 
+          {/* Feture Updates (11Feb2026) */}
+{/* 
           <div className="mb-4">
             <div
               className="flex items-center justify-between cursor-pointer"
@@ -1017,9 +1073,9 @@ const effectiveSubcategoryId = isFreshPage
                 })}
               </div>
             )}
-          </div>
+          </div> */}
 
-          <div>
+          {/* <div>
             <div
               className="flex items-center justify-between cursor-pointer"
               onClick={() => setExpandedPackSize(!expandedPackSize)}
@@ -1052,9 +1108,9 @@ const effectiveSubcategoryId = isFreshPage
                 })}
               </div>
             )}
-          </div>
+          </div> */}
 
-          <div className="mb-4">
+          {/* <div className="mb-4">
             <div
               className="flex items-center justify-between cursor-pointer"
               onClick={() => setExpandedProductType(!expandedProductType)}
@@ -1087,9 +1143,9 @@ const effectiveSubcategoryId = isFreshPage
                 })}
               </div>
             )}
-          </div>
+          </div> */}
 
-          <div className="mb-4">
+          {/* <div className="mb-4">
             <div
               className="flex items-center justify-between cursor-pointer"
               onClick={() => setExpandedReturnPolicy(!expandedReturnPolicy)}
@@ -1122,9 +1178,9 @@ const effectiveSubcategoryId = isFreshPage
                 })}
               </div>
             )}
-          </div>
+          </div> */}
 
-          <div className="mb-4">
+          {/* <div className="mb-4">
             <div
               className="flex items-center justify-between cursor-pointer"
               onClick={() => setExpandedMaterial(!expandedMaterial)}
@@ -1157,7 +1213,7 @@ const effectiveSubcategoryId = isFreshPage
                 })}
               </div>
             )}
-          </div>
+          </div> */}
         </div>
       </aside>
 
@@ -1391,8 +1447,8 @@ const effectiveSubcategoryId = isFreshPage
                               name: p.name,
                               price: p.price,
                               image: pickImage(p),
-                              quantity: 1,
-                              variantId: null,
+                              quantity: getQty(p._id) || 1,
+                              variantId: (p?.variants && p.variants[0]?._id) || null,
                             },
                           },
                         });

@@ -4,7 +4,7 @@ import instance from "../../services/axiosInstance";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import { useNavigate } from "react-router-dom";
-
+import CategoriesImage from "../../assets/Categories/offer4.jpg";
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const STATIC_PREFIXES = ["/uploads"];
 
@@ -150,8 +150,7 @@ export default function ProductSlider() {
         <div
           className="p-6 rounded-xl text-white flex flex-col justify-between"
           style={{
-            backgroundImage:
-              "url('/img/products/colourful-organic-ingredients-mexican-cuisine.jpg')",
+    backgroundImage: `url(${CategoriesImage})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}

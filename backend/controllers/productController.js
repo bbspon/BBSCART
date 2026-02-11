@@ -2606,23 +2606,43 @@ exports.listProducts = async (req, res) => {
       page = 1,
       limit = 20,
       categoryId,
+      categories, // CSV support for multiple categories
       subcategoryId,
       groupId,
     } = req.query;
 
     // Base match: always include globals; add vendor scope if assigned (dual-id/dual-type)
     const baseMatch = buildPublicMatch(req);
-    // When categoryId is provided, combine with $and so category filter is never lost
-    const rawCategoryId = categoryId && String(categoryId).trim();
-    const categoryObjId = rawCategoryId && mongoose.Types.ObjectId.isValid(rawCategoryId)
-      ? new mongoose.Types.ObjectId(rawCategoryId)
-      : null;
-    let match;
-  if (categoryObjId) {
-  match = { $and: [baseMatch, { category_id: categoryObjId }] };
-} else {
-  match = baseMatch;   // ✅ FIXED
-}
+    
+    let match = baseMatch;
+    
+    // Handle single categoryId OR multiple categories (CSV)
+    const categoryIds = [];
+    if (categoryId && String(categoryId).trim()) {
+      categoryIds.push(categoryId);
+    } else if (categories && String(categories).trim()) {
+      // Parse CSV categories parameter
+      const catArr = String(categories)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      categoryIds.push(...catArr);
+    }
+    
+    if (categoryIds.length > 0) {
+      const categoryObjIds = categoryIds
+        .filter((id) => mongoose.Types.ObjectId.isValid(id))
+        .map((id) => new mongoose.Types.ObjectId(id));
+      
+      if (categoryObjIds.length > 0) {
+        // If multiple categories, use $in operator
+        if (categoryObjIds.length === 1) {
+          match = { $and: [baseMatch, { category_id: categoryObjIds[0] }] };
+        } else {
+          match = { $and: [baseMatch, { category_id: { $in: categoryObjIds } }] };
+        }
+      }
+    }
 
 
     // Optional filters (keep/extend as you already do)

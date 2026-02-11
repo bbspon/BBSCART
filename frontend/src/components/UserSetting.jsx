@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 const UserSetting = () => {
   const navigate = useNavigate();
 
@@ -10,6 +12,7 @@ const UserSetting = () => {
     email: "",
     phone: "",
     tier: "",
+    profile_pic: "",
   });
 
   const [loading, setLoading] = useState(true);
@@ -26,28 +29,84 @@ const UserSetting = () => {
     );
   };
 
+  // -------------------------
+  // Helper → Get profile image URL
+  // -------------------------
+  const getProfileImageUrl = (profilePic) => {
+    if (!profilePic) return null;
+    if (profilePic.startsWith("http")) return profilePic;
+    return `${API_BASE}${profilePic}`;
+  };
+
   // ----------------------------------------------------
   // Load from localStorage
   // ----------------------------------------------------
   useEffect(() => {
-    const stored = localStorage.getItem("auth_user");
+    // Initialize user either from API (preferred) or from localStorage fallback
+    const init = async () => {
+      const storedRaw = localStorage.getItem("auth_user");
+      let parsed = null;
+      try {
+        parsed = storedRaw ? JSON.parse(storedRaw) : null;
+      } catch (e) {
+        parsed = null;
+      }
 
-    try {
-      const parsed = JSON.parse(stored);
+      const token = localStorage.getItem("token") || (parsed && parsed.token) || null;
 
-      if (parsed) {
-        setUser({
-          name: parsed?.name,
-          email: parsed?.email,
-          phone: extractPhone(parsed), // ← UPDATED
-        });
+      if (token) {
+        try {
+          const res = await axios.get(`${API_BASE}/api/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = res.data;
+          setUser({
+            name: data?.name,
+            email: data?.email,
+            phone: extractPhone(data),
+            tier: data?.tier || "",
+            profile_pic: data?.profile_pic || "",
+          });
+
+          // persist a helpful auth_user snapshot
+          const storeObj = parsed || {};
+          storeObj.token = token;
+          storeObj.name = data?.name;
+          storeObj.email = data?.email;
+          storeObj.phone = extractPhone(data);
+          storeObj.profile_pic = data?.profile_pic;
+          localStorage.setItem("auth_user", JSON.stringify(storeObj));
+        } catch (err) {
+          console.log("Failed to load profile from API:", err);
+          // fallback to parsed localStorage if available
+          if (parsed) {
+            setUser({
+              name: parsed?.name,
+              email: parsed?.email,
+              phone: extractPhone(parsed),
+              profile_pic: parsed?.profile_pic || "",
+            });
+          } else {
+            navigate("/login");
+          }
+        }
+      } else {
+        if (parsed) {
+          setUser({
+            name: parsed?.name,
+            email: parsed?.email,
+            phone: extractPhone(parsed),
+            profile_pic: parsed?.profile_pic || "",
+          });
+        } else {
+          navigate("/login");
+        }
       }
 
       setLoading(false);
-    } catch (err) {
-      console.log("Error parsing localStorage user:", err);
-      navigate("/login");
-    }
+    };
+
+    init();
   }, [navigate]);
 
   // ----------------------------------------------------
@@ -59,7 +118,7 @@ const UserSetting = () => {
         const stored = JSON.parse(localStorage.getItem("auth_user"));
         if (!stored || !stored.token) return;
 
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/auth/me`, {
+        const res = await axios.get(`${API_BASE}/api/auth/me`, {
           headers: { Authorization: `Bearer ${stored.token}` },
         });
 
@@ -70,10 +129,12 @@ const UserSetting = () => {
           email: data?.email,
           phone: extractPhone(data), // ← UPDATED
           tier: data?.tier || "Gold Tier",
+          profile_pic: data?.profile_pic || "",
         });
 
-        // Update phone inside localStorage
+        // Update profile_pic inside localStorage
         stored.phone = extractPhone(data);
+        stored.profile_pic = data?.profile_pic;
         stored.user = data;
 
         localStorage.setItem("auth_user", JSON.stringify(stored));
@@ -101,8 +162,16 @@ const UserSetting = () => {
   return (
     <div className="w-full min-h-screen bg-[#f6f6f6]">
       <div className="w-full bg-[#f4c542] p-5 flex items-center gap-4">
-        <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-gray-500 font-bold">
-          {user?.name?.charAt(0) || ""}
+        <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-gray-500 font-bold overflow-hidden">
+          {getProfileImageUrl(user?.profile_pic) ? (
+            <img
+              src={getProfileImageUrl(user?.profile_pic)}
+              alt="Profile"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            user?.name?.charAt(0) || "J"
+          )}
         </div>
 
         <div>

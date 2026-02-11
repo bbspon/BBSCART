@@ -21,6 +21,8 @@ import {
   addToWishlist,
   removeFromWishlist,
 } from "../../slice/wishlistSlice";
+import { addToCart, fetchCartItems } from "../../slice/cartSlice";
+import toast from "react-hot-toast";
 
 const API_BASE = import.meta.env.VITE_API_URL;
  const STATIC_PREFIX = "/uploads";
@@ -46,6 +48,10 @@ export default function ProductDetails() {
   const [loading, setLoading] = useState(true);
   const [img, setImg] = useState("");
   const [quantity, setQuantity] = useState(1);
+
+  const getPincode = () => {
+    return localStorage.getItem("deliveryPincode") || "";
+  };
 
   const [selected, setSelected] = useState(false); // wishlist toggle
   const [showOffers, setShowOffers] = useState(false);
@@ -162,14 +168,54 @@ const thumbs = useMemo(() => {
   }
 
   const onAddToCart = () => {
-    cart.addItem({
-      productId: p._id,
-      name: p.name,
-      image: img, // <-- add image
-      price: p?.price ?? 0, // <-- add price
-      qty: quantity, // <-- add quantity
-      variantId: null,
-    });
+    const vendorId = p?.seller_id || "default";
+
+    // Determine pincode: prefer stored deliveryPincode, fallback to parsing deliveryLocation
+    let deliveryPincode = getPincode();
+    if (!deliveryPincode) {
+      const m = String(deliveryLocation || "").match(/(\d{5,6})/);
+      deliveryPincode = m ? m[0] : "";
+    }
+
+    if (!deliveryPincode) {
+      toast.error("Please enter your delivery pincode before adding items to cart.");
+      return;
+    }
+
+    // Persist pincode for axios instance and cartSlice
+    localStorage.setItem("deliveryPincode", deliveryPincode);
+
+    // Keep the existing cart context update for immediate UI
+    try {
+      cart.addItem(
+        {
+          productId: p._id,
+          name: p.name,
+          image: img,
+          price: p?.price ?? 0,
+          qty: quantity,
+          variantId: null,
+        },
+        vendorId
+      );
+    } catch (err) {
+      // ignore if context not available
+    }
+
+    // Dispatch the redux thunk to persist server-side cart
+    dispatch(
+      addToCart({ productId: p._id, variantId: null, quantity })
+    )
+      .unwrap()
+      .then(() => {
+        dispatch(fetchCartItems());
+        toast.success("Product added to cart!");
+      })
+      .catch((err) => {
+        console.error("[ProductDetails] addToCart failed:", err);
+        const msg = err?.message || err?.error || "Failed to add to cart";
+        toast.error(msg);
+      });
   };
 
 

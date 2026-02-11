@@ -31,7 +31,7 @@ router.post("/logout", auth, logout);
 router.get("/check-auth", auth, checkAuth);
 router.put("/update-profile",auth, uploadAny, updateProfile);
 router.get("/me", auth, getMyProfile);
-router.put("/me", auth, updateMyProfile);
+router.put("/me", auth, uploadAny, updateMyProfile);
 router.get("/me", getUser);
 router.post("/refresh-token", authRefershToken);
 

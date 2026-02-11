@@ -8,10 +8,12 @@ import "swiper/css/pagination";
 
 const HeroSection = () => {
  const slides = [
-   { id: 1, image: "/img/hero/Grocery2.jpg" },
-   { id: 2, image: "/img/hero/Banner4.jpg" },
-   { id: 3, image: "/img/hero/Grocery3.jpg" },
-   { id: 4, image: "/img/hero/Grocery4.jpg" },
+   { id: 1, image: "/img/hero/bbscart shopping.png" },
+   { id: 2, image: "/img/hero/bbscart.png" },
+   { id: 3, image: "/img/hero/heath care.png" },
+   { id: 4, image: "/img/hero/bbscart gro.png" },
+  { id: 5, image: "/img/hero/Thiaworld jewellery.png" },
+
  ];
 
   return (

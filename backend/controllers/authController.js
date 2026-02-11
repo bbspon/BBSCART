@@ -786,10 +786,22 @@ exports.getMyProfile = async (req, res) => {
 exports.updateMyProfile = async (req, res) => {
   try {
     const { name, email, phone } = req.body;
+    const updateData = { name, email, phone };
+
+    // Handle profile picture upload
+    if (req.files && Array.isArray(req.files) && req.files.length) {
+      // upload.any() returns an array of files; find the one named 'profile_pic'
+      const fp = req.files.find((f) => f.fieldname === "profile_pic");
+      if (fp && fp.filename) updateData.profile_pic = `/uploads/${fp.filename}`;
+    } else if (req.files && req.files.profile_pic && req.files.profile_pic[0]) {
+      // fallback if multer.fields or uploadFields used elsewhere
+      const filename = req.files.profile_pic[0].filename;
+      updateData.profile_pic = `/uploads/${filename}`;
+    }
 
     const updated = await User.findByIdAndUpdate(
       req.user.userId,
-      { name, email, phone },
+      updateData,
       { new: true }
     ).select("-password");
 

@@ -71,6 +71,10 @@ const UserSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    profile_pic: {
+      type: String,
+      default: null,
+    },
     status: {
       type: String,
       enum: ["active", "disabled"],
