@@ -20,13 +20,13 @@ function HeaderTop() {
   const [displayName, setDisplayName] = useState("");
 
   const [showUserPopup, setShowUserPopup] = useState(false);
-useEffect(() => {
-  let timer;
-  if (showUserPopup) {
-    timer = setTimeout(() => setShowUserPopup(false), 5000);
-  }
-  return () => clearTimeout(timer);
-}, [showUserPopup]);
+  useEffect(() => {
+    let timer;
+    if (showUserPopup) {
+      timer = setTimeout(() => setShowUserPopup(false), 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [showUserPopup]);
 
 
   const navItems = [
@@ -45,12 +45,12 @@ useEffect(() => {
   const { user, isAuthenticated } = useSelector((state) => state.auth);
   const cartItems = useSelector((state) => state.cart.items);
   const wishItems = useSelector((state) => state.wishlist.items);
-const wishCount = wishItems.length;
+  const wishCount = wishItems.length;
 
   const [showHealthcareFrame, setShowHealthcareFrame] = useState(false);
-useEffect(() => {
-  if (user?.name) setDisplayName(user.name);
-}, [user]);
+  useEffect(() => {
+    if (user?.name) setDisplayName(user.name);
+  }, [user]);
 
 
 
@@ -97,7 +97,7 @@ useEffect(() => {
       </div>
     );
   }
-const closePopup = () => setShowUserPopup(false);
+  const closePopup = () => setShowUserPopup(false);
 
   return (
     <>
@@ -106,27 +106,29 @@ const closePopup = () => setShowUserPopup(false);
         className="sticky top-0 z-[999] flex flex-wrap items-center justify-between p-4 shadow bg-white"
       >
         {/* Left: Logo + Mobile Toggle */}
-        <div className="flex items-center justify-between w-full md:w-auto">
-          <button
-            onClick={() => window.location.reload()}
-            className="cursor-pointer transition-transform hover:scale-105"
-            title="Reload page"
-          >
-            <img
-              src="/img/logo/BBSCART_LOGO.PNG"
-              alt="BBSCART Logo"
-              className="w-[150px] sm:w-[200px] h-auto"
-            />
-          </button>
+      
+<div className="flex items-center justify-between w-full md:w-auto">
+  <Link
+    to="/"
+    className="cursor-pointer"
+    title="Go to Home"
+  >
+    <img
+      src="/img/logo/BBSCART_LOGO.PNG"
+      alt="BBSCART Logo"
+      className="w-[150px] sm:w-[200px] h-auto"
+    />
+  </Link>
 
-          {/* Hamburger button (visible only on small screens) */}
-          <button
-            onClick={toggleMenu}
-            className="md:hidden text-primary text-2xl focus:outline-none"
-          >
-            <i className="ri-menu-3-fill"></i>
-          </button>
-        </div>
+  {/* Hamburger button */}
+  <button
+    onClick={toggleMenu}
+    className="md:hidden text-primary text-2xl focus:outline-none"
+  >
+    <i className="ri-menu-3-fill"></i>
+  </button>
+</div>
+
 
         {/* Middle: Desktop Navigation */}
         <nav
@@ -382,7 +384,7 @@ const closePopup = () => setShowUserPopup(false);
                             Shopping List
                           </Link>
                         </li>
-                      
+
                         <li>
                           <Link
                             to="/all-products"
@@ -391,17 +393,17 @@ const closePopup = () => setShowUserPopup(false);
                             Create Wish List
                           </Link>
                         </li>
-                    
+
 
                         <hr className="border-gray-300" />
-  <li>
-                        <Link
-                          to="/checkout"
+                        <li>
+                          <Link
+                            to="/checkout"
                             className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
-                        >
-                          Checkout
-                        </Link>
-                      </li> 
+                          >
+                            Checkout
+                          </Link>
+                        </li>
                         <li>
                           <Link
                             to="/explore"

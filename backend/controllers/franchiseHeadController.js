@@ -52,8 +52,6 @@ exports.saveStepByKey = async (req, res) => {
   try {
     const b = req.body || {};
 
-    const isNew = !b.franchiseeId;
-
     const id =
       b.franchiseeId && mongoose.Types.ObjectId.isValid(b.franchiseeId)
         ? b.franchiseeId
@@ -92,15 +90,19 @@ exports.saveStepByKey = async (req, res) => {
         const v = addr[k];
         if (v) set[`register_business_address.${k}`] = String(v).trim();
       });
+    }
 
-      // 🔥 Generate BPC only when NEW franchise
-      if (isNew) {
-        const generatedBPC = await generateFranchiseBPC(
-          addr.state,
-          addr.city
-        );
-        set.businessPartnerCode = generatedBPC;
-      }
+    // 🔥 First fetch existing doc
+    let existingDoc = await Franchise.findById(id);
+
+    // 🔥 Generate BPC only if not already present
+    if (!existingDoc?.businessPartnerCode && b.register_business_address) {
+      const generatedBPC = await generateFranchiseBPC(
+        b.register_business_address.state,
+        b.register_business_address.city
+      );
+
+      set.businessPartnerCode = generatedBPC;
     }
 
     const doc = await Franchise.findOneAndUpdate(
@@ -120,17 +122,12 @@ exports.saveStepByKey = async (req, res) => {
       }
     );
 
-    try {
-      await emitFranchiseUpsert(doc);
-    } catch (e) {
-      console.error("[CRM] franchise-upsert failed:", e.message);
-    }
-
     return res.json({
       ok: true,
       data: doc,
       franchiseeId: doc._id,
     });
+
   } catch (e) {
     console.error("franchisee.saveStepByKey error:", e);
     return res.status(500).json({
