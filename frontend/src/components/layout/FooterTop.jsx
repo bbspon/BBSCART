@@ -185,7 +185,7 @@ function FooterTop() {
             <ul className="space-y-4 text-center sm:text-left">
               <li>
                 <i className="ri-map-pin-line text-primary mr-2"></i>
-                Floor, 1st, 5, 2nd Cross, Bharathy Street, Anna Nagar,
+                Floor, 1st, 7, 2nd Cross, Bharathy Street, Anna Nagar,
                 Puducherry, 605005
               </li>
               <li>
