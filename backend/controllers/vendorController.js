@@ -50,37 +50,49 @@ exports.uploadDocument = async (req, res) => {
  * - aadhar_number, aadhar_pic_front, aadhar_pic_back
  * - register_business_address: { street, city, state, country, postalCode }
  */
-  exports.saveStepByKey = async (req, res) => {
+exports.saveStepByKey = async (req, res) => {
   LOG.info("saveStepByKey IN", { bodyKeys: Object.keys(req.body || {}) });
+
   try {
     const b = req.body || {};
+
     const id =
       b.vendorId && mongoose.Types.ObjectId.isValid(b.vendorId)
         ? b.vendorId
         : new mongoose.Types.ObjectId();
 
-    const set = { updated_at: new Date() };
+    const isNewVendor = !b.vendorId;
 
+    const set = {
+      updated_at: new Date(),
+    };
+
+    // Basic fields
     if (b.vendor_fname) set.vendor_fname = String(b.vendor_fname).trim();
     if (b.vendor_lname) set.vendor_lname = String(b.vendor_lname).trim();
     if (b.dob) set.dob = String(b.dob).trim();
-    if (b.email) set.email = String(b.email).trim();
+    if (b.email) set.email = String(b.email).trim().toLowerCase();
 
+    // PAN
     if (b.pan_number)
       set.pan_number = String(b.pan_number).trim().toUpperCase();
     if (b.pan_pic) set.pan_pic = String(b.pan_pic).trim();
 
-    if (b.aadhar_number) set.aadhar_number = String(b.aadhar_number).trim();
+    // Aadhaar
+    if (b.aadhar_number)
+      set.aadhar_number = String(b.aadhar_number).trim();
     if (b.aadhar_pic_front)
       set.aadhar_pic_front = String(b.aadhar_pic_front).trim();
     if (b.aadhar_pic_back)
       set.aadhar_pic_back = String(b.aadhar_pic_back).trim();
 
+    // Address
     if (
       b.register_business_address &&
       typeof b.register_business_address === "object"
     ) {
       const addr = b.register_business_address;
+
       ["street", "city", "state", "country", "postalCode"].forEach((k) => {
         const v = addr[k];
         if (v !== undefined && v !== null && String(v).trim() !== "") {
@@ -89,9 +101,23 @@ exports.uploadDocument = async (req, res) => {
       });
     }
 
+    // 🔥 Generate Business Partner Code ONLY for new vendor
+    const setOnInsert = {
+      role: "vendor",
+      created_at: new Date(),
+    };
+
+    if (isNewVendor) {
+      const random = Date.now().toString().slice(-6);
+      setOnInsert.businessPartnerCode = `VPC${random}`;
+    }
+
     const doc = await Vendor.findOneAndUpdate(
       { _id: id },
-      { $set: set },
+      {
+        $set: set,
+        $setOnInsert: setOnInsert,
+      },
       {
         new: true,
         upsert: true,
@@ -100,16 +126,18 @@ exports.uploadDocument = async (req, res) => {
       }
     );
 
-    // require('../events/vendorEmitter').emitUpsert(doc).catch(()=>{});
-
     await safeEmitVendor(doc, "saveStepByKey");
+
     LOG.info("saveStepByKey OUT", { id: String(doc?._id || "") });
+
     return res.json({ ok: true, data: doc });
   } catch (e) {
     console.error("saveStepByKey error:", e);
-    return res
-      .status(500)
-      .json({ ok: false, message: "Save failed", details: e.message });
+    return res.status(500).json({
+      ok: false,
+      message: "Save failed",
+      details: e.message,
+    });
   }
 };
 

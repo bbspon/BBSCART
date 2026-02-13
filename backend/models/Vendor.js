@@ -77,6 +77,13 @@ const VendorSchema = new mongoose.Schema({
   profile_pic: { type: String, default: null },
   cover_pic: { type: String, default: null },
   vendor_bio: { type: String, default: null },
+  businessPartnerCode: {
+  type: String,
+  unique: true,
+  sparse: true,   // VERY IMPORTANT
+  index: true,
+},
+
   product_category: {
     type: String,
     enum: [

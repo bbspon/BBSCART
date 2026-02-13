@@ -10,7 +10,8 @@ import { vendorRegister } from "../../services/vendorService";
 const BecomeVendor = () => {
     
     const [vendorData, setVendorData] = useState({
-        vendor_fname: '', vendor_lname: '', dob: '', education_qualify: '', work_experience: '', referral_details: '', lang_proficiency: '', aadhar_number: '', business_type: '', brand_name: '', contact_person: '', email: '', mobile: '', register_business_address: { street: "", city: "", state: "", postalCode: "", country: "" }, operational_address: { street: "", city: "", state: "", postalCode: "", country: "" }, pan_number: '', gst_number: '', fssai_license: '', shop_establish_license: '', outlet_location: { street: "", city: "", state: "", postalCode: "", country: "" },outlet_manager_name: '', outlet_contact_no: '', bank_name: '', account_holder_name: '', account_no: '', ifcs_code: '', branch_name: '', cancel_cheque_passbook: '', passbook: '', vendor_bio: '', product_category: '', product_category_other: '', address_proof: '', termsConditions: false, privacyPolicy: false, sellerPolicy: false, role: 'seller',
+        vendor_fname: '', vendor_lname: '',businessPartnerCode: "",
+ dob: '', education_qualify: '', work_experience: '', referral_details: '', lang_proficiency: '', aadhar_number: '', business_type: '', brand_name: '', contact_person: '', email: '', mobile: '', register_business_address: { street: "", city: "", state: "", postalCode: "", country: "" }, operational_address: { street: "", city: "", state: "", postalCode: "", country: "" }, pan_number: '', gst_number: '', fssai_license: '', shop_establish_license: '', outlet_location: { street: "", city: "", state: "", postalCode: "", country: "" },outlet_manager_name: '', outlet_contact_no: '', bank_name: '', account_holder_name: '', account_no: '', ifcs_code: '', branch_name: '', cancel_cheque_passbook: '', passbook: '', vendor_bio: '', product_category: '', product_category_other: '', address_proof: '', termsConditions: false, privacyPolicy: false, sellerPolicy: false, role: 'seller',
     });
 
     // const [files, setFiles] = useState({
@@ -48,6 +49,9 @@ const BecomeVendor = () => {
         if (!vendorData.vendor_lname) formErrors.vendor_lname = "Last name is required";
         if (!vendorData.dob) formErrors.dob = "Date of Birth is required";
         if (!vendorData.business_type) formErrors.business_type = "Business type is required";
+        if (!vendorData.businessPartnerCode)
+    formErrors.businessPartnerCode = "Business Partner Code is required";
+
         if (!vendorData.brand_name) formErrors.brand_name = "Business / Store Name is required";        
         if (!vendorData.contact_person) formErrors.contact_person = "Contact person name is required";
         if (!vendorData.email) formErrors.email = "Email is required";
@@ -328,6 +332,52 @@ const BecomeVendor = () => {
                                     onChange={handleChange} value={vendorData.email} />
                                 {errors.email && <div className="text-red-800">{errors.email}</div>}
                             </div>
+                            <div className="col-span-1 mt-3">
+    <label className="block text-[14px] font-medium text-secondary mb-[8px]">
+        Business Partner Code
+    </label>
+
+    <div className={`flex items-center border p-[6px] rounded-lg 
+        ${errors.businessPartnerCode ? 'border-red-700' : ''}`}>
+
+        {vendorData.businessPartnerCode && (
+            <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-sm mr-2">
+                {vendorData.businessPartnerCode}
+            </span>
+        )}
+
+        <input
+            name="businessPartnerCode"
+            type="text"
+            placeholder="Enter Partner Code"
+            className="flex-1 outline-none"
+            value={vendorData.businessPartnerCode}
+            onChange={handleChange}
+        />
+
+        {vendorData.businessPartnerCode && (
+            <button
+                type="button"
+                className="text-red-500 ml-2"
+                onClick={() =>
+                    setVendorData(prev => ({
+                        ...prev,
+                        businessPartnerCode: ""
+                    }))
+                }
+            >
+                ✕
+            </button>
+        )}
+    </div>
+
+    {errors.businessPartnerCode && (
+        <div className="text-red-800">
+            {errors.businessPartnerCode}
+        </div>
+    )}
+</div>
+
                             {/* Mobile */}
                             <div className="col-span-1 mt-3">
                                 <label className="block text-[14px] font-medium text-secondary mb-[8px]">Primary Contact Mobile (with country code)</label>

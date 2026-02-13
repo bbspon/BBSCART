@@ -414,14 +414,14 @@ const closePopup = () => setShowUserPopup(false);
 
                       {/* RIGHT COLUMN */}
                       <ul className="flex-1 space-y-1 border-l pl-3">
-                        <li>
+                        {/* <li>
                           <Link
                             to="/switch-account"
                             className="block px-2 py-1 hover:bg-[#8e1c21] rounded"
                           >
                             Switch Account
                           </Link>
-                        </li>
+                        </li> */}
                         <li>
                           <Link
                             to="/orders"
