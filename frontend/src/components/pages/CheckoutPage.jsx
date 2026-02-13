@@ -557,7 +557,7 @@ image: productObj?.product_img_url
                     ></textarea>
                   </div>
                 </div>
-                <div
+                {/* <div
                   className="checkout-items border-[1px] border-solid border-[#eee] p-[20px] rounded-[20px] mb-[24px] aos-init aos-animate"
                   data-aos="fade-up"
                   data-aos-duration="1000"
@@ -602,7 +602,7 @@ image: productObj?.product_img_url
                       className="w-full h-[100px] p-[10px] text-[14px] font-normal text-secondary border-[1px] border-solid border-[#eee] outline-[0] rounded-[10px]"
                     ></textarea>
                   </div>
-                </div>
+                </div> */}
               </div>
             </div>
             <div className="min-[992px]:w-[66.66%] w-full px-[12px] mb-[24px]">

@@ -54,48 +54,37 @@ exports.uploadDocument = async (req, res) => {
   }
 };
 
-// POST/PATCH /step-by-key (partial upsert; bypass required validators on partial steps)
 exports.saveStepByKey = async (req, res) => {
   try {
     const b = req.body || {};
+
+    // ✅ ONLY use ID if explicitly sent
     const id =
-      b.territoryHeadId && mongoose.Types.ObjectId.isValid(b.territoryHeadId)
+      b.territoryHeadId &&
+      mongoose.Types.ObjectId.isValid(b.territoryHeadId)
         ? b.territoryHeadId
-        : b.franchiseeId && mongoose.Types.ObjectId.isValid(b.franchiseeId)
-          ? b.franchiseeId
-          : b.vendorId && mongoose.Types.ObjectId.isValid(b.vendorId)
-            ? b.vendorId
-            : new mongoose.Types.ObjectId();
+        : null;
 
     const set = { updated_at: new Date() };
 
-    // Identity
     if (b.vendor_fname) set.vendor_fname = String(b.vendor_fname).trim();
     if (b.vendor_lname) set.vendor_lname = String(b.vendor_lname).trim();
     if (b.dob) set.dob = String(b.dob).trim();
- // Email (draft-safe, but if provided we store it)
- if (b.email !== undefined) {
-   const em = String(b.email).trim().toLowerCase();
-    if (em) set.email = em;
-  }
 
-    // PAN
+    if (b.email !== undefined) {
+      const em = String(b.email).trim().toLowerCase();
+      if (em) set.email = em;
+    }
+
     if (b.pan_number)
       set.pan_number = String(b.pan_number).trim().toUpperCase();
-    if (b.pan_pic) set.pan_pic = String(b.pan_pic).trim();
 
-    // Aadhaar
-    if (b.aadhar_number) set.aadhar_number = String(b.aadhar_number).trim();
-    if (b.aadhar_pic_front)
-      set.aadhar_pic_front = String(b.aadhar_pic_front).trim();
-    if (b.aadhar_pic_back)
-      set.aadhar_pic_back = String(b.aadhar_pic_back).trim();
+    if (b.aadhar_number)
+      set.aadhar_number = String(b.aadhar_number).trim();
 
-    // Registered/Business address
-    if (
-      b.register_business_address &&
-      typeof b.register_business_address === "object"
-    ) {
+    if (b.register_business_address &&
+        typeof b.register_business_address === "object") {
+
       const addr = b.register_business_address;
       ["street", "city", "state", "country", "postalCode"].forEach((k) => {
         const v = addr[k];
@@ -105,47 +94,45 @@ exports.saveStepByKey = async (req, res) => {
       });
     }
 
-    const doc = await TerritoryHead.findOneAndUpdate(
-      { _id: id },
-      {
-        $set: set,
-        $setOnInsert: { role: "territory_head_owner", created_at: new Date() },
-      },
-      {
-        new: true,
-        upsert: true,
-        setDefaultsOnInsert: true,
-        runValidators: false,
-      }
-    );
+    let doc;
 
-    // return res.json({ ok: true, data: doc, territoryHeadId: doc._id });
-    // try { await emitTerritoryUpsert(doc); } catch (e) { console.error("[CRM] territory-upsert failed:", e.message); }
-
-
-
+    if (id) {
+      // ✅ UPDATE
+      doc = await TerritoryHead.findOneAndUpdate(
+        { _id: id },
+        { $set: set },
+        { new: true }
+      );
+    } else {
+      // ✅ CREATE NEW
+      doc = await TerritoryHead.create({
+        ...set,
+        role: "territory_head_owner",
+        created_at: new Date(),
+      });
+    }
 
     try {
-      const fullPayload = {
+      await emitTerritoryUpsert({
         ...doc.toObject(),
-        links: doc.links || {},
         updatedAt: new Date(),
-      };
-      await emitTerritoryUpsert(fullPayload);
+      });
     } catch (e) {
-      console.error("[CRM] territory-upsert failed:", e?.message || e);
+      console.error("[CRM] territory-upsert failed:", e?.message);
     }
+
     return res.json({ ok: true, data: doc, territoryHeadId: doc._id });
-
-
 
   } catch (e) {
     console.error("territoryHead.saveStepByKey error:", e);
-    return res
-      .status(500)
-      .json({ ok: false, message: "Save failed", details: e.message });
+    return res.status(500).json({
+      ok: false,
+      message: "Save failed",
+      details: e.message,
+    });
   }
 };
+
 
 // Optional legacy: PATCH /:territoryHeadId/step
 exports.saveStep = async (req, res) => {

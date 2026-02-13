@@ -25,27 +25,28 @@ exports.uploadDocument = async (req, res) => {
 exports.saveStepByKey = async (req, res) => {
   try {
     const b = req.body || {};
+
     const id =
       b.customerBecomeVendorId &&
       mongoose.Types.ObjectId.isValid(b.customerBecomeVendorId)
         ? b.customerBecomeVendorId
-        : b.agentHeadId && mongoose.Types.ObjectId.isValid(b.agentHeadId)
-          ? b.agentHeadId
-          : b.territoryHeadId &&
-              mongoose.Types.ObjectId.isValid(b.territoryHeadId)
-            ? b.territoryHeadId
-            : b.franchiseeId && mongoose.Types.ObjectId.isValid(b.franchiseeId)
-              ? b.franchiseeId
-              : b.vendorId && mongoose.Types.ObjectId.isValid(b.vendorId)
-                ? b.vendorId
-                : new mongoose.Types.ObjectId();
+        : new mongoose.Types.ObjectId();
 
-    const set = { updated_at: new Date() };
+    const isNew = !b.customerBecomeVendorId;
+
+    const set = {
+      updated_at: new Date(),
+    };
 
     // Identity
     if (b.vendor_fname) set.vendor_fname = String(b.vendor_fname).trim();
     if (b.vendor_lname) set.vendor_lname = String(b.vendor_lname).trim();
     if (b.dob) set.dob = String(b.dob).trim();
+
+    if (b.email !== undefined) {
+      const em = String(b.email).trim().toLowerCase();
+      if (em) set.email = em;
+    }
 
     // PAN
     if (b.pan_number)
@@ -53,13 +54,14 @@ exports.saveStepByKey = async (req, res) => {
     if (b.pan_pic) set.pan_pic = String(b.pan_pic).trim();
 
     // Aadhaar
-    if (b.aadhar_number) set.aadhar_number = String(b.aadhar_number).trim();
+    if (b.aadhar_number)
+      set.aadhar_number = String(b.aadhar_number).trim();
     if (b.aadhar_pic_front)
       set.aadhar_pic_front = String(b.aadhar_pic_front).trim();
     if (b.aadhar_pic_back)
       set.aadhar_pic_back = String(b.aadhar_pic_back).trim();
 
-    // Registered/Business address
+    // Address
     if (
       b.register_business_address &&
       typeof b.register_business_address === "object"
@@ -73,14 +75,22 @@ exports.saveStepByKey = async (req, res) => {
       });
     }
 
+    // ✅ Generate businessPartnerCode ONLY for new insert
+    let setOnInsert = {
+      role: "customer_become_vendor",
+      created_at: new Date(),
+    };
+
+    if (isNew) {
+      const random = Date.now().toString().slice(-6);
+      setOnInsert.businessPartnerCode = `CBV${random}`;
+    }
+
     const doc = await CustomerBecomeVendor.findOneAndUpdate(
       { _id: id },
       {
         $set: set,
-        $setOnInsert: {
-          role: "customer_become_vendor",
-          created_at: new Date(),
-        },
+        $setOnInsert: setOnInsert,
       },
       {
         new: true,
@@ -90,14 +100,22 @@ exports.saveStepByKey = async (req, res) => {
       }
     );
 
-    return res.json({ ok: true, data: doc, customerBecomeVendorId: doc._id });
+    return res.json({
+      ok: true,
+      data: doc,
+      customerBecomeVendorId: doc._id,
+    });
+
   } catch (e) {
     console.error("customerBecomeVendor.saveStepByKey error:", e);
-    return res
-      .status(500)
-      .json({ ok: false, message: "Save failed", details: e.message });
+    return res.status(500).json({
+      ok: false,
+      message: "Save failed",
+      details: e.message,
+    });
   }
 };
+
 
 // Optional legacy: PATCH /:customerBecomeVendorId/step
 exports.saveStep = async (req, res) => {
@@ -343,11 +361,11 @@ exports.registerCustomerBecomeVendor = async (req, res) => {
       },
       { new: true, upsert: true, runValidators: false }
     );
-try {
-  await emitCbavUpsert(savedCbav);
-} catch (e) {
-  console.error("[CRM] cbav-upsert failed:", e.message);
-}
+    try {
+      await emitCbavUpsert(savedCbav);
+    } catch (e) {
+      console.error("[CRM] cbav-upsert failed:", e.message);
+    }
     return res.status(201).json({
       ok: true,
       message: "Customer Become Vendor registered",
@@ -412,11 +430,11 @@ exports.approve = async (req, res) => {
       { new: true }
     );
     if (!updated) return res.status(404).json({ ok: false, message: "Not found" });
-   try {
-  await emitCbavUpsert(updatedCbav);
-} catch (e) {
-  console.error("[CRM] cbav-upsert failed:", e.message);
-}
+    try {
+      await emitCbavUpsert(updatedCbav);
+    } catch (e) {
+      console.error("[CRM] cbav-upsert failed:", e.message);
+    }
     res.json({ ok: true, data: updated });
   } catch (e) {
     res.status(500).json({ ok: false, message: "Approve failed", details: e.message });
@@ -444,10 +462,10 @@ exports.reject = async (req, res) => {
     );
     if (!updated) return res.status(404).json({ ok: false, message: "Not found" });
     try {
-  await emitCbavUpsert(updatedCbav);
-} catch (e) {
-  console.error("[CRM] cbav-upsert failed:", e.message);
-}
+      await emitCbavUpsert(updatedCbav);
+    } catch (e) {
+      console.error("[CRM] cbav-upsert failed:", e.message);
+    }
     res.json({ ok: true, data: updated });
   } catch (e) {
     res.status(500).json({ ok: false, message: "Reject failed", details: e.message });

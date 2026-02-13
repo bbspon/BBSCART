@@ -115,37 +115,37 @@ function FooterTop() {
           {/* Vendors */}
           <div className="w-1/2 sm:w-1/2 lg:w-1/6 px-3 mb-8">
             <h4 className="text-lg font-bold border-b text-center  pb-3 mb-5 text-secondary">
-              Vendors
+              Business Partner
             </h4>
             <ul className="space-y-4 text-center sm:text-left">
-              <li>
+              {/* <li>
                 <Link to="/login" className="footer-link">
                   Sign In
                 </Link>
-              </li>
-              <li>
+              </li> */}
+              {/* <li>
                 <Link to="/cart" className="footer-link">
                   View Cart
                 </Link>
-              </li>
-              {isAuthenticated && (
+              </li> */}
+              {/* {isAuthenticated && (
                 <li>
                   <Link to="/orders" className="footer-link">
                     Order History
                   </Link>
                 </li>
-              )}
-              <li>
+              )} */}
+              {/* <li>
                 <Link to="/wishlist" className="footer-link">
                   Wish List
                 </Link>
-              </li>
+              </li> */}
               {[
                 ["/become-a-franchise-head", "Become a Franchise Head"],
                 ["/become-a-territory-head", "Become a Territory Head"],
                 ["/become-a-agent", "Become a Agent"],
                 ["/become-a-vendor", "Become a Vendor"],
-                ["/delivery-partner", "Delivery Partner"],
+                ["/become-a-vendor", "Delivery Partner"],
                 ["/customer-become-a-vendor", "Customer Become A Vendor"],
               ].map(([path, label]) => (
                 <li key={path}>
@@ -162,6 +162,23 @@ function FooterTop() {
               Quick Links
             </h4>
             <ul className="space-y-4 text-center sm:text-left">
+                 <li>
+                <Link to="/cart" className="footer-link">
+                  View Cart
+                </Link>
+              </li>
+              {isAuthenticated && (
+                <li>
+                  <Link to="/orders" className="footer-link">
+                    Order History
+                  </Link>
+                </li>
+              )}
+              <li>
+                <Link to="/wishlist" className="footer-link">
+                  Wish List
+                </Link>
+              </li>
               <li>
                 <Link to="/services-terms-of-use" className="footer-link">
                   Services Terms of Use
