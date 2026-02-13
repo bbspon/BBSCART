@@ -107,7 +107,7 @@ exports.saveStepByKey = async (req, res) => {
       // ✅ CREATE NEW
       doc = await TerritoryHead.create({
         ...set,
-        role: "territory_head_owner",
+        role: "territory_head",
         created_at: new Date(),
       });
     }

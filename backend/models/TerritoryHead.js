@@ -49,11 +49,11 @@ const TerritoryHeadSchema = new mongoose.Schema({
 
   // contact
 email: { type: String, trim: true, lowercase: true, default: null },
-  mobile: { type: String, required: true },
+  mobile: { type: String},
   alt_mobile: { type: String, default: null },
 
   // addresses
-  register_business_address: { type: RequiredAddressSchema, required: true },
+  register_business_address: { type: RequiredAddressSchema },
   operational_address: { type: OptionalAddressSchema },
 
   // profile
@@ -70,7 +70,7 @@ email: { type: String, trim: true, lowercase: true, default: null },
   referral_details: { type: String },
   lang_proficiency: { type: String },
 
-  pan_number: { type: String, required: true },
+  pan_number: { type: String },
   pan_pic: { type: String },
 
   // misc licenses
@@ -86,11 +86,11 @@ email: { type: String, trim: true, lowercase: true, default: null },
   outlet_contact_no: { type: String, default: null },
 
   // bank
-  bank_name: { type: String, required: true },
-  account_holder_name: { type: String, required: true },
-  account_no: { type: String, required: true },
-  ifcs_code: { type: String, required: true },
-  branch_name: { type: String, required: true },
+  bank_name: { type: String },
+  account_holder_name: { type: String},
+  account_no: { type: String },
+  ifcs_code: { type: String },
+  branch_name: { type: String },
   bank_address: { type: String, default: "" },
   cancel_cheque_passbook: { type: String, default: null },
 
@@ -118,10 +118,10 @@ email: { type: String, trim: true, lowercase: true, default: null },
   product_category_other: { type: String, default: null },
 
   // legal
-  address_proof: { type: String, required: true },
-  termsConditions: { type: Boolean, required: true },
-  privacyPolicy: { type: Boolean, required: true },
-  sellerPolicy: { type: Boolean, required: true },
+  address_proof: { type: String},
+  termsConditions: { type: Boolean,},
+  privacyPolicy: { type: Boolean },
+  sellerPolicy: { type: Boolean },
 
   role: {
     type: String,
@@ -130,7 +130,6 @@ email: { type: String, trim: true, lowercase: true, default: null },
   },
 
    // === BBS CRM/Dashboard required fields ===
-   bpcId: { type: String, index: { unique: true, sparse: true } }, // e.g. THPYPY03112500001
    stateCode: { type: String },   // e.g. 'Puducherry'
    cityCode:  { type: String },   // e.g. 'Puducherry'
    zone:      { type: String },   // e.g. 'PY'
