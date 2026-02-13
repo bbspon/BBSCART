@@ -49,6 +49,12 @@ const AgentSchema = new mongoose.Schema({
   email: { type: String, required: true },
   mobile: { type: String, required: true },
   alt_mobile: { type: String, default: null },
+businessPartnerCode: {
+  type: String,
+  unique: true,
+  sparse: true, // IMPORTANT
+  default: null,
+},
 
   // addresses
   register_business_address: { type: RequiredAddressSchema, required: true },

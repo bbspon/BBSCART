@@ -5,7 +5,17 @@ const AgentHead = require("../models/Agent"); // mirror of your TerritoryHead mo
 
 // CRM sync: agent upsert emitter
 const { emitAgentUpsert } = require("../events/agentEmitter");
-
+ const stripNullish = (obj) => {
+   const out = {};
+   if (!obj || typeof obj !== "object") return out;
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === undefined) continue;
+    if (v === null) continue;
+     if (typeof v === "string" && v.trim() === "") continue;
+     out[k] = v;
+  }
+  return out;
+};
 
 // POST /upload -> { ok, fileUrl }  (no OCR)
 exports.uploadDocument = async (req, res) => {
@@ -23,46 +33,67 @@ exports.uploadDocument = async (req, res) => {
 };
 
 // POST/PATCH /step-by-key  (partial upsert; bypass required validators on partial steps)
+// POST/PATCH /step-by-key  (partial upsert; safe create/update logic)
 exports.saveStepByKey = async (req, res) => {
   try {
     const b = req.body || {};
-    const id =
-      b.agentHeadId && mongoose.Types.ObjectId.isValid(b.agentHeadId)
-        ? b.agentHeadId
-        : b.territoryHeadId &&
-            mongoose.Types.ObjectId.isValid(b.territoryHeadId)
-          ? b.territoryHeadId
-          : b.franchiseeId && mongoose.Types.ObjectId.isValid(b.franchiseeId)
-            ? b.franchiseeId
-            : b.vendorId && mongoose.Types.ObjectId.isValid(b.vendorId)
-              ? b.vendorId
-              : new mongoose.Types.ObjectId();
+
+    // ✅ Determine if this is update or new create
+    const isUpdate =
+      b.agentHeadId && mongoose.Types.ObjectId.isValid(b.agentHeadId);
+
+    const id = isUpdate
+      ? b.agentHeadId
+      : new mongoose.Types.ObjectId();
 
     const set = { updated_at: new Date() };
 
-    // Identity
-    if (b.vendor_fname) set.vendor_fname = String(b.vendor_fname).trim();
-    if (b.vendor_lname) set.vendor_lname = String(b.vendor_lname).trim();
-    if (b.dob) set.dob = String(b.dob).trim();
+    /* ================= IDENTITY ================= */
 
-    // PAN
+    if (b.vendor_fname)
+      set.vendor_fname = String(b.vendor_fname).trim();
+
+    if (b.vendor_lname)
+      set.vendor_lname = String(b.vendor_lname).trim();
+
+    if (b.email)
+      set.email = String(b.email).trim().toLowerCase();
+
+    if (b.dob)
+      set.dob = b.dob;
+// Auto generate businessPartnerCode if new document
+if (!b.agentHeadId && !b.businessPartnerCode) {
+  const random = Math.floor(100000 + Math.random() * 900000);
+  set.businessPartnerCode = `BPC${random}`;
+}
+
+    /* ================= PAN ================= */
+
     if (b.pan_number)
       set.pan_number = String(b.pan_number).trim().toUpperCase();
-    if (b.pan_pic) set.pan_pic = String(b.pan_pic).trim();
 
-    // Aadhaar
-    if (b.aadhar_number) set.aadhar_number = String(b.aadhar_number).trim();
+    if (b.pan_pic)
+      set.pan_pic = String(b.pan_pic).trim();
+
+    /* ================= AADHAAR ================= */
+
+    if (b.aadhar_number)
+      set.aadhar_number = String(b.aadhar_number).trim();
+
     if (b.aadhar_pic_front)
       set.aadhar_pic_front = String(b.aadhar_pic_front).trim();
+
     if (b.aadhar_pic_back)
       set.aadhar_pic_back = String(b.aadhar_pic_back).trim();
 
-    // Registered/Business address
+    /* ================= REGISTERED ADDRESS ================= */
+
     if (
       b.register_business_address &&
       typeof b.register_business_address === "object"
     ) {
       const addr = b.register_business_address;
+
       ["street", "city", "state", "country", "postalCode"].forEach((k) => {
         const v = addr[k];
         if (v !== undefined && v !== null && String(v).trim() !== "") {
@@ -71,34 +102,53 @@ exports.saveStepByKey = async (req, res) => {
       });
     }
 
-    const doc = await AgentHead.findOneAndUpdate(
+    /* ================= UPSERT ================= */
 
- 
+    const doc = await AgentHead.findOneAndUpdate(
       { _id: id },
       {
         $set: set,
-        $setOnInsert: { role: "agent_head_owner", created_at: new Date() },
+        ...(isUpdate
+          ? {}
+          : {
+              $setOnInsert: {
+                role: "agent_head_owner",
+                created_at: new Date(),
+              },
+            }),
       },
       {
         new: true,
         upsert: true,
         setDefaultsOnInsert: true,
-        runValidators: false,
+        runValidators: false, // allow partial save
       }
     );
-     // 🔔 CRM sync: agent upsert after partial save
+
+    /* ================= CRM SYNC ================= */
+
     try {
       await emitAgentUpsert(doc);
     } catch (e) {
       console.error("[CRM] agent-upsert failed:", e.message);
-    } 
-  return res.json({ ok: true, data: doc, agentHeadId: doc._id });  } catch (e) {
+    }
+
+    return res.json({
+      ok: true,
+      data: doc,
+      agentHeadId: doc._id,
+    });
+
+  } catch (e) {
     console.error("agentHead.saveStepByKey error:", e);
-    return res
-      .status(500)
-      .json({ ok: false, message: "Save failed", details: e.message });
+    return res.status(500).json({
+      ok: false,
+      message: "Save failed",
+      details: e.message,
+    });
   }
 };
+
 
 // Optional legacy: PATCH /:agentHeadId/step
 exports.saveStep = async (req, res) => {

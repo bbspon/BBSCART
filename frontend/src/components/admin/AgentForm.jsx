@@ -53,6 +53,8 @@ export default function AgentHeadForm() {
     firstName: "",
     lastName: "",
     dob: "",
+     email: "",
+     businessPartnerCode: "",
     panNumber: "",
     aadharNumber: "",
     gender: "",
@@ -124,6 +126,12 @@ export default function AgentHeadForm() {
 const validateStep1 = () => {
   if (!formData.firstName.trim()) return toast.error("Enter First Name"), false;
   if (!formData.lastName.trim()) return toast.error("Enter Last Name"), false;
+    if (!formData.email.trim())
+    return toast.error("Enter Email Address"), false;
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(formData.email))
+    return toast.error("Enter Valid Email Address"), false;
   if (!dobValue) return toast.error("Select Date of Birth"), false;
   if (!formData.panNumber.trim()) return toast.error("Enter PAN Number"), false;
   if (!formData.pan_pic && !agentHeadId)
@@ -137,7 +145,10 @@ const validateStep1 = () => {
     try {
       const payload = {
         agentHeadId,
+          email: formData.email.trim().toLowerCase(),   // ✅ ADD THIS
+
         pan_number: (formData.panNumber || "").toUpperCase(),
+          businessPartnerCode: formData.businessPartnerCode || undefined,
         vendor_fname: formData.firstName || "",
         vendor_lname: formData.lastName || "",
         dob: formData.dob || "",
@@ -152,6 +163,12 @@ const validateStep1 = () => {
         setAgentHeadId(id);
         localStorage.setItem("agentHeadId", id);
       }
+      if (resp?.data?.data?.businessPartnerCode) {
+  setFormData((prev) => ({
+    ...prev,
+    businessPartnerCode: resp.data.data.businessPartnerCode,
+  }));
+}
       setStep(2);
       toast.success("✅ PAN uploaded successfully!", {
         duration: 4500, // disappears after 2.5s
@@ -526,7 +543,7 @@ const validateStep5 = () => {
     await submitAgentApplication();
 
     // clear the local draft ID only after successful submit, if you prefer:
-    // localStorage.removeItem("agentHeadId");
+    localStorage.removeItem("agentHeadId");
 
     navigate("/agent-head-success");
   };
@@ -593,8 +610,46 @@ const validateStep5 = () => {
               />
             </Col>
           </Row>
+<Row>
+  <Col md={12} className="mb-3">
+    <Form.Label>Email Address</Form.Label>
+    <Form.Control
+      type="email"
+      value={formData.email}
+      onChange={(e) =>
+        setFormData((p) => ({
+          ...p,
+          email: e.target.value,
+        }))
+      }
+      className="border border-dark rounded-lg my-3"
+      style={{
+        border: "0.1px solid #333",
+        boxShadow: "none",
+      }}
+    />
+  </Col>
+</Row>
 
           <Row>
+            <Row>
+  <Col md={12} className="mb-3">
+    <Form.Label>Business Partner Code</Form.Label>
+    <Form.Control
+      type="text"
+      value={formData.businessPartnerCode || ""}
+      readOnly
+      placeholder="Auto generated after first save"
+      className="border border-dark rounded-lg my-3"
+      style={{
+        border: "0.1px solid #333",
+        backgroundColor: "#f8f9fa",
+        fontWeight: "600",
+        letterSpacing: "1px",
+      }}
+    />
+  </Col>
+</Row>
             <Col md={6} className="mb-3 flex flex-col">
               <Form.Label>Date of Birth</Form.Label>
 
