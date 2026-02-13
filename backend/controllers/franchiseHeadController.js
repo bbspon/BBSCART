@@ -5,6 +5,26 @@ const Franchise = require("../models/FranchiseHead"); // reuse schema; tag role=
 const Notification = require("../models/Notification") // if you already created one for vendors
 // CRM sync: franchise upsert emitter
 const { emitFranchiseUpsert } = require("../events/franchiseEmitter");
+const generateFranchiseBPC = async (state = "", city = "") => {
+  const today = new Date();
+
+  const dd = String(today.getDate()).padStart(2, "0");
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
+  const yy = String(today.getFullYear()).slice(-2);
+
+  const stateCode = (state || "NA").substring(0, 2).toUpperCase();
+  const cityCode = (city || "NA").substring(0, 3).toUpperCase();
+
+  // count existing franchises today
+  const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+  const count = await Franchise.countDocuments({
+    created_at: { $gte: startOfDay },
+  });
+
+  const sequence = String(count + 1).padStart(4, "0");
+
+  return `FH${stateCode}${cityCode}${dd}${mm}${yy}${sequence}`;
+};
 
 /**
  * POST /upload  (no OCR)  -> { ok, fileUrl: /uploads/xxx.ext }
@@ -32,25 +52,24 @@ exports.saveStepByKey = async (req, res) => {
   try {
     const b = req.body || {};
 
-    // Determine franchiseeId or create new one
+    const isNew = !b.franchiseeId;
+
     const id =
       b.franchiseeId && mongoose.Types.ObjectId.isValid(b.franchiseeId)
         ? b.franchiseeId
-        : b.vendorId && mongoose.Types.ObjectId.isValid(b.vendorId)
-          ? b.vendorId
-          : new mongoose.Types.ObjectId();
+        : new mongoose.Types.ObjectId();
 
     const set = { updated_at: new Date() };
 
     // Identity
     if (b.vendor_fname) set.vendor_fname = String(b.vendor_fname).trim();
     if (b.vendor_lname) set.vendor_lname = String(b.vendor_lname).trim();
-if (b.email !== undefined) {
-  const em = String(b.email).trim().toLowerCase();
-  if (em) {
-    set.email = em;
-  }
-}
+
+    if (b.email !== undefined) {
+      const em = String(b.email).trim().toLowerCase();
+      if (em) set.email = em;
+    }
+
     if (b.dob) set.dob = String(b.dob).trim();
 
     // PAN
@@ -65,26 +84,33 @@ if (b.email !== undefined) {
     if (b.aadhar_pic_back)
       set.aadhar_pic_back = String(b.aadhar_pic_back).trim();
 
-    // Registered/Business Address
-    if (
-      b.register_business_address &&
-      typeof b.register_business_address === "object"
-    ) {
+    // Address
+    if (b.register_business_address && typeof b.register_business_address === "object") {
       const addr = b.register_business_address;
+
       ["street", "city", "state", "country", "postalCode"].forEach((k) => {
         const v = addr[k];
-        if (v !== undefined && v !== null && String(v).trim() !== "") {
-          set[`register_business_address.${k}`] = String(v).trim();
-        }
+        if (v) set[`register_business_address.${k}`] = String(v).trim();
       });
+
+      // 🔥 Generate BPC only when NEW franchise
+      if (isNew) {
+        const generatedBPC = await generateFranchiseBPC(
+          addr.state,
+          addr.city
+        );
+        set.businessPartnerCode = generatedBPC;
+      }
     }
 
-    // Perform upsert
     const doc = await Franchise.findOneAndUpdate(
       { _id: id },
       {
         $set: set,
-        $setOnInsert: { role: "franchisee_owner", created_at: new Date() },
+        $setOnInsert: {
+          role: "franchisee_owner",
+          created_at: new Date(),
+        },
       },
       {
         new: true,
@@ -94,25 +120,24 @@ if (b.email !== undefined) {
       }
     );
 
-    // Emit to CRM safely
     try {
       await emitFranchiseUpsert(doc);
     } catch (e) {
       console.error("[CRM] franchise-upsert failed:", e.message);
     }
 
-    // ✔ SUCCESS RESPONSE (This was missing!)
     return res.json({
       ok: true,
       data: doc,
       franchiseeId: doc._id,
     });
   } catch (e) {
-    // Improved error handling for duplicate keys
     console.error("franchisee.saveStepByKey error:", e);
-
-
-    return res.status(500).json({ ok: false, message: "Save failed", details: e.message });
+    return res.status(500).json({
+      ok: false,
+      message: "Save failed",
+      details: e.message,
+    });
   }
 };
 

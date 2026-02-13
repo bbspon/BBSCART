@@ -73,7 +73,7 @@ export default function FranchiseHeadForm({ value, onChange }) {
     register_state: "",
     register_country: "India",
     register_postalCode: "",
-    // GST manual fields
+businessPartnerCode: "",
     gstNumber: "",
     gstLegalName: "",
     constitution_of_business: "",
@@ -212,10 +212,17 @@ const onPanUpload = async (e) => {
       );
       if (!resp?.data?.ok) throw new Error("Save failed");
       const id = resp?.data?.data?._id;
+      const bpc = resp?.data?.data?.businessPartnerCode;
       if (id) {
         setFranchiseeId(id);
         localStorage.setItem("franchiseeId", id);
       }
+      if (bpc) {
+  setFormData((p) => ({
+    ...p,
+    businessPartnerCode: bpc,
+  }));
+}
       setStep(2);
       toast.success("✅ PAN uploaded successfully!", {
         duration: 4500, // disappears after 2.5s
@@ -796,6 +803,17 @@ const onPanUpload = async (e) => {
               />
             </Col>
           </Row>
+          <div className="mb-3">
+  <label className="form-label">Business Partner Code</label>
+  <input
+    type="text"
+    className="form-control"
+    value={formData.businessPartnerCode}
+    readOnly
+    placeholder="Auto generated after save"
+  />
+</div>
+
           <Form.Group className="mb-3">
             <Form.Label>Upload PAN (JPG, JPEG, PNG, PDF)</Form.Label>
             <Form.Control
