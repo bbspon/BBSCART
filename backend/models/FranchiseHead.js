@@ -47,8 +47,14 @@ const FranchiseHeadSchema = new mongoose.Schema({
   contact_person: { type: String, default: null },
 
   // contact
-  email: { type: String, required: true, index: { unique: true, sparse: true } },
-  mobile: { type: String, required: true },
+email: {
+  type: String,
+  unique: true,
+  sparse: true,
+  lowercase: true,
+  trim: true,
+}
+,  mobile: { type: String, required: true },
   alt_mobile: { type: String, default: null },
 
   // addresses
