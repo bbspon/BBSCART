@@ -53,17 +53,28 @@ function HeaderTop() {
   }, [user]);
 
 
+const handleLogout = async (e) => {
+  e.preventDefault();
 
-  const handleLogout = async (e) => {
-    e.preventDefault();
-    try {
-      await logout(dispatch);
-      toast.success("Successfully Logged Out");
-      navigate("/");
-    } catch (error) {
-      toast.error(error.message || "Logout Failed");
-    }
-  };
+  try {
+    // 1️⃣ Clear redux immediately
+    dispatch({ type: "LOGOUT_SUCCESS" });
+
+    // 2️⃣ Navigate instantly
+    navigate("/");
+
+    toast.success("Successfully Logged Out");
+
+    // 3️⃣ Call backend in background (no wait)
+    logout(dispatch).catch((err) =>
+      console.error("Background logout failed:", err)
+    );
+
+  } catch (error) {
+    toast.error("Logout Failed");
+  }
+};
+
 
   const userRole = user?.role;
   const roleDashboardRoutes = {
