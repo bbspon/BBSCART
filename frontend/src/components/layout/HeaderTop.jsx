@@ -348,7 +348,7 @@ function HeaderTop() {
                         </Link>
                       </li>
 
-                      {dashboardPath && (
+                      {/* {dashboardPath && (
                         <li>
                           <Link
                             to={dashboardPath}
@@ -357,7 +357,7 @@ function HeaderTop() {
                             Dashboard
                           </Link>
                         </li>
-                      )}
+                      )} */}
 
 
                       <li>
