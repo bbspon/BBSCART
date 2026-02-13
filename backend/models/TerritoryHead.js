@@ -61,11 +61,11 @@ email: { type: String, trim: true, lowercase: true, default: null },
   work_experience: { type: String },
 
   // IDs
-  aadhar_number: { type: String, required: true },
+  aadhar_number: { type: String},
   aadhar_pic_front: { type: String, default: null },
   aadhar_pic_back: { type: String, default: null },
 
-  self_declaration: { type: String, required: true },
+  self_declaration: { type: String,  },
   criminal_history: { type: String },
   referral_details: { type: String },
   lang_proficiency: { type: String },
