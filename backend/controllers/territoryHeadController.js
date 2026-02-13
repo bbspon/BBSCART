@@ -73,6 +73,11 @@ exports.saveStepByKey = async (req, res) => {
     if (b.vendor_fname) set.vendor_fname = String(b.vendor_fname).trim();
     if (b.vendor_lname) set.vendor_lname = String(b.vendor_lname).trim();
     if (b.dob) set.dob = String(b.dob).trim();
+ // Email (draft-safe, but if provided we store it)
+ if (b.email !== undefined) {
+   const em = String(b.email).trim().toLowerCase();
+    if (em) set.email = em;
+  }
 
     // PAN
     if (b.pan_number)

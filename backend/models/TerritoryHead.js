@@ -48,7 +48,7 @@ const TerritoryHeadSchema = new mongoose.Schema({
   contact_person: { type: String, default: null },
 
   // contact
-  email: { type: String, required: true },
+email: { type: String, trim: true, lowercase: true, default: null },
   mobile: { type: String, required: true },
   alt_mobile: { type: String, default: null },
 

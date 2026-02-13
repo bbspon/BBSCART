@@ -1141,6 +1141,7 @@ export default function TerritoryHeadForm() {
     firstName: "",
     lastName: "",
     dob: "",
+    email: "", 
     panNumber: "",
     aadharNumber: "",
     gender: "",
@@ -1214,7 +1215,9 @@ const validateStep1 = () => {
   if (!formData.firstName.trim()) return toast.error("Enter First Name"), false;
 
   if (!formData.lastName.trim()) return toast.error("Enter Last Name"), false;
-
+  if (!formData.email.trim()) return "Email is required";
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim());
+ if (!emailOk) return "Enter a valid email";
   if (!dobValue) return toast.error("Select Date of Birth"), false;
 
   if (!formData.panNumber.trim()) return toast.error("Enter PAN Number"), false;
@@ -1234,6 +1237,7 @@ const validateStep1 = () => {
         pan_number: (formData.panNumber || "").toUpperCase(),
         vendor_fname: formData.firstName || "",
         vendor_lname: formData.lastName || "",
+        email: formData.email,
         dob: formData.dob || "",
       };
       const resp = await axios.post(
@@ -1740,6 +1744,17 @@ const validateStep5 = () => {
                 showPopperArrow={false}
               />
             </Col>
+            <div className="mt-4">
+  <label className="block font-medium mb-1">Email</label>
+  <input
+    type="email"
+    value={formData.email}
+    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+    className="w-full border rounded-md px-3 py-2"
+    placeholder="example@gmail.com"
+  />
+</div>
+
             <Col md={6} className="mb-3">
               <Form.Label>PAN Number</Form.Label>
               <Form.Control
