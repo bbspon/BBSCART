@@ -11,13 +11,23 @@ const connectDB = require('./config/db');
 // Load environment variables
 dotenv.config();
 connectDB()
-  .then(() => {
+  .then(async () => {
     // Create indexes (adds partial unique index for FranchiseHead.email)
     try {
       const createIndexes = require('./config/dbSetup');
-      createIndexes().catch((e) => console.error('Index creation failed:', e));
+      await createIndexes();
     } catch (e) {
       console.error('Index setup import failed:', e?.message || e);
+    }
+
+    // sync indexes for models that changed schema to make fields sparse/unique.
+    try {
+      const TerritoryHead = require('./models/TerritoryHead');
+      // this will drop non-sparse unique index on bpcId if exists
+      await TerritoryHead.syncIndexes();
+      console.log('✅ TerritoryHead indexes synced');
+    } catch (e) {
+      console.error('Error syncing TerritoryHead indexes:', e);
     }
   })
   .catch((e) => console.error('DB connect failed at startup:', e));

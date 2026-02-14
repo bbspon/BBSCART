@@ -29,11 +29,15 @@ const TerritoryHeadSchema = new mongoose.Schema({
   vendor_lname: { type: String },
   dob: { type: Date },
 
-  bpcId: { type: String, index: true, default: null },
+  // bpcId is the canonical auto‑generated code.  older deployments
+  // accidentally created a non‑sparse unique index, leading to the
+  // "dup key: { bpcId: null }" error when inserting multiple rows before a
+  // code had been assigned.  we switch to a sparse unique index here and
+  // call syncIndexes on startup to correct the database.
+  bpcId: { type: String, default: null },
 
-  // legacy code used `businessPartnerCode` (BPC); keep a unique sparse index
-  // so new documents without a value are allowed.  we also populate this
-  // field whenever a bpcId/bpc is written.
+  // legacy code used `businessPartnerCode` (same value as bpcId);
+  // preserve it for backwards compatibility with dashboards.
   businessPartnerCode: {
     type: String,
     unique: true,
@@ -208,6 +212,10 @@ TerritoryHeadSchema.pre("save", function (next) {
 // old non‑sparse index you will need to drop it manually (e.g.
 // `db.territoryheads.dropIndex('businessPartnerCode_1')`) before starting the
 // server, or call `TerritoryHead.syncIndexes()` on startup.
+// ensure the correct indexes exist (sparse unique on both codes).
+// The explicit `syncIndexes` call (see server.js) will drop any legacy
+// non-sparse unique indexes such as the one currently causing errors.
 TerritoryHeadSchema.index({ businessPartnerCode: 1 }, { unique: true, sparse: true });
+TerritoryHeadSchema.index({ bpcId: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model("TerritoryHead", TerritoryHeadSchema);
