@@ -54,15 +54,17 @@ function HeaderTop() {
 
 
 
-  const handleLogout = async (e) => {
+  const handleLogout = (e) => {
     e.preventDefault();
-    try {
-      await logout(dispatch);
-      toast.success("Successfully Logged Out");
-      navigate("/");
-    } catch (error) {
-      toast.error(error.message || "Logout Failed");
-    }
+    // fire-and-forget the network request so we don't block the UI.
+    logout(dispatch).catch((err) => {
+      console.error("Logout API error:", err);
+      // we still clear the UI even if the call fails
+    });
+
+    // clear feedback / redirect immediately
+    toast.success("Successfully Logged Out");
+    navigate("/");
   };
 
   const userRole = user?.role;

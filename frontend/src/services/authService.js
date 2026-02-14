@@ -95,19 +95,23 @@ export const login = async (dispatch, email, password, navigate) => {
 
 // Logout function
 export const logout = async (dispatch) => {
+  // clear client state straight away so UI isn't waiting on the network
   try {
-    await instance.post("/auth/logout");
-  } catch (error) {
-    console.error(
-      "Logout failed:",
-      error.response?.data?.message || error.message
-    );
+    localStorage.clear();
+    dispatch(logoutUser());
+  } catch (err) {
+    console.error("Error clearing client state during logout", err);
   }
 
-  // Ensure local storage and state are cleared
-  localStorage.clear();
-  dispatch(logoutUser());
-  // window.location.href = "/login"; // Redirect after logout
+  // send request in the background; give the call a short timeout to avoid long hangs in production
+  instance
+    .post("/auth/logout", null, { timeout: 10000 })
+    .catch((error) => {
+      console.error(
+        "Logout API failed:",
+        error.response?.data?.message || error.message
+      );
+    });
 };
 
 // Forgot Password
