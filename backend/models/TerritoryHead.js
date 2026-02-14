@@ -31,6 +31,16 @@ const TerritoryHeadSchema = new mongoose.Schema({
 
   bpcId: { type: String, index: true, default: null },
 
+  // legacy code used `businessPartnerCode` (BPC); keep a unique sparse index
+  // so new documents without a value are allowed.  we also populate this
+  // field whenever a bpcId/bpc is written.
+  businessPartnerCode: {
+    type: String,
+    unique: true,
+    sparse: true,
+    default: null,
+  },
+
   // business
   business_type: {
     type: String,
@@ -192,5 +202,12 @@ TerritoryHeadSchema.pre("save", function (next) {
   this.updated_at = Date.now();
   next();
 });
+
+
+// ensure the correct index exists (sparse unique).  if production still has the
+// old non‑sparse index you will need to drop it manually (e.g.
+// `db.territoryheads.dropIndex('businessPartnerCode_1')`) before starting the
+// server, or call `TerritoryHead.syncIndexes()` on startup.
+TerritoryHeadSchema.index({ businessPartnerCode: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model("TerritoryHead", TerritoryHeadSchema);

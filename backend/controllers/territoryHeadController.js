@@ -82,6 +82,19 @@ exports.saveStepByKey = async (req, res) => {
     if (b.aadhar_number)
       set.aadhar_number = String(b.aadhar_number).trim();
 
+    // handle bpc / businessPartnerCode updates coming from the front-end
+    if (b.businessPartnerCode) {
+      set.businessPartnerCode = String(b.businessPartnerCode).trim();
+      // keep backwards-compatible fields in sync
+      set.bpc = String(b.businessPartnerCode).trim();
+      set.bpcId = String(b.businessPartnerCode).trim();
+    } else if (b.bpc || b.bpcId) {
+      const code = String(b.bpc || b.bpcId).trim();
+      set.bpc = code;
+      set.bpcId = code;
+      set.businessPartnerCode = code;
+    }
+
     if (b.register_business_address &&
         typeof b.register_business_address === "object") {
 
@@ -564,7 +577,9 @@ exports.decideTerritory = async (req, res) => {
        // Ensure bpcId on approval (TH{STATE}{CITY}{DDMMYY}{NNNNN})
 
     if (current && !current.bpcId) {
-     set.bpcId = await computeNextBpcId(current.stateCode, current.cityCode, new Date());
+     const next = await computeNextBpcId(current.stateCode, current.cityCode, new Date());
+     set.bpcId = next;
+     set.businessPartnerCode = next; // keep legacy field populated
     }
       set.is_active = true;
       set.is_decline = false;

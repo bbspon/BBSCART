@@ -73,6 +73,13 @@ export default function TerritoryHeadForm() {
 
   // NEW: store generated BPC ID and show in UI (Step 2)
   const [bpcId, setBpcId] = useState(() => localStorage.getItem("bpcId") || "");
+  const [businessPartnerCode, setBusinessPartnerCode] = useState(() => localStorage.getItem("bpcId") || "");
+
+  // keep the two codes in sync (they are the same value, just different names)
+  useEffect(() => {
+    setBusinessPartnerCode(bpcId);
+  }, [bpcId]);
+
 
   // Loading flags for uploads/saves
   const [loadingPan, setLoadingPan] = useState(false);
@@ -323,6 +330,7 @@ export default function TerritoryHeadForm() {
           // NEW: persist codes
           bpcId,                 // new key kept for clarity in UI/CRM
           bpc: bpcId,            // stored under `bpc` as well (dashboards already use `bpc`)
+          businessPartnerCode: bpcId, // legacy field used by unique index
           // keep existing fields
           aadhar_number: aNumRaw,
           register_business_address: {
@@ -616,7 +624,10 @@ export default function TerritoryHeadForm() {
     const id = localStorage.getItem("territoryHeadId");
     if (id) setTerritoryHeadId(id);
     const storedBpc = localStorage.getItem("bpcId");
-    if (storedBpc) setBpcId(storedBpc);
+    if (storedBpc) {
+      setBpcId(storedBpc);
+      setBusinessPartnerCode(storedBpc);
+    }
   }, []);
 
   return (
@@ -882,7 +893,7 @@ export default function TerritoryHeadForm() {
           {/* NEW: Show the auto-generated BPC ID */}
           <Row className="mb-3">
             <Col md={6}>
-              <Form.Label>BPC ID (Auto)</Form.Label>
+              <Form.Label>BPC / Business Partner Code (Auto)</Form.Label>
               <Form.Control value={bpcId} readOnly />
               <div className="text-muted" style={{ fontSize: 12 }}>
                 Format:
