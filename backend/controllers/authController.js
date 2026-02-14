@@ -140,7 +140,7 @@ exports.register = async (req, res) => {
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "none",
+      sameSite: "strict",
       maxAge: 60 * 60 * 1000,
     });
 
@@ -415,20 +415,16 @@ exports.logout = async (req, res) => {
     await client.setEx(token, expiry, "blacklisted");
 
     // Clear cookies
-  res.clearCookie("accessToken", {
-  httpOnly: true,
-  secure: true,               // Always true in production
-  sameSite: "none",           // 🔥 IMPORTANT
-  domain: ".bbscart.com",     // 🔥 VERY IMPORTANT (use your real domain)
-});
-
-res.clearCookie("refreshToken", {
-  httpOnly: true,
-  secure: true,
-  sameSite: "none",
-  domain: ".bbscart.com",
-});
-
+    res.clearCookie("accessToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
 
     return res.status(200).json({ message: "Logout successful" });
   } catch (error) {

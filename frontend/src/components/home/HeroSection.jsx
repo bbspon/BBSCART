@@ -12,7 +12,6 @@ const HeroSection = () => {
    { id: 2, image: "/img/hero/bbscart.png" },
    { id: 3, image: "/img/hero/heath care.png" },
    { id: 4, image: "/img/hero/bbscart gro.png" },
-  { id: 5, image: "/img/hero/Thiaworld jewellery.png" },
 
  ];
 

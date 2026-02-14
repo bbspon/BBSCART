@@ -559,7 +559,7 @@ const validateStep5 = () => {
         className="fw-bold mb-4 text-uppercase mt-5 text-center"
         style={{ color: "#008080", fontSize: "2rem", letterSpacing: "1px" }}
       >
-        Agent Head Owner Registration
+        Agent Registration
       </h4>
       <div className="text-center">
         <strong>Step {step} of 5</strong>

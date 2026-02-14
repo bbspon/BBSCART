@@ -7,6 +7,7 @@ import { loadUser, logout } from "../../services/authService";
 import { FaHeart } from "react-icons/fa6";
 import { FaHandHoldingHeart } from "react-icons/fa";
 import { RiUserShared2Fill } from "react-icons/ri";
+import { FaCartArrowDown } from "react-icons/fa";
 import DeliverTo from "../../components/DeliverTo";
 import NavbarCart from "../../components/NavbarCart";
 import ProductSearch from "./ProductSearch";
@@ -52,21 +53,17 @@ function HeaderTop() {
   }, [user]);
 
 
-const handleLogout = async (e) => {
-  e.preventDefault();
 
-  dispatch(logoutUser());
-  localStorage.clear();
-
-  navigate("/", { replace: true });
-
-  instance.post("/auth/logout").catch(() => {});
-};
-
-useEffect(() => {
-  dispatch(loadUser());
-}, []);
-
+  const handleLogout = async (e) => {
+    e.preventDefault();
+    try {
+      await logout(dispatch);
+      toast.success("Successfully Logged Out");
+      navigate("/");
+    } catch (error) {
+      toast.error(error.message || "Logout Failed");
+    }
+  };
 
   const userRole = user?.role;
   const roleDashboardRoutes = {
