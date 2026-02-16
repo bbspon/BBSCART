@@ -21,6 +21,24 @@ client.connect().catch(console.error);
 const { Resend } = require("resend");
 const resend = new Resend("re_Kwdg2csA_A3De7JEabPeYrUMCKPZD1BnZ");
 
+// SMS/OTP helpers (BSNL integration)
+const { sendOTPSMS, normalizeMobile } = require("../utils/bsnlSms");
+
+// Redis is already configured above; we'll keep simple helpers for OTP storage
+const setOtpForMobile = async (mobile, otp) => {
+  const key = `otp:${mobile}`;
+  // expire after 5 minutes
+  await client.setEx(key, 300, otp);
+};
+const getOtpForMobile = async (mobile) => {
+  const key = `otp:${mobile}`;
+  return client.get(key);
+};
+const deleteOtpForMobile = async (mobile) => {
+  const key = `otp:${mobile}`;
+  await client.del(key);
+};
+
 // Function to generate a 7-digit alphanumeric referral code
 const generateReferralCode = () => {
   return crypto.randomBytes(4).toString("hex").toUpperCase().slice(0, 7);
@@ -250,6 +268,121 @@ exports.login = async (req, res) => {
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+
+// ------------------------------------------------------------------
+// OTP login helpers/endpoints
+// ------------------------------------------------------------------
+
+exports.sendLoginOtp = async (req, res) => {
+  const { mobile } = req.body;
+  if (!mobile) {
+    return res.status(400).json({ success: false, message: "Mobile number required" });
+  }
+
+  try {
+    const normalized = normalizeMobile(mobile);
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // store in redis
+    await setOtpForMobile(normalized, otp);
+
+    // attempt to send SMS
+    try {
+      const smsResult = await sendOTPSMS(normalized, otp);
+      if (!smsResult.success) {
+        console.warn("BSNL SMS service reported failure", smsResult);
+      }
+    } catch (smsErr) {
+      console.error("Failed to send OTP SMS", smsErr);
+      // continue anyway so frontend user still receives success (maybe retry later)
+    }
+
+    return res.status(200).json({ success: true, message: "OTP sent" });
+  } catch (err) {
+    console.error("sendLoginOtp error", err);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+exports.verifyLoginOtp = async (req, res) => {
+  const { mobile, otp } = req.body;
+  if (!mobile || !otp) {
+    return res.status(400).json({ success: false, message: "Mobile and OTP required" });
+  }
+
+  try {
+    const normalized = normalizeMobile(mobile);
+    const stored = await getOtpForMobile(normalized);
+    if (!stored) {
+      return res.status(400).json({ success: false, message: "OTP expired or not requested" });
+    }
+    if (stored !== String(otp)) {
+      return res.status(400).json({ success: false, message: "Invalid OTP" });
+    }
+
+    // OTP valid; delete it and proceed to login
+    await deleteOtpForMobile(normalized);
+
+    let user = await User.findOne({ phone: normalized })
+      .populate("userdetails");
+
+    if (!user) {
+      // could optionally auto-create user; for now return error
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // merge guest cart if needed
+    if (req.session.userId) {
+      await mergeGuestCartWithUser(req.session.userId, user._id);
+      req.session.userId = null;
+    }
+
+    const accessToken = jwt.sign(
+      { userId: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+    const refreshToken = jwt.sign(
+      { userId: user._id },
+      process.env.REFRESH_TOKEN_SECRET,
+      { expiresIn: "7d" }
+    );
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Strict",
+      maxAge: 60 * 60 * 1000,
+    });
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+      token: accessToken,
+      refreshToken,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        details: user.userdetails,
+        vendor_id: user.vendor_id || null,
+      },
+    });
+  } catch (err) {
+    console.error("verifyLoginOtp error", err);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 

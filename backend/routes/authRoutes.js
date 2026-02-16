@@ -2,6 +2,8 @@ const express = require("express");
 const {
   register,
   login,
+  sendLoginOtp,
+  verifyLoginOtp,
   sendPasswordResetEmail,
   resetPassword,
   setPassword,
@@ -23,6 +25,10 @@ const router = express.Router();
 
 router.post("/register", register);
 router.post("/login", login);
+// mobile OTP endpoints
+router.post("/login/otp/send", sendLoginOtp);
+router.post("/login/otp/verify", verifyLoginOtp);
+
 router.post("/forgot-password", sendPasswordResetEmail);
 router.post("/reset-password/:token", resetPassword);
 

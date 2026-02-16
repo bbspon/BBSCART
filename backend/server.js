@@ -26,8 +26,13 @@ connectDB()
       // this will drop non-sparse unique index on bpcId if exists
       await TerritoryHead.syncIndexes();
       console.log('✅ TerritoryHead indexes synced');
+
+      // Also ensure FranchiseHead indexes are correct (sparse unique on bpc)
+      const FranchiseHead = require('./models/FranchiseHead');
+      await FranchiseHead.syncIndexes();
+      console.log('✅ FranchiseHead indexes synced');
     } catch (e) {
-      console.error('Error syncing TerritoryHead indexes:', e);
+      console.error('Error syncing indexes for Territory/FranchiseHead:', e);
     }
   })
   .catch((e) => console.error('DB connect failed at startup:', e));

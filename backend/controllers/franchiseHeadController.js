@@ -95,13 +95,17 @@ exports.saveStepByKey = async (req, res) => {
     // 🔥 First fetch existing doc
     let existingDoc = await Franchise.findById(id);
 
-    // 🔥 Generate BPC only if not already present
-    if (!existingDoc?.businessPartnerCode && b.register_business_address) {
-      const generatedBPC = await generateFranchiseBPC(
-        b.register_business_address.state,
-        b.register_business_address.city
-      );
-
+    // 🔥 Generate BPC if not already present.
+    // Previously we only generated when register_business_address was supplied.
+    // That meant early drafts could be inserted without a code, leaving the
+    // field missing/null.  A non-sparse unique index then caused duplicate
+    // key errors in production when multiple nulls were saved.  To avoid
+    // this we now always generate a BPC on insert (state/city may be empty)
+    // so the document never has a null value.  The generator defaults to "NA".
+    if (!existingDoc?.businessPartnerCode) {
+      const state = b.register_business_address?.state || "";
+      const city = b.register_business_address?.city || "";
+      const generatedBPC = await generateFranchiseBPC(state, city);
       set.businessPartnerCode = generatedBPC;
     }
 

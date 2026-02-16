@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { login } from "../../services/authService";
+import { login, requestOtp, verifyOtp } from "../../services/authService";
 import { useDispatch } from "react-redux";
 
 const Login = () => {
@@ -11,8 +11,13 @@ const Login = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
 
-  // Validation function for login
-  // Validation function for login
+  // OTP state
+  const [method, setMethod] = useState("email"); // 'email' or 'otp'
+  const [mobile, setMobile] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+
+  // Validation function for email/password login
   const validateLogin = () => {
     let formErrors = {};
 
@@ -47,7 +52,14 @@ const Login = () => {
     setLoginData({ ...loginData, [e.target.name]: e.target.value });
   };
 
-  // Handle login form submit
+  const handleMobileChange = (e) => {
+    setMobile(e.target.value);
+  };
+
+  const handleOtpChange = (e) => {
+    setOtp(e.target.value);
+  };
+
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     const validationErrors = validateLogin();
@@ -69,6 +81,37 @@ const Login = () => {
     }
   };
 
+  const handleSendOtp = async () => {
+    if (!mobile.trim()) {
+      setErrors({ mobile: "Mobile number is required" });
+      return;
+    }
+    const ok = await requestOtp(mobile);
+    if (ok) setOtpSent(true);
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    if (!otp.trim()) {
+      setErrors({ otp: "OTP is required" });
+      return;
+    }
+
+    await verifyOtp(dispatch, mobile, otp, navigate);
+  };
+
+  const switchToOtp = () => {
+    setMethod("otp");
+    setErrors({});
+  };
+
+  const switchToEmail = () => {
+    setMethod("email");
+    setErrors({});
+    setOtpSent(false);
+    setOtp("");
+  };
+
   return (
     <>
       <div className="h-100 w-screen flex justify-center items-center dark:bg-gray-900 py-10">
@@ -81,79 +124,153 @@ const Login = () => {
               <h1 className="pt-8 pb-6 font-bold dark:text-gray-400 text-3xl text-center cursor-default">
                 Log in
               </h1>
-              <form onSubmit={handleLoginSubmit} className="space-y-4">
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="mb-2  dark:text-gray-400 text-md"
-                  >
-                    Email
-                  </label>
-                  <input
-                    id="email"
-                    name="lemail"
-                    className={`border p-3 dark:bg-indigo-700 dark:text-gray-300  dark:border-gray-700 shadow-md placeholder:text-base focus:scale-105 ease-in-out duration-300 border-gray-300 rounded-lg w-full placeholder-gray-300 ${
-                      errors.lemail ? "border-red-700" : ""
-                    }`}
-                    type="email"
-                    placeholder="example@abc.com"
-                    onChange={handleChange}
-                    value={loginData.lemail}
-                  />
-                  {errors.lemail && (
-                    <div className="text-red-800">{errors.lemail}</div>
-                  )}
-                </div>
-                <div>
-                  <label
-                    htmlFor="password"
-                    className="mb-2 dark:text-gray-400 text-md"
-                  >
-                    Password
-                  </label>
-                  <div className="relative">
+              <div className="flex justify-center mb-4">
+                <button
+                  className={`px-4 py-2 rounded-l-lg border ${method === "email" ? "bg-logoPrimary text-white" : "bg-white"}`}
+                  onClick={switchToEmail}
+                >
+                  Email / Password
+                </button>
+                <button
+                  className={`px-4 py-2 rounded-r-lg border ${method === "otp" ? "bg-logoPrimary text-white" : "bg-white"}`}
+                  onClick={switchToOtp}
+                >
+                  Mobile OTP
+                </button>
+              </div>
+
+              {method === "email" && (
+                <form onSubmit={handleLoginSubmit} className="space-y-4">
+                  <div>
+                    <label
+                      htmlFor="email"
+                      className="mb-2  dark:text-gray-400 text-md"
+                    >
+                      Email
+                    </label>
                     <input
-                      id="password"
-                      name="lpassword"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="********"
+                      id="email"
+                      name="lemail"
+                      className={`border p-3 dark:bg-indigo-700 dark:text-gray-300  dark:border-gray-700 shadow-md placeholder:text-base focus:scale-105 ease-in-out duration-300 border-gray-300 rounded-lg w-full placeholder-gray-300 ${
+                        errors.lemail ? "border-red-700" : ""
+                      }`}
+                      type="email"
+                      placeholder="example@abc.com"
                       onChange={handleChange}
-                      value={loginData.lpassword}
+                      value={loginData.lemail}
+                    />
+                    {errors.lemail && (
+                      <div className="text-red-800">{errors.lemail}</div>
+                    )}
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="password"
+                      className="mb-2 dark:text-gray-400 text-md"
+                    >
+                      Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="password"
+                        name="lpassword"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="********"
+                        onChange={handleChange}
+                        value={loginData.lpassword}
+                        className={`border p-3 shadow-md dark:bg-indigo-700 dark:text-gray-300 dark:border-gray-700 placeholder:text-base focus:scale-105 ease-in-out duration-300 border-gray-300 rounded-lg w-full placeholder-gray-300 ${
+                          errors.lpassword ? "border-red-700" : ""
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 dark:text-gray-300"
+                      >
+                        <i
+                          className={
+                            showPassword ? "ri-eye-off-line" : "ri-eye-line"
+                          }
+                        ></i>
+                      </button>
+                    </div>
+                    {errors.lpassword && (
+                      <div className="text-red-800">{errors.lpassword}</div>
+                    )}
+                  </div>
+                  <Link
+                    className="group text-primary transition-all duration-100 ease-in-out"
+                    to="/forgot-password"
+                  >
+                    <span className="bg-left-bottom bg-gradient-to-r text-sm from-blue-400 to-blue-400 bg-[length:0%_2px] bg-no-repeat group-hover:bg-[length:100%_2px] transition-all duration-500 ease-out">
+                      Forgot your password?
+                    </span>
+                  </Link>
+                  <button
+                    className="bg-gradient-to-r dark:text-gray-300 from-logoSecondary to-logoPrimary shadow-lg mt-6 p-2 text-white rounded-lg w-full hover:scale-105 hover:from-logoPrimary hover:to-logoSecondary transition duration-300 ease-in-out"
+                    type="submit"
+                  >
+                    LOG IN
+                  </button>
+                </form>
+              )}
+
+              {method === "otp" && (
+                <form onSubmit={otpSent ? handleVerifyOtp : (e) => { e.preventDefault(); handleSendOtp(); }} className="space-y-4">
+                  <div>
+                    <label
+                      htmlFor="mobile"
+                      className="mb-2 dark:text-gray-400 text-md"
+                    >
+                      Mobile Number
+                    </label>
+                    <input
+                      id="mobile"
+                      name="mobile"
+                      type="text"
+                      placeholder="9876543210"
+                      onChange={handleMobileChange}
+                      value={mobile}
                       className={`border p-3 shadow-md dark:bg-indigo-700 dark:text-gray-300 dark:border-gray-700 placeholder:text-base focus:scale-105 ease-in-out duration-300 border-gray-300 rounded-lg w-full placeholder-gray-300 ${
-                        errors.lpassword ? "border-red-700" : ""
+                        errors.mobile ? "border-red-700" : ""
                       }`}
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((prev) => !prev)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 dark:text-gray-300"
-                    >
-                      <i
-                        className={
-                          showPassword ? "ri-eye-off-line" : "ri-eye-line"
-                        }
-                      ></i>
-                    </button>
+                    {errors.mobile && (
+                      <div className="text-red-800">{errors.mobile}</div>
+                    )}
                   </div>
-                  {errors.lpassword && (
-                    <div className="text-red-800">{errors.lpassword}</div>
+                  {otpSent && (
+                    <div>
+                      <label
+                        htmlFor="otp"
+                        className="mb-2 dark:text-gray-400 text-md"
+                      >
+                        Enter OTP
+                      </label>
+                      <input
+                        id="otp"
+                        name="otp"
+                        type="text"
+                        placeholder="123456"
+                        onChange={handleOtpChange}
+                        value={otp}
+                        className={`border p-3 shadow-md dark:bg-indigo-700 dark:text-gray-300 dark:border-gray-700 placeholder:text-base focus:scale-105 ease-in-out duration-300 border-gray-300 rounded-lg w-full placeholder-gray-300 ${
+                          errors.otp ? "border-red-700" : ""
+                        }`}
+                      />
+                      {errors.otp && (
+                        <div className="text-red-800">{errors.otp}</div>
+                      )}
+                    </div>
                   )}
-                </div>
-                <Link
-                  className="group text-primary transition-all duration-100 ease-in-out"
-                  to="/forgot-password"
-                >
-                  <span className="bg-left-bottom bg-gradient-to-r text-sm from-blue-400 to-blue-400 bg-[length:0%_2px] bg-no-repeat group-hover:bg-[length:100%_2px] transition-all duration-500 ease-out">
-                    Forgot your password?
-                  </span>
-                </Link>
-                <button
-                  className="bg-gradient-to-r dark:text-gray-300 from-logoSecondary to-logoPrimary shadow-lg mt-6 p-2 text-white rounded-lg w-full hover:scale-105 hover:from-logoPrimary hover:to-logoSecondary transition duration-300 ease-in-out"
-                  type="submit"
-                >
-                  LOG IN
-                </button>
-              </form>
+                  <button
+                    className="bg-gradient-to-r dark:text-gray-300 from-logoSecondary to-logoPrimary shadow-lg mt-6 p-2 text-white rounded-lg w-full hover:scale-105 hover:from-logoPrimary hover:to-logoSecondary transition duration-300 ease-in-out"
+                    type="submit"
+                  >
+                    {otpSent ? "VERIFY OTP" : "SEND OTP"}
+                  </button>
+                </form>
+              )}
               <div className="flex flex-col mt-4 items-center justify-center text-sm">
                 <h3 className="dark:text-gray-300">
                   Don't have an account?

@@ -42,14 +42,14 @@ const caseStudies = [
     title: "👩‍⚕️ Orphanage Health Drive - March 2025",
     description:
       "With BBSCART's NGO pass system, 800+ children received emergency & dental care in Lucknow, India. Local staff used offline QR codes due to no signal.",
-    image: "/media/case/orphanage-drive.png",
+    // image: "/media/case/orphanage-drive.png",
     month: "March 2025",
   },
   {
     title: "🏢 Employee Plan Boost - May 2025",
     description:
       "A corporate HR in Dubai used BBSCART to onboard 220 workers in a single dashboard. 93% activated family coverage within 2 weeks.",
-    image: "/media/case/employee-plan.png",
+    // image: "/media/case/employee-plan.png",
     month: "May 2025",
   },
 ];
@@ -80,7 +80,7 @@ const GalleryMediaTestimonials = () => {
             allowFullScreen
           />
         </Col>
-        <Col md={6}>
+        {/* <Col md={6}>
           <Carousel>
             {sampleImages.map((src, idx) => (
               <Carousel.Item key={idx}>
@@ -92,7 +92,7 @@ const GalleryMediaTestimonials = () => {
               </Carousel.Item>
             ))}
           </Carousel>
-        </Col>
+        </Col> */}
       
       </Row>
 
@@ -150,13 +150,13 @@ const GalleryMediaTestimonials = () => {
   {filteredCases.map((cs, i) => (
     <Col md={6} key={i} className="mb-4">
       <Card className="shadow-sm border-0 h-100">
-        <Card.Img
+        {/* <Card.Img
           variant="top"
           src={cs.image}
           alt={cs.title}
           loading="lazy"
           style={{ maxHeight: "200px", objectFit: "cover" }}
-        />
+        /> */}
         <Card.Body>
           <Card.Title className="fs-5 fw-semibold" style={{ fontFamily: "Inter, system-ui" }}>
             {cs.title}
@@ -177,7 +177,7 @@ const GalleryMediaTestimonials = () => {
     <div className="flex justify-center items-center py-4">
   <div className="flex flex-row gap-4 items-center">
     {/* WhatsApp */}
-    <a href="https://facebook.com/bbscart" target="_blank" rel="noreferrer">
+    <a href="https://wa.me/9952471916" target="_blank" rel="noreferrer">
       <IoLogoWhatsapp style={{ fontSize: "2.5rem", color: "green" }} />
     </a>
 

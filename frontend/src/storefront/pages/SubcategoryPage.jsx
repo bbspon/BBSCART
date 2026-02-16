@@ -1341,16 +1341,19 @@ console.log("selected.priceBands:", [...selected.priceBands]);
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
             {items.map((p) => (
+
+
               <div
                 key={p._id}
-                className="relative border-2 rounded-xl p-5 bg-slate-10 hover:bg-gray-50"
+                className="flex items-center flex-col justify-between border-2 rounded-xl p-5 bg-slate-10 hover:bg-gray-50"
               >
-                {/* Product Card Link */}
+               <div>
+                 {/* Product Card Link */}
                 <Link to={`/p/${p._id}`} className="block ">
                   <img
                     src={pickMainImage(p)}
                     alt={p.name || "Product"}
-                    className="w-full h-full object-contain"
+                   className="w-[400px] h-[250px] object-contain mb-2 border rounded-lg bg-white p-2"
                     onError={(e) => {
                       const src = e.currentTarget.src;
 
@@ -1387,14 +1390,17 @@ console.log("selected.priceBands:", [...selected.priceBands]);
                       />
                     </div>
                   </div>
-
-                  {/* ADD / BUY Section */}
-                  <div className="flex gap-2 items-center justify-center sm:justify-start py-2 flex-wrap">
+                   </Link>   
+               
+                </div>      
+                 <div className=" flex flex-col items-end border-t py-2">
+                         {/* ADD / BUY Section */}
+                  <div className="flex gap-2 items-center justify-center sm:justify-end py-2 flex-wrap">
                     {getQty(p._id) === 0 ? (
                       <button
                         onClick={(e) => handleAdd(e, p)}
                         className="flex flex-row items-center gap-1 border rounded-2xl p-2 px-2 text-xs text-nowrap
-      text-white bg-orange-500 shadow-sm"
+                        text-white bg-orange-500 shadow-sm"
                       >
                         <ImCart size={15} />
                         ADD TO CART
@@ -1454,14 +1460,15 @@ console.log("selected.priceBands:", [...selected.priceBands]);
                         });
                       }}
                       className="flex flex-row items-center gap-1 border rounded-2xl p-2 px-1 text-xs text-nowrap
-              text-white bg-green-600 shadow-sm"
+                      text-white bg-green-600 shadow-sm"
                     >
                       <BsCurrencyRupee size={18} />
                       BUY NOW
                     </button>
                   </div>
-                </Link>
-
+                </div>
+               
+             
               </div>
             ))}
           </div>

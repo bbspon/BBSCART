@@ -188,7 +188,7 @@ function HeaderTop() {
             ) : (
               <div className="hidden sm:block">
                 <span className="text-sm font-semibold text-[#0B7A4B]">
-                  Hi, Explore!
+              Hello, Sign In
                 </span>
               </div>
             )}

@@ -93,6 +93,62 @@ export const login = async (dispatch, email, password, navigate) => {
 
 
 
+
+// Request OTP for mobile login
+export const requestOtp = async (mobile) => {
+  try {
+    const res = await instance.post("/auth/login/otp/send", { mobile });
+    if (res.data && res.data.success) {
+      toast.success("OTP sent to your mobile number");
+      return true;
+    }
+  } catch (err) {
+    console.error("OTP request failed", err.response?.data || err.message);
+    toast.error(err.response?.data?.message || "Failed to send OTP");
+  }
+  return false;
+};
+
+// Verify OTP and perform login
+export const verifyOtp = async (dispatch, mobile, otp, navigate) => {
+  try {
+    const response = await instance.post(
+      "/auth/login/otp/verify",
+      { mobile, otp },
+      { withCredentials: true }
+    );
+
+    if (response.status === 200 && response.data?.user) {
+      const user = response.data.user;
+
+      // Redux updates
+      dispatch(setUser(user));
+
+      if (response.data.token) {
+        localStorage.setItem("token", response.data.token);
+      }
+      localStorage.setItem("role", user.role);
+      localStorage.setItem("userId", user._id);
+      localStorage.setItem("auth_user", JSON.stringify(user));
+      localStorage.setItem("phone", user.phone || user.mobile || "");
+
+      toast.success("Login successful");
+      if (user.role === "admin" || user.role === "seller") {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/");
+      }
+
+      return user;
+    } else {
+      throw new Error("Invalid OTP login response");
+    }
+  } catch (error) {
+    console.error("OTP verify error", error.response?.data || error.message);
+    toast.error(error.response?.data?.message || "OTP login failed");
+  }
+};
+
 // Logout function
 export const logout = async (dispatch) => {
   // clear client state straight away so UI isn't waiting on the network
