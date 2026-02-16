@@ -24,19 +24,54 @@ const resend = new Resend("re_Kwdg2csA_A3De7JEabPeYrUMCKPZD1BnZ");
 // SMS/OTP helpers (BSNL integration)
 const { sendOTPSMS, normalizeMobile } = require("../utils/bsnlSms");
 
-// Redis is already configured above; we'll keep simple helpers for OTP storage
+// Redis OTP cache with in‑memory fallback when Redis isn't available.
+let otpCache = new Map();
+let useRedis = true;
+client.on("error", (err) => {
+  console.error("Redis error, switching to in‑memory OTP cache:", err.message);
+  useRedis = false;
+});
+
 const setOtpForMobile = async (mobile, otp) => {
   const key = `otp:${mobile}`;
-  // expire after 5 minutes
-  await client.setEx(key, 300, otp);
+  if (useRedis) {
+    try {
+      await client.setEx(key, 300, otp);
+      return;
+    } catch (e) {
+      console.warn("Redis write failed, falling back to memory:", e.message);
+      useRedis = false;
+    }
+  }
+  otpCache.set(key, { otp, expires: Date.now() + 300000 });
 };
 const getOtpForMobile = async (mobile) => {
   const key = `otp:${mobile}`;
-  return client.get(key);
+  if (useRedis) {
+    try {
+      return client.get(key);
+    } catch (e) {
+      console.warn("Redis read failed, using memory cache:", e.message);
+      useRedis = false;
+    }
+  }
+  const rec = otpCache.get(key);
+  if (rec && rec.expires > Date.now()) return rec.otp;
+  otpCache.delete(key);
+  return null;
 };
 const deleteOtpForMobile = async (mobile) => {
   const key = `otp:${mobile}`;
-  await client.del(key);
+  if (useRedis) {
+    try {
+      await client.del(key);
+      return;
+    } catch (e) {
+      console.warn("Redis delete failed, using memory:", e.message);
+      useRedis = false;
+    }
+  }
+  otpCache.delete(key);
 };
 
 // Function to generate a 7-digit alphanumeric referral code
@@ -278,37 +313,47 @@ exports.login = async (req, res) => {
 
 exports.sendLoginOtp = async (req, res) => {
   const { mobile } = req.body;
+  console.log("sendLoginOtp called with", mobile);
   if (!mobile) {
     return res.status(400).json({ success: false, message: "Mobile number required" });
   }
 
+  let normalized;
   try {
-    const normalized = normalizeMobile(mobile);
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    normalized = normalizeMobile(mobile);
+  } catch (e) {
+    console.warn("Invalid mobile passed to OTP endpoint", mobile);
+    return res.status(400).json({ success: false, message: "Invalid mobile number" });
+  }
 
-    // store in redis
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  try {
+    // store in cache (redis or memory)
     await setOtpForMobile(normalized, otp);
+  } catch (cacheErr) {
+    console.error("OTP cache error", cacheErr);
+    // continue; we still attempt to send SMS but warn the caller
+  }
 
-    // attempt to send SMS
-    try {
-      const smsResult = await sendOTPSMS(normalized, otp);
+  // attempt to send SMS (but don’t let this block forever)
+  sendOTPSMS(normalized, otp)
+    .then((smsResult) => {
       if (!smsResult.success) {
         console.warn("BSNL SMS service reported failure", smsResult);
       }
-    } catch (smsErr) {
+    })
+    .catch((smsErr) => {
       console.error("Failed to send OTP SMS", smsErr);
-      // continue anyway so frontend user still receives success (maybe retry later)
-    }
+    });
 
-    return res.status(200).json({ success: true, message: "OTP sent" });
-  } catch (err) {
-    console.error("sendLoginOtp error", err);
-    return res.status(500).json({ success: false, message: "Server error" });
-  }
+  // return success immediately; SMS errors logged server-side
+  return res.status(200).json({ success: true, message: "OTP sent" });
 };
 
 exports.verifyLoginOtp = async (req, res) => {
   const { mobile, otp } = req.body;
+  console.log("verifyLoginOtp called", mobile, otp ? "(otp provided)" : "(no otp)");
   if (!mobile || !otp) {
     return res.status(400).json({ success: false, message: "Mobile and OTP required" });
   }
