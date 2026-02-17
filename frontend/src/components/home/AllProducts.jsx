@@ -697,23 +697,19 @@ setAllCategories(categoriesData);
                     </ul>
 
                     <div className="flex items-center gap-3 mt-3 text-sm">
-                      <label className="flex items-center gap-2">
+                      {/* clicking the label/input should not trigger the parent Link navigation
+                          but we *do not* preventDefault on the click/mousedown events because
+                          doing so broke the controlled checkbox and caused the first toggle to
+                          update the counter without rendering the tick.  Instead we simply stop
+                          propagation on the label and let React handle the checkbox state. */}
+                      <label
+                        className="flex items-center gap-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <input
                           type="checkbox"
                           checked={compareIds.has(getProductId(p))}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                          }}
-                          onMouseDown={(e) => {
-                            // Prevent Link from receiving the mouse down and navigating
-                            e.preventDefault();
-                            e.stopPropagation();
-                          }}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            toggleCompare(getProductId(p));
-                          }}
+                          onChange={() => toggleCompare(getProductId(p))}
                         />
 
                         <span>Add to Compare</span>
@@ -785,23 +781,14 @@ setAllCategories(categoriesData);
                   </div>
 
                   <div className="w-28 text-center">
-                    <input
-                      type="checkbox"
-                      checked={compareIds.has(getProductId(p))}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        toggleCompare(getProductId(p));
-                      }}
-                    />
-
+                    {/* stopping propagation here prevents the surrounding link from firing */}
+                    <label onClick={(e) => e.stopPropagation()} className="inline-block">
+                      <input
+                        type="checkbox"
+                        checked={compareIds.has(getProductId(p))}
+                        onChange={() => toggleCompare(getProductId(p))}
+                      />
+                    </label>
                     <div className="mt-2">
                       <button
                         onClick={(e) => handleAdd(e, p)}

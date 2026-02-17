@@ -141,7 +141,7 @@ export default function ContactUs() {
         <a href="https://wa.me/914134068916" className="text-green-500">
           <i className="ri-whatsapp-fill"></i>
         </a>
-        <a href="https://www.linkedin.com/in/pavarasu-mayavan-50a171355/" className="text-blue-700">
+        <a href="https://www.linkedin.com/in/bbscart-online-shopping-50a171355/" className="text-blue-700">
           <i className="ri-linkedin-fill"></i>
         </a>
         <a href="https://www.youtube.com/channel/UCNiBeRvAW1bQOUEcaqc0hYA" className="text-red-600">

@@ -239,7 +239,7 @@ function FooterTop() {
               </li>
               <li>
                 <Link
-                  to="https://www.linkedin.com/in/pavarasu-mayavan-50a171355/"
+                  to="https://www.linkedin.com/in/bbscart-online-shopping-50a171355/"
                   target="_blank"
                 >
                   <i className="ri-linkedin-fill text-2xl text-[#1479d8]"></i>
