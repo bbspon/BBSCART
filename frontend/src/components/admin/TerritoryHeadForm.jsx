@@ -320,31 +320,33 @@ export default function TerritoryHeadForm() {
         return;
       }
 
-      // ensure we have bpcId ready before save
+      // ensure we have bpcId ready before save (avoids E11000 dup key on bpcId: null in prod)
       if (!bpcId) await maybeGenerateBpcId();
+
+      const step2Payload = {
+        territoryHeadId,
+        aadhar_number: aNumRaw,
+        register_business_address: {
+          street: formData.register_street || "",
+          city: formData.register_city || "",
+          state: formData.register_state || "",
+          country: formData.register_country || "India",
+          postalCode: formData.register_postalCode || "",
+        },
+        stateCode: to2(formData.register_state),
+        cityCode: to2(formData.register_city),
+        joinedDate: new Date().toISOString(),
+      };
+      // Only send BPC fields when we have a value (never send null/empty — prevents duplicate key in prod)
+      if (bpcId && bpcId.trim()) {
+        step2Payload.bpcId = bpcId;
+        step2Payload.bpc = bpcId;
+        step2Payload.businessPartnerCode = bpcId;
+      }
 
       const r = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/territory-heads/step-by-key`,
-        {
-          territoryHeadId,
-          // NEW: persist codes
-          bpcId,                 // new key kept for clarity in UI/CRM
-          bpc: bpcId,            // stored under `bpc` as well (dashboards already use `bpc`)
-          businessPartnerCode: bpcId, // legacy field used by unique index
-          // keep existing fields
-          aadhar_number: aNumRaw,
-          register_business_address: {
-            street: formData.register_street || "",
-            city: formData.register_city || "",
-            state: formData.register_state || "",
-            country: formData.register_country || "India",
-            postalCode: formData.register_postalCode || "",
-          },
-          // (Optional) also store short codes – helpful for CRM joins
-          stateCode: to2(formData.register_state),
-          cityCode: to2(formData.register_city),
-          joinedDate: new Date().toISOString(), // useful default
-        }
+        step2Payload
       );
       const id = r?.data?.data?._id;
       if (id && !territoryHeadId) {

@@ -107,6 +107,17 @@ exports.saveStepByKey = async (req, res) => {
       });
     }
 
+    // Avoid E11000 duplicate key on bpcId: null — do not persist null/empty bpcId
+    // when creating (production may have non-sparse unique index; omit field so
+    // multiple docs can exist without bpcId until assigned).
+    const createPayload = { ...set, role: "territory_head", created_at: new Date() };
+    if (!id) {
+      const empty = (v) => v === undefined || v === null || String(v).trim() === "";
+      if (empty(createPayload.bpcId)) delete createPayload.bpcId;
+      if (empty(createPayload.businessPartnerCode)) delete createPayload.businessPartnerCode;
+      if (empty(createPayload.bpc)) delete createPayload.bpc;
+    }
+
     let doc;
 
     if (id) {
@@ -117,12 +128,8 @@ exports.saveStepByKey = async (req, res) => {
         { new: true }
       );
     } else {
-      // ✅ CREATE NEW
-      doc = await TerritoryHead.create({
-        ...set,
-        role: "territory_head",
-        created_at: new Date(),
-      });
+      // ✅ CREATE NEW (bpcId/businessPartnerCode omitted when empty to avoid dup key)
+      doc = await TerritoryHead.create(createPayload);
     }
 
     try {
