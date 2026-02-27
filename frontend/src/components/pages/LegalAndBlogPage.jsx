@@ -34,7 +34,7 @@ export default function LegalAndBlogPage() {
       date: "July 2025",
       author: "Dr. Ashwin Kumar",
       tags: ["Health", "Prevention"],
-      image: "/img/blog/preventive.jpg",
+      image: "https://www.careinsurance.com/upload_master/media/posts/July2024/what-is-health-savings-account.webp",
       summary: "Discover how early health plans with BBSCART can reduce long-term medical costs.",
       url: "/blog/preventive-health",
     },
@@ -43,7 +43,7 @@ export default function LegalAndBlogPage() {
       date: "June 2025",
       author: "BBSCART Editorial",
       tags: ["Jewellery", "Finance"],
-      image: "/img/blog/thia-gold.jpg",
+      image: "https://t4.ftcdn.net/jpg/06/80/02/97/360_F_680029722_s4z72OcanUqnwr5QzkFHSN4CCDZk4sIS.jpg",
       summary: "Learn how customers are buying BIS gold with flexible installments using BBSCART.",
       url: "/blog/thia-gold-plan",
     },
@@ -101,7 +101,7 @@ export default function LegalAndBlogPage() {
       <div className="grid md:grid-cols-2 gap-6">
         {blogPosts.map((post, idx) => (
           <div key={idx} className="bg-white shadow rounded-lg overflow-hidden">
-            <img src={post.image} alt={post.title} className="w-full h-40 object-cover" />
+            <img src={post.image} alt={post.title} className="w-full h-80 object-cover" />
             <div className="p-5">
               <h3 className="text-xl font-semibold mb-2">{post.title}</h3>
               <p className="text-gray-600 text-sm mb-2">

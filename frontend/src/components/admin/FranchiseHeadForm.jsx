@@ -1574,8 +1574,11 @@ const onPanUpload = async (e) => {
             </Col>
           </Row>
 
-          <div className="mb-2">
-            <Button variant="secondary" size="sm" onClick={fetchLocation}>
+       <div className="flex justify-end mb-2">
+            <Button variant="secondary" size="sm" onClick={fetchLocation}
+              className="border border-green-500 bg-green-500 rounded-full hover:bg-green-600 
+               focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-50 
+               px-5 py-1 text-black">
               Use current location
             </Button>
           </div>
