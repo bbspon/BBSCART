@@ -16,6 +16,7 @@ router.post(
 router.post("/verify-payment/", authUser, orderController.verifyPayment);
 router.get("/seller/:seller_id", orderController.getOrdersBySellerId);
 // router.get("/user/:user_id", authUser, orderController.getOrdersBySellerId);
+router.get("/:id/invoice", authUser, orderController.getInvoiceByOrderId);
 router.get("/user/:user_id", authUser, orderController.getOrdersByUserId);
 router.post("/sync-delivery-status", authUser, orderController.syncDeliveryStatus);
 router.get("/status/:status", authUser, orderController.getOrdersByStatus);

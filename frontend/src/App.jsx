@@ -121,7 +121,8 @@ import { loadAuthFromStorage } from "./utils/loadAuth";
 import Exploreshowroom from './components/layout/ExploreShowroom'
 import LibraryPage from "./components/layout/LibraryPage";
 import Compare from "./components/home/Compare";
-
+import CategoryGST from './components/admin/CategoryGST.jsx';
+import InvoicePage from "./components/InvoicePage.jsx";
 function App() {
   const dispatch = useDispatch();
   const location = useLocation(); // Get the current route
@@ -155,7 +156,7 @@ function App() {
 
   useEffect(() => {
     const checkHeaderFooter = () => {
-      const excludeHeaderFooterRoutes = ['/admin/dashboard', '/admin/products', '/admin/orders', '/admin/products/categories', '/admin/products/subcategories', '/admin/other-users', '/admin/customers', '/admin/vendors', '/seller/dashboard', '/seller/products', '/seller/orders', '/seller/products/categories', '/seller/products/subcategories', '/admin/users-request', '/thia'];
+      const excludeHeaderFooterRoutes = ['/admin/dashboard', '/admin/products', '/admin/orders', '/admin/products/categories','/admin/products/category-gst', '/admin/products/subcategories', '/admin/other-users', '/admin/customers', '/admin/vendors', '/seller/dashboard', '/seller/products', '/seller/orders', '/seller/products/categories', '/seller/products/subcategories', '/admin/users-request', '/thia'];
       setShouldRenderHeaderFooter(!excludeHeaderFooterRoutes.includes(location.pathname));
     };
 
@@ -252,7 +253,7 @@ function App() {
         <Route path="/explore" element={<Exploreshowroom />} />
         <Route path="/library" element={<LibraryPage />} />
         <Route path="/compare" element={<Compare />} />
-
+<Route path="/invoice/:id" element={<InvoicePage />} />
         <Route
           path="/customerVendor-card"
           element={<CustomerBecomeAVendorForm />}
@@ -333,6 +334,7 @@ function App() {
           <Route path="products" element={<Products />} />
           <Route path="products/categories" element={<Categories />} />
           <Route path="products/subcategories" element={<SubCategories />} />
+          <Route path="products/category-gst" element={<CategoryGST />} />
           <Route path="media" element={<MediaLibrary />} />
           <Route path="orders" element={<Orders />} />
           <Route path="vendors" element={<Vendor />} />

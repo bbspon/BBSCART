@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { NavLink } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import moment from "moment";
 import { getOrdersByUserId, syncDeliveryStatus } from "../../slice/orderSlice";
@@ -24,6 +24,7 @@ function getStatusStyle(status) {
 
 const Orders = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { orders, loading, error } = useSelector((state) => state.order);
   const { user } = useSelector((state) => state.auth);
 
@@ -38,7 +39,7 @@ const Orders = () => {
     if (!user?._id) return;
 
     (async () => {
-      await dispatch(syncDeliveryStatus()).unwrap().catch(() => {});
+      await dispatch(syncDeliveryStatus()).unwrap().catch(() => { });
 
       const recentIds = (() => {
         try {
@@ -96,7 +97,9 @@ const Orders = () => {
           <h1 className="font-bold text-2xl">Orders</h1>
         </div>
       </div>
-
+      <button onClick={() => navigate(`/invoice/${orders._id}`)}>
+        View Invoice
+      </button>
       <div className="bbs table-data">
         <div className="order">
           <div className="head flex items-center gap-4">
@@ -104,14 +107,14 @@ const Orders = () => {
 
             {/* ✅ Search */}
             <div className="relative w-40">
-          
+
               <input
                 type="text"
                 placeholder="Search"
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
                 className="w-full pl-11 py-1 border rounded outline-none"
-              />   
+              />
               <IoIosSearch className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 " />
             </div>
 
@@ -216,6 +219,14 @@ const Orders = () => {
                       >
                         {order.status || "pending"}
                       </span>
+                    </td>
+                    <td>
+                      <button
+                        onClick={() => navigate(`/invoice/${order._id}`)}
+                        className="px-3 py-1 bg-black text-white rounded"
+                      >
+                        View Invoice
+                      </button>
                     </td>
                   </tr>
                 ))

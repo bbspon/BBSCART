@@ -114,6 +114,31 @@ const thumbs = useMemo(() => {
 }, [p]);
   const price = p?.priceInfo?.sale ?? p?.price ?? 0;
   const mrp = p?.priceInfo?.mrp ?? p?.price ?? 0;
+  // ===== GST FROM CATEGORY =====
+// ===== GST FROM CATEGORY =====
+const category = p?.category_id || {};
+const gstRate = p?.gstRate ?? p?.category_id?.gstRate ?? 0;
+const hsnCode = p?.hsnCode ?? p?.category_id?.hsnCode ?? "";
+const isTaxInclusive = Boolean(category?.isTaxInclusive);
+
+const productPrice = Number(p?.price || 0);
+
+let basePrice = productPrice;
+let gstAmount = 0;
+let finalPrice = productPrice;
+
+if (gstRate > 0) {
+  if (isTaxInclusive) {
+    // Price already includes GST
+    gstAmount = (productPrice * gstRate) / (100 + gstRate);
+    basePrice = productPrice - gstAmount;
+    finalPrice = productPrice;
+  } else {
+    // GST should be added
+    gstAmount = (productPrice * gstRate) / 100;
+    finalPrice = productPrice + gstAmount;
+  }
+}
   const discountText =
     p?.priceInfo?.discountText ||
     (mrp > price ? `${Math.round(100 - (price / mrp) * 100)}% off` : "");
@@ -187,25 +212,40 @@ const thumbs = useMemo(() => {
 
     // Keep the existing cart context update for immediate UI
     try {
-      cart.addItem(
-        {
-          productId: p._id,
-          name: p.name,
-          image: img,
-          price: p?.price ?? 0,
-          qty: quantity,
-          variantId: null,
-        },
-        vendorId
-      );
+cart.addItem(
+  {
+    productId: p._id,
+    name: p.name,
+    image: img,
+    price: finalPrice,
+    basePrice,
+    gstRate,
+    gstAmount,
+    hsnCode,
+    isTaxInclusive,
+    qty: quantity,
+    variantId: null,
+  },
+  vendorId
+);
     } catch (err) {
       // ignore if context not available
     }
 
     // Dispatch the redux thunk to persist server-side cart
-    dispatch(
-      addToCart({ productId: p._id, variantId: null, quantity })
-    )
+  dispatch(
+  addToCart({
+    productId: p._id,
+    variantId: null,
+    quantity,
+    price: basePrice,
+    gstRate,
+    gstAmount,
+    hsnCode,
+    isTaxInclusive,
+    finalPrice
+  })
+)
       .unwrap()
       .then(() => {
         dispatch(fetchCartItems());
@@ -348,8 +388,28 @@ const thumbs = useMemo(() => {
 
           {/* price with mrp/discount */}
           <div>
-            <div className="text-3xl font-bold text-green-600">₹{p?.price}</div>
-            {mrp > price && (
+<div className="text-3xl font-bold text-green-600">
+₹{finalPrice.toFixed(2)}
+</div>
+
+{gstRate > 0 && (
+  <div className="text-xs text-gray-600 mt-1">
+    <div>GST: {gstRate}%</div>
+    <div>HSN: {hsnCode || "-"}</div>
+
+    {isTaxInclusive ? (
+      <>
+        <div>Price includes GST</div>
+        <div>Included GST: ₹{gstAmount.toFixed(2)}</div>
+      </>
+    ) : (
+      <>
+        <div>Base Price: ₹{basePrice.toFixed(2)}</div>
+        <div>GST Amount: ₹{gstAmount.toFixed(2)}</div>
+      </>
+    )}
+  </div>
+)}          {mrp > price && (
               <>
                 <div className="text-sm text-gray-500 line-through">₹{mrp}</div>
                 <div className="text-sm text-red-600">{discountText}</div>

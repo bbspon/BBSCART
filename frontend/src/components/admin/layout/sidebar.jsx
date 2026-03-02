@@ -137,6 +137,14 @@ const Sidebar = ({ isSidebarHidden, toggleSidebar }) => {
                   <span>SubCategories</span>
                 </NavLink>
               </li>
+              <NavLink
+  to="/admin/products/category-gst"
+  className={({ isActive }) =>
+    isActive ? "active-link-class" : "normal-link-class"
+  }
+>
+  <span>Category GST</span>
+</NavLink>
               <li>
                 <NavLink
                   to="/admin/media"

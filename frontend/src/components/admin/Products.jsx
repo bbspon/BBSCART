@@ -492,7 +492,7 @@ const handleImportWithCategoryMatch = async (file) => {
               </label>
             </div>
 
-            {/* NEW: Import-All CSV controls */}
+            {/* NEW: Import-All CSV controls
             <div className="flex flex-col md:flex-row md:items-end gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 mb-4">
               <div className="flex-1">
                 <div className="text-sm font-semibold mb-2">
@@ -544,7 +544,7 @@ const handleImportWithCategoryMatch = async (file) => {
                   </label>
                 </div>
               </div>
-            </div>
+            </div> */}
 
             {/* NEW: Import Products with Category Match */}
             <div className="flex flex-col md:flex-row md:items-end gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 mb-4">

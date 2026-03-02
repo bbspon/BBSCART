@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useSearchParams, Link, useNavigate, useLocation } from "react-router-dom";
+import {
+  useParams,
+  useSearchParams,
+  Link,
+  useNavigate,
+} from "react-router-dom";
 import instance from "../../services/axiosInstance";
 import { ChevronDown, ChevronUp, Star, Check } from "lucide-react";
 import { BsFillHeartFill } from "react-icons/bs";
@@ -25,25 +30,48 @@ import toast from "react-hot-toast";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const STATIC_PREFIXES = ["/uploads"]; // support both roots
-const FRESH_FRUITS_SUBCATEGORY_ID = "6974c2fc087410f563473e21";
-const FRESH_VEGETABLES_SUBCATEGORY_ID = "6974c2f9087410f5634721ad";
 
 export default function SubcategoryPage() {
   const [page, setPage] = useState(1);
   const totalPages = 10; // <-- add this line
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [expandedCategories, setExpandedCategories] = useState(true);
   const { items: wishlist } = useSelector((state) => state.wishlist);
   const handlePrev = () => {
     if (page > 1) setPage(page - 1);
   };
 
+  const images = [
+    "https://png.pngtree.com/background/20230525/original/pngtree-3d-grocery-store-with-orange-goods-in-the-background-picture-image_2738856.jpg",
+    "https://tse2.mm.bing.net/th/id/OIP.L6fOWzQvVq0xXxmm7KHb4gHaCx?rs=1&pid=ImgDetMain&o=7&rm=3",
+    "https://img.freepik.com/premium-photo/grocery-backgrounds_670382-182535.jpg?w=2000",
+  ];
+
+  const [current, setCurrent] = useState(0);
+
+  // Auto slide
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrent((prev) => (prev + 1) % images.length);
+    }, 3000); // change every 3s
+
+    return () => clearInterval(interval);
+  }, [images.length]);
+
+  const nextSlide = () => {
+    setCurrent((prev) => (prev + 1) % images.length);
+  };
+
+  const prevSlide = () => {
+    setCurrent((prev) => (prev - 1 + images.length) % images.length);
+  };
   const toggleWishlist = async (e, productId) => {
     e.preventDefault();
     e.stopPropagation();
 
     const exists = wishlist.some(
-      (w) => w.productId === productId || w?.product?._id === productId
+      (w) => w.productId === productId || w?.product?._id === productId,
     );
 
     try {
@@ -59,14 +87,12 @@ export default function SubcategoryPage() {
     }
   };
 
-
   const handleNext = () => {
     if (page < totalPages) setPage(page + 1);
   };
   const [isComboOpen, setIsComboOpen] = useState(false);
   const [showMoreCombos, setShowMoreCombos] = useState(false);
   const [selectedCombo, setSelectedCombo] = useState("Select Combo");
-  const [freshTab, setFreshTab] = useState("fruits"); // "fruits" | "vegetables"
 
   const comboOptions = [
     { label: "1 Kg", discount: "10% Off", price: "₹900", oldPrice: "₹1000" },
@@ -84,18 +110,14 @@ export default function SubcategoryPage() {
     { label: "10 Kg", discount: "28% Off", price: "₹7200", oldPrice: "₹10000" },
   ];
 
-
   useEffect(() => {
     dispatch(fetchWishlistItems());
   }, []);
   const cartItems = useSelector((state) => state.cart.items);
 
   const getQty = (id) => {
-    const itemsArr = Array.isArray(cartItems) ? cartItems : Object.values(cartItems || {});
-    const found = itemsArr.find(
-      (c) => c?.product?._id === id || c?.product === id || c?.productId === id
-    );
-    return found ? (found.quantity || found.qty || 0) : 0;
+    const found = cartItems.find((c) => c.productId === id);
+    return found ? found.quantity : 0;
   };
 
   const handleAdd = (e, product) => {
@@ -104,7 +126,9 @@ export default function SubcategoryPage() {
 
     const deliveryPincode = getPincode();
     if (!deliveryPincode) {
-      toast.error("Please enter your delivery pincode before adding items to cart.");
+      toast.error(
+        "Please enter your delivery pincode before adding items to cart.",
+      );
       return;
     }
 
@@ -124,7 +148,7 @@ export default function SubcategoryPage() {
         productId: product._id,
         variantId: null,
         quantity: 1,
-      })
+      }),
     )
       .unwrap() // Use unwrap() to get the actual result/error from the thunk
       .then((result) => {
@@ -134,12 +158,13 @@ export default function SubcategoryPage() {
       })
       .catch((error) => {
         console.error("[handleAdd] Failed to add to cart:", error);
-        const errorMsg = error?.message || error?.error || "Failed to add product to cart. Please try again.";
+        const errorMsg =
+          error?.message ||
+          error?.error ||
+          "Failed to add product to cart. Please try again.";
         toast.error(errorMsg);
       });
   };
-  ;
-
   const handleIncrease = (e, product) => {
     e.preventDefault();
     const qty = getQty(product._id);
@@ -149,7 +174,7 @@ export default function SubcategoryPage() {
         productId: product._id,
         variantId: null,
         quantity: qty + 1,
-      })
+      }),
     ).then(() => dispatch(fetchCartItems()));
   };
 
@@ -158,34 +183,22 @@ export default function SubcategoryPage() {
     const qty = getQty(product._id);
 
     if (qty <= 1) {
-      dispatch(removeFromCart({ productId: product._id, variantId: null })).then(
-        () => dispatch(fetchCartItems())
-      );
+      dispatch(
+        removeFromCart({ productId: product._id, variantId: null }),
+      ).then(() => dispatch(fetchCartItems()));
     } else {
       dispatch(
         updateQuantity({
           productId: product._id,
           variantId: null,
           quantity: qty - 1,
-        })
+        }),
       ).then(() => dispatch(fetchCartItems()));
     }
   };
 
-
   const [liked, setLiked] = useState(false);
   const { subcategoryId } = useParams();
-  const location = useLocation();
-
-const isFreshPage = location.pathname === "/fresh";
-
-const effectiveSubcategoryId = isFreshPage
-  ? freshTab === "fruits"
-    ? FRESH_FRUITS_SUBCATEGORY_ID
-    : FRESH_VEGETABLES_SUBCATEGORY_ID
-  : subcategoryId;
-
-
   const [params, setParams] = useSearchParams();
   // --- pincode helper (kept) ---
   const urlPincode = params.get("pincode") || "";
@@ -221,7 +234,6 @@ const effectiveSubcategoryId = isFreshPage
   // --- NEW: all subcategories (direct) ---
   const [subcategories, setSubcategories] = useState([]);
   const [subcatSearch, setSubcatSearch] = useState("");
-  const [brandSearchTerm, setBrandSearchTerm] = useState("");
   const [expandedSubcats, setExpandedSubcats] = useState(true);
 
   // --- other route params (kept) ---
@@ -289,23 +301,6 @@ const effectiveSubcategoryId = isFreshPage
     ratings: [5, 4, 3, 2, 1],
   };
 
-  // --- small helpers ---
-  const pickImage = (p) => {
-    if (!p) return "/img/placeholder.png";
-    const pickFromArray = (v) => (Array.isArray(v) && v.length ? v[0] : "");
-    let raw = "";
-    raw = raw || p.image;
-    raw = raw || p.product_img;
-    raw = raw || pickFromArray(p.gallery_imgs);
-    raw = raw || pickFromArray(p.gallery_img_urls);
-    raw = raw || p.product_img2;
-    if (!raw) return "/img/placeholder.png";
-    if (String(raw).includes("|")) raw = String(raw).split("|")[0].trim();
-    if (String(raw).startsWith("/uploads/")) return `${API_BASE}${raw}`;
-    if (/^https?:\/\//i.test(String(raw))) return raw;
-    return `${API_BASE}/uploads/${encodeURIComponent(String(raw))}`;
-  };
-
   const [facets, setFacets] = useState(null);
 
   // ---------- helpers (kept) ----------
@@ -357,7 +352,7 @@ const effectiveSubcategoryId = isFreshPage
     while (start < max) {
       const end = start + step;
       bands.push(
-        `₹${start.toLocaleString("en-IN")} – ₹${end.toLocaleString("en-IN")}`
+        `₹${start.toLocaleString("en-IN")} – ₹${end.toLocaleString("en-IN")}`,
       );
       start = end;
     }
@@ -369,7 +364,7 @@ const effectiveSubcategoryId = isFreshPage
       csv
         .split(",")
         .map((s) => s.trim())
-        .filter(Boolean)
+        .filter(Boolean),
     );
   const setToCSV = (set) => Array.from(set).join(",");
 
@@ -380,7 +375,7 @@ const effectiveSubcategoryId = isFreshPage
     productTypes: useMemo(() => csvToSet(productTypesCSV), [productTypesCSV]),
     returnPolicies: useMemo(
       () => csvToSet(returnPoliciesCSV),
-      [returnPoliciesCSV]
+      [returnPoliciesCSV],
     ),
     discounts: useMemo(() => csvToSet(discountsCSV), [discountsCSV]),
     ratings: useMemo(() => csvToSet(ratingsCSV), [ratingsCSV]),
@@ -464,15 +459,10 @@ const effectiveSubcategoryId = isFreshPage
     productTypesList,
     returnPoliciesList,
   } = deriveFilters();
-const effectiveMin = minPrice !== "" ? minPrice : derivedMinPrice;
-const effectiveMax = maxPrice !== "" ? maxPrice : derivedMaxPrice;
-  const buildQuery = () => {
-    // Ensure we send numeric values for price filters
-    const minVal = effectiveMin !== undefined && effectiveMin !== "" ? Number(effectiveMin) : undefined;
-    const maxVal = effectiveMax !== undefined && effectiveMax !== "" ? Number(effectiveMax) : undefined;
 
+  const buildQuery = () => {
     const qobj = {
-      subcategoryId: effectiveSubcategoryId,
+      subcategoryId,
       groupId: groupId || undefined,
       product: groupId ? undefined : product || undefined,
       group: groupId || product ? undefined : group || undefined,
@@ -480,8 +470,8 @@ const effectiveMax = maxPrice !== "" ? maxPrice : derivedMaxPrice;
       brand: brandSingle || undefined,
       organic: organic !== "" ? organic : undefined,
 
-      minPrice: minVal,
-      maxPrice: maxVal,
+      minPrice: (minPrice || derivedMinPrice) ?? undefined,
+      maxPrice: (maxPrice || derivedMaxPrice) ?? undefined,
 
       brands: brandsList,
       materials: materialsList,
@@ -516,7 +506,7 @@ const effectiveMax = maxPrice !== "" ? maxPrice : derivedMaxPrice;
         console.error(
           "[ERR] /products/public",
           err?.response?.status,
-          err?.response?.data || err.message
+          err?.response?.data || err.message,
         );
         setItemsRaw([]);
       });
@@ -524,9 +514,9 @@ const effectiveMax = maxPrice !== "" ? maxPrice : derivedMaxPrice;
 
   function loadFacets() {
     const query = buildQuery();
-    console.log("[REQ] /products/facets", query);
+    console.log("[REQ] /facets", query);
     instance
-      .get("/products/facets", { params: query })
+      .get("/facets", { params: query })
       .then(({ data }) => {
         const f = data?.facets || data || {};
         console.log("[RES] /facets", f);
@@ -546,7 +536,7 @@ const effectiveMax = maxPrice !== "" ? maxPrice : derivedMaxPrice;
         console.error(
           "[ERR] /facets",
           err?.response?.status,
-          err?.response?.data || err.message
+          err?.response?.data || err.message,
         );
         setFacets(null);
       });
@@ -572,7 +562,7 @@ const effectiveMax = maxPrice !== "" ? maxPrice : derivedMaxPrice;
         console.error(
           "[ERR] /subcategories",
           err?.response?.status,
-          err?.response?.data || err.message
+          err?.response?.data || err.message,
         );
         setSubcategories([]);
       }
@@ -596,7 +586,7 @@ const effectiveMax = maxPrice !== "" ? maxPrice : derivedMaxPrice;
         console.error(
           "[ERR] /categories",
           err?.response?.status,
-          err?.response?.data || err.message
+          err?.response?.data || err.message,
         );
         setCategories([]);
       }
@@ -611,7 +601,7 @@ const effectiveMax = maxPrice !== "" ? maxPrice : derivedMaxPrice;
     loadProducts();
     loadFacets();
   }, [
-    effectiveSubcategoryId,
+    subcategoryId,
     q,
     brandSingle,
     organic,
@@ -635,12 +625,8 @@ const effectiveMax = maxPrice !== "" ? maxPrice : derivedMaxPrice;
   const applyClientFilters = (list) => {
     const term = (q || "").trim().toLowerCase();
 
- const priceMinEff =
-  minPrice !== "" ? Number(minPrice) : Number(derivedMinPrice);
-
-const priceMaxEff =
-  maxPrice !== "" ? Number(maxPrice) : Number(derivedMaxPrice);
-
+    const priceMinEff = Number(minPrice || derivedMinPrice);
+    const priceMaxEff = Number(maxPrice || derivedMaxPrice);
     const hasPriceMin = Number.isFinite(priceMinEff);
     const hasPriceMax = Number.isFinite(priceMaxEff);
 
@@ -722,7 +708,7 @@ const priceMaxEff =
       "[CLIENT FILTER] in:",
       itemsRaw.length,
       "out:",
-      filtered.length
+      filtered.length,
     );
     setItems(filtered);
   }, [
@@ -762,32 +748,20 @@ const priceMaxEff =
     : fallback.priceBands;
   function norm(u) {
     if (!u) return "";
-
     const s = String(u).trim();
+    // absolute URLs as-is
+    if (/^https?:\/\//i.test(s)) return s;
 
-    // Absolute URL → return as-is
-    if (/^https?:\/\//i.test(s)) {
-      return s;
-    }
-
-    // Server static paths like /uploads/...
+    // server static paths: allow /uploads and /uploads-bbscart (and nested images/YYYY/MM)
     if (STATIC_PREFIXES.some((pre) => s.startsWith(pre + "/"))) {
       return `${API_BASE}${s}`;
     }
 
-    // Extract filename safely
-    const filename = encodeURIComponent(s.replace(/^\/+/, ""));
-
-    // If already has image extension
-    if (/\.(webp|jpg|jpeg|png)$/i.test(filename)) {
-      return `${API_BASE}/uploads/${filename}`;
-    }
-
-    // Prefer webp, fallback handled by <img onError>
-    return `${API_BASE}/uploads/${filename}.webp`;
+    // bare filename: fall back to the preferred products folder under /uploads
+    return `${API_BASE}/uploads/${encodeURIComponent(s)}`;
   }
 
-  function pickMainImage(p) {
+  function pickImage(p) {
     // 1) Prefer explicit, already-built URLs from backend
     if (p.product_img_url) return p.product_img_url;
     if (Array.isArray(p.gallery_img_urls) && p.gallery_img_urls[0]) {
@@ -808,9 +782,9 @@ const priceMaxEff =
       const t = String(val).trim();
       return t.includes("|")
         ? t
-          .split("|")
-          .map((s) => s.trim())
-          .filter(Boolean)[0]
+            .split("|")
+            .map((s) => s.trim())
+            .filter(Boolean)[0]
         : t;
     };
 
@@ -821,21 +795,23 @@ const priceMaxEff =
     // 3) Normalize into a usable URL (handles absolute, /uploads, /uploads-bbscart, bare filename)
     return norm(chosen);
   }
-console.log("priceBandsCSV:", priceBandsCSV);
-console.log("priceBandsFinal:", priceBandsFinal);
-console.log("selected.priceBands:", [...selected.priceBands]);
 
   // ------ UI ------
   return (
-    <div className="flex">
-      <aside className="w-64 bg-white border-r border-gray-200 p-4 space-y-6">
+    <div className="flex flex-col md:flex-row gap-6  bg-gray-50 min-h-screen ">
+      <aside
+        className=" bg-white border-r border-gray-200 p-4  space-y-8 max-h-screen overflow-y-auto sticky top-0"
+        style={{ width: "100%", maxWidth: "300px" }}
+      >
         {/* NEW: Shop by Subcategory (direct) */}
         <div>
           <div
             className="flex items-center justify-between cursor-pointer"
             onClick={() => setExpandedSubcats(!expandedSubcats)}
           >
-            <h2 className="text-lg font-semibold">Shop by Subcategory</h2>
+            <h2 className="text-lg font-semibold whitespace-nowrap">
+              Shop by Subcategory
+            </h2>
             {expandedSubcats ? (
               <ChevronUp className="w-4 h-4" />
             ) : (
@@ -879,17 +855,36 @@ console.log("selected.priceBands:", [...selected.priceBands]);
 
         {/* Optional: keep categories block (won’t be used for subcategories anymore) */}
         <div>
-          <h2 className="text-lg font-semibold mb-2">Shop by Category</h2>
-          {!categories.length && (
-            <div className="text-sm text-gray-500">No categories.</div>
+          <div
+            className="flex items-center justify-between cursor-pointer"
+            onClick={() => setExpandedCategories(!expandedCategories)}
+          >
+            <h2 className="text-lg font-semibold whitespace-nowrap">
+              Shop by Category
+            </h2>
+
+            {expandedCategories ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+          </div>
+
+          {expandedCategories && (
+            <>
+              {!categories.length && (
+                <div className="text-sm text-gray-500 mt-2">No categories.</div>
+              )}
+
+              <ul className="space-y-2 text-gray-700 mt-2">
+                {categories.map((cat) => (
+                  <li key={cat._id}>
+                    <div className="font-medium">{cat.name}</div>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
-          <ul className="space-y-2 text-gray-700">
-            {categories.map((cat) => (
-              <li key={cat._id}>
-                <div className="font-medium">{cat.name}</div>
-              </li>
-            ))}
-          </ul>
         </div>
 
         {/* Refined by (kept) */}
@@ -954,16 +949,10 @@ console.log("selected.priceBands:", [...selected.priceBands]);
                   type="text"
                   placeholder="Search here"
                   className="mt-2 mb-2 w-full border rounded-md px-2 py-1 text-sm"
-                  value={brandSearchTerm}
-                  onChange={(e) => setBrandSearchTerm(e.target.value)}
+                  onChange={() => {}}
                 />
                 <div className="divide-y divide-gray-100">
-                  {lists.brands
-                    .filter((b) => {
-                      if (!brandSearchTerm.trim()) return true;
-                      return b.toLowerCase().includes(brandSearchTerm.trim().toLowerCase());
-                    })
-                    .map((b) => {
+                  {lists.brands.map((b) => {
                     const checked = selected.brands.has(b);
                     return (
                       <label
@@ -974,16 +963,7 @@ console.log("selected.priceBands:", [...selected.priceBands]);
                           type="checkbox"
                           className="w-4 h-4"
                           checked={checked}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                          }}
-                          onMouseDown={(e) => {
-                            e.stopPropagation();
-                          }}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            toggleValue("brands", b);
-                          }}
+                          onChange={() => toggleValue("brands", b)}
                         />
                         <span className="text-gray-700">{b}</span>
                       </label>
@@ -1019,16 +999,7 @@ console.log("selected.priceBands:", [...selected.priceBands]);
                         type="checkbox"
                         className="w-4 h-4"
                         checked={checked}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                        }}
-                        onMouseDown={(e) => {
-                          e.stopPropagation();
-                        }}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          toggleValue("priceBands", label);
-                        }}
+                        onChange={() => toggleValue("priceBands", label)}
                       />
                       <span className="text-gray-700">{label}</span>
                     </label>
@@ -1038,8 +1009,6 @@ console.log("selected.priceBands:", [...selected.priceBands]);
             )}
           </div>
 
-          {/* Feture Updates (11Feb2026) */}
-{/* 
           <div className="mb-4">
             <div
               className="flex items-center justify-between cursor-pointer"
@@ -1073,9 +1042,9 @@ console.log("selected.priceBands:", [...selected.priceBands]);
                 })}
               </div>
             )}
-          </div> */}
+          </div>
 
-          {/* <div>
+          <div>
             <div
               className="flex items-center justify-between cursor-pointer"
               onClick={() => setExpandedPackSize(!expandedPackSize)}
@@ -1108,9 +1077,9 @@ console.log("selected.priceBands:", [...selected.priceBands]);
                 })}
               </div>
             )}
-          </div> */}
+          </div>
 
-          {/* <div className="mb-4">
+          <div className="mb-4">
             <div
               className="flex items-center justify-between cursor-pointer"
               onClick={() => setExpandedProductType(!expandedProductType)}
@@ -1143,9 +1112,9 @@ console.log("selected.priceBands:", [...selected.priceBands]);
                 })}
               </div>
             )}
-          </div> */}
+          </div>
 
-          {/* <div className="mb-4">
+          <div className="mb-4">
             <div
               className="flex items-center justify-between cursor-pointer"
               onClick={() => setExpandedReturnPolicy(!expandedReturnPolicy)}
@@ -1178,9 +1147,9 @@ console.log("selected.priceBands:", [...selected.priceBands]);
                 })}
               </div>
             )}
-          </div> */}
+          </div>
 
-          {/* <div className="mb-4">
+          <div className="mb-4">
             <div
               className="flex items-center justify-between cursor-pointer"
               onClick={() => setExpandedMaterial(!expandedMaterial)}
@@ -1213,45 +1182,16 @@ console.log("selected.priceBands:", [...selected.priceBands]);
                 })}
               </div>
             )}
-          </div> */}
+          </div>
         </div>
       </aside>
 
-      <div className="mx-auto max-w-6xl p-4">
+      <div className=" gap-3 sm:grid-cols-3 max-h-[100vh] overflow-y-auto p-2">
         {label && <h2 className="mb-2 text-lg font-semibold">{label}</h2>}
-        <div className="flex justify-between my-2 border-b border-b-black  pb-2">
-     {isFreshPage ? (
-  <div className="flex gap-3">
-    <button
-      onClick={() => setFreshTab("fruits")}
-      className={`border rounded-md px-5 py-2 font-semibold transition
-        ${
-          freshTab === "fruits"
-            ? "bg-green-100 border-green-600"
-            : "bg-gray-50 hover:bg-green-50"
-        }`}
-    >
-      Fresh Fruits
-    </button>
-
-    <button
-      onClick={() => setFreshTab("vegetables")}
-      className={`border rounded-md px-5 py-2 font-semibold transition
-        ${
-          freshTab === "vegetables"
-            ? "bg-green-100 border-green-600"
-            : "bg-gray-50 hover:bg-green-50"
-        }`}
-    >
-      Fresh Vegetables
-    </button>
-  </div>
-) : (
-  <h6 className="border border-gray-300 rounded-md px-5 py-2 bg-orange-50 font-semibold">
-    Egg, Meat, and Fish
-  </h6>
-)}
-
+        {/* <div className="flex justify-between my-2 border-b border-b-black  pb-2">
+          <h6 className="border border-gray-300 rounded-md px-5 py-2 bg-orange-50  font-semibold hover:bg-orange-100 hover:shadow-md transition shadow-sm">
+            Egg, Meat, and Fish
+          </h6>
           <h6 className="border border-gray-300 rounded-md px-5 py-2 bg-gray-50  font-semibold hover:bg-blue-100 hover:shadow-md transition shadow-sm">
             Thiaworld
           </h6>
@@ -1267,6 +1207,16 @@ console.log("selected.priceBands:", [...selected.priceBands]);
           <h6 className="border border-gray-300 rounded-md px-5 py-2  font-semibold hover:bg-yellow-100 hover:shadow-md transition shadow-sm">
             Store Pick
           </h6>
+        </div> */}
+        <div className="flex gap-4">
+          {images.map((src, i) => (
+            <img
+              key={i}
+              src={src}
+              alt={`Casual ${i + 1}`}
+              className="w-full h-40 object-cover rounded-lg py-3 px-2"
+            />
+          ))}
         </div>
         <div className="mb-4 flex flex-wrap items-end gap-3 justify-between">
           <input
@@ -1326,7 +1276,7 @@ console.log("selected.priceBands:", [...selected.priceBands]);
               const pin = getPincode();
               if (pin) next.pincode = pin;
               Object.keys(next).forEach(
-                (k) => next[k] === undefined && delete next[k]
+                (k) => next[k] === undefined && delete next[k],
               );
               setParams(next, { replace: true });
               loadProducts();
@@ -1341,32 +1291,22 @@ console.log("selected.priceBands:", [...selected.priceBands]);
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
             {items.map((p) => (
-
-
               <div
                 key={p._id}
-                className="flex items-center flex-col justify-between border-2 rounded-xl p-5 bg-slate-10 hover:bg-gray-50"
+                className="relative border-2 rounded-xl p-5 bg-slate-10 hover:bg-gray-50"
               >
-               <div>
-                 {/* Product Card Link */}
+                {/* Product Card Link */}
                 <Link to={`/p/${p._id}`} className="block ">
                   <img
-                    src={pickMainImage(p)}
-                    alt={p.name || "Product"}
-                   className="w-[400px] h-[250px] object-contain mb-2 border rounded-lg bg-white p-2"
+                    src={pickImage(p)}
+                    alt="Product"
+                    className="mb-2 h-32 w-full rounded object-cover"
                     onError={(e) => {
-                      const src = e.currentTarget.src;
-
-                      if (src.endsWith(".webp")) {
-                        e.currentTarget.src = src.replace(".webp", ".jpg");
-                      } else if (src.endsWith(".jpg")) {
-                        e.currentTarget.src = src.replace(".jpg", ".png");
-                      } else {
-                        e.currentTarget.src = "/img/placeholder.png";
-                      }
+                      e.currentTarget.onerror = null; // prevents infinite loop
+                      e.currentTarget.src =
+                        "https://image.pngaaa.com/13/1887013-middle.png";
                     }}
                   />
-
 
                   <div className="flex items-center justify-between px-1 py-2">
                     <div>
@@ -1380,22 +1320,21 @@ console.log("selected.priceBands:", [...selected.priceBands]);
                       <BsFillHeartFill
                         size={20}
                         onClick={(e) => toggleWishlist(e, p._id)}
-                        className={`text-xl cursor-pointer transition-colors duration-200 ${wishlist.some(
-                          (w) =>
-                            w.productId === p._id || w?.product?._id === p._id
-                        )
-                          ? "text-red-500"
-                          : "text-gray-300"
-                          }`}
+                        className={`text-xl cursor-pointer transition-colors duration-200 ${
+                          wishlist.some(
+                            (w) =>
+                              w.productId === p._id ||
+                              w?.product?._id === p._id,
+                          )
+                            ? "text-red-500"
+                            : "text-gray-300"
+                        }`}
                       />
                     </div>
                   </div>
-                   </Link>   
-               
-                </div>      
-                 <div className=" flex flex-col items-end border-t py-2">
-                         {/* ADD / BUY Section */}
-                  <div className="flex gap-2 items-center justify-center sm:justify-end py-2 flex-wrap">
+
+                  {/* ADD / BUY Section */}
+                   <div className="flex gap-2 items-center justify-center sm:justify-start py-2 flex-wrap">
                     {getQty(p._id) === 0 ? (
                       <button
                         onClick={(e) => handleAdd(e, p)}
@@ -1437,38 +1376,33 @@ console.log("selected.priceBands:", [...selected.priceBands]);
                         e.stopPropagation();
                         const deliveryPincode = getPincode();
                         if (!deliveryPincode) {
-                          toast.error("Please enter your delivery pincode before buying.");
+                          alert(
+                            "Please enter your delivery pincode before buying.",
+                          );
                           return;
                         }
-
-                        // Store pincode in localStorage
-                        localStorage.setItem("deliveryPincode", deliveryPincode);
-
-                        // Pass product directly to checkout via route state
-                        navigate("/checkout", {
-                          state: {
-                            directPurchase: true,
-                            product: {
-                              productId: p._id,
-                              name: p.name,
-                              price: p.price,
-                              image: pickImage(p),
-                              quantity: getQty(p._id) || 1,
-                              variantId: (p?.variants && p.variants[0]?._id) || null,
-                            },
-                          },
+                        // Add to cart and navigate to cart page
+                        dispatch(
+                          addToCart({
+                            productId: p._id,
+                            variantId: null,
+                            quantity: 1,
+                            deliveryPincode,
+                          }),
+                        ).then(() => {
+                          dispatch(fetchCartItems(deliveryPincode));
+                          // Navigate to cart page
+                          navigate("/cart");
                         });
                       }}
                       className="flex flex-row items-center gap-1 border rounded-2xl p-2 px-1 text-xs text-nowrap
-                      text-white bg-green-600 shadow-sm"
+                     text-white bg-green-600 shadow-sm"
                     >
                       <BsCurrencyRupee size={18} />
                       BUY NOW
                     </button>
                   </div>
-                </div>
-               
-             
+                </Link>
               </div>
             ))}
           </div>
@@ -1478,10 +1412,11 @@ console.log("selected.priceBands:", [...selected.priceBands]);
           <button
             onClick={handlePrev}
             disabled={page === 1}
-            className={`p-1 rounded-md ${page === 1
-              ? "text-gray-300 cursor-not-allowed"
-              : "text-gray-700 hover:text-black"
-              }`}
+            className={`p-1 rounded-md ${
+              page === 1
+                ? "text-gray-300 cursor-not-allowed"
+                : "text-gray-700 hover:text-black"
+            }`}
           >
             <TbArrowBadgeLeft size={24} />
           </button>
@@ -1497,10 +1432,11 @@ console.log("selected.priceBands:", [...selected.priceBands]);
           <button
             onClick={handleNext}
             disabled={page === totalPages}
-            className={`p-1 rounded-md ${page === totalPages
-              ? "text-gray-300 cursor-not-allowed"
-              : "text-gray-700 hover:text-black"
-              }`}
+            className={`p-1 rounded-md ${
+              page === totalPages
+                ? "text-gray-300 cursor-not-allowed"
+                : "text-gray-700 hover:text-black"
+            }`}
           >
             <TbArrowBadgeRight size={24} />
           </button>

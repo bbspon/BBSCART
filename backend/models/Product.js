@@ -112,6 +112,48 @@ const ProductSchema = new mongoose.Schema(
     ram: { type: Number, default: 0, index: true },
     created_at: { type: Date, default: Date.now },
     updated_at: { type: Date, default: Date.now },
+
+// ---------------- GST / Marketplace Tax Fields ----------------
+
+hsnCode: {
+  type: String,
+  index: true
+},
+
+gstRate: {
+  type: Number
+},
+
+isTaxInclusive: {
+  type: Boolean,
+  default: true
+},
+
+priceType: {
+  type: String,
+  enum: ["INCLUSIVE", "EXCLUSIVE"],
+  default: "INCLUSIVE"
+},
+
+sellerGSTIN: {
+  type: String
+},
+
+sellerState: {
+  type: String
+},
+
+gstSource: {
+  type: String,
+  enum: ["HSN", "MANUAL"],
+  default: "HSN"
+},
+
+vendorId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Vendor",
+  // required: true
+},
   },
   { timestamps: false }
 );

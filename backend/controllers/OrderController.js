@@ -9,12 +9,93 @@ const mongoose = require("mongoose");
 const { emitCreated, emitUpdated } = require("../events/orderEmitter");
 const { emitTxnUpsert } = require("../events/transactionEmitter");
 const { emitCreateDeliveryJob } = require("../services/deliveryEmitter");
-// Razorpay Instance
+// ✅ GST helpers (Amazon-style snapshot)
+function round2(n) {
+  const x = Number(n || 0);
+  return Math.round((x + Number.EPSILON) * 100) / 100;
+}
+
+function calcInclusive(price, rate) {
+  const p = Number(price || 0);
+  const r = Number(rate || 0);
+  if (!r) return { base: round2(p), tax: 0 };
+  const base = (p * 100) / (100 + r);
+  const tax = p - base;
+  return { base: round2(base), tax: round2(tax) };
+}
+
+function splitGST(tax, sellerState, buyerState) {
+  const t = round2(tax);
+  if (!sellerState || !buyerState) {
+    return { cgst: 0, sgst: 0, igst: 0, supplyType: "unknown" };
+  }
+  if (String(sellerState).toLowerCase() === String(buyerState).toLowerCase()) {
+    return { cgst: round2(t / 2), sgst: round2(t / 2), igst: 0, supplyType: "intra" };
+  }
+  return { cgst: 0, sgst: 0, igst: t, supplyType: "inter" };
+}
+
+function pickState(addr) {
+  // best-effort: adapt to your existing address shape without breaking anything
+  return (
+    addr?.state ||
+    addr?.stateName ||
+    addr?.province ||
+    addr?.region ||
+    addr?.state_code ||
+    addr?.stateCode ||
+    null
+  );
+}
 const razorpay = new Razorpay({
   key_id: "rzp_test_5kdXsZAny3KeQZ",
   key_secret: "h80tjW16ilIw9HDIBXIcEuj7",
 });
+// ✅ Invoice number generator
+function generateInvoiceNumber() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const rand = Math.floor(100000 + Math.random() * 900000);
+  return `INV-${yyyy}${mm}${dd}-${rand}`;
+}
 
+// ✅ Convert number to words (simple INR version)
+function numberToWords(num) {
+  return `${num} Rupees Only`;
+}
+
+// ✅ Compute totals snapshot from orderItems
+function computeTotals(orderItems) {
+  let taxableTotal = 0;
+  let gstTotal = 0;
+  let cgstTotal = 0;
+  let sgstTotal = 0;
+  let igstTotal = 0;
+
+  for (const item of orderItems) {
+    taxableTotal += Number(item.lineBase || 0);
+    gstTotal += Number(item.lineTax || 0);
+    cgstTotal += Number(item.cgst || 0);
+    sgstTotal += Number(item.sgst || 0);
+    igstTotal += Number(item.igst || 0);
+  }
+
+  taxableTotal = round2(taxableTotal);
+  gstTotal = round2(gstTotal);
+  cgstTotal = round2(cgstTotal);
+  sgstTotal = round2(sgstTotal);
+  igstTotal = round2(igstTotal);
+
+  return {
+    taxableTotal,
+    gstTotal,
+    cgstTotal,
+    sgstTotal,
+    igstTotal,
+  };
+}
 /**
  * IMPORTANT:
  * Ensure the route for createOrder uses the assignment middleware:
@@ -113,7 +194,93 @@ exports.createOrder = async (req, res) => {
       quantity: Number(i?.quantity || 1),
       price: Number(i?.price || 0),
     }));
+// ✅ AMAZON-STYLE TAX SNAPSHOT (ADD-ONLY, no logic removed)
+const buyerState = pickState(shippingAddress);
 
+// Try to load Vendor model if it exists (optional, won't crash if missing)
+let Vendor = null;
+try {
+  Vendor = require("../models/Vendor.js");
+} catch (e) {
+  Vendor = null;
+}
+
+for (const line of items) {
+  // Resolve productId (variant → product)
+  let productId = line.product;
+
+  if (!productId && line.variant) {
+    const v = await Variant.findById(line.variant).select("product").lean();
+    if (v?.product) productId = v.product;
+  }
+
+  if (!productId) continue;
+
+  // Pull GST fields from PRODUCT (Amazon style)
+  const prod = await Product.findById(productId)
+    .select("hsnCode gstRate isTaxInclusive seller_id is_global")
+    .lean();
+
+  // If product not found, keep your existing flow (it already handles not found elsewhere)
+  if (!prod) continue;
+
+  const gstRate = Number(prod.gstRate ?? 0);
+  const hsnCode = (prod.hsnCode || "").toString().trim();
+  const isTaxInclusive = prod.isTaxInclusive !== false; // default true
+
+  // Seller resolution (marketplace)
+  const sellerId = prod.seller_id || req.assignedVendorId || null;
+
+  // Calculate base/tax from INCLUSIVE price (MRP style)
+  const unitPrice = Number(line.price || 0);
+  const qty = Number(line.quantity || 1);
+
+  const { base: unitBase, tax: unitTax } = isTaxInclusive
+    ? calcInclusive(unitPrice, gstRate)
+    : { base: round2(unitPrice), tax: round2((unitPrice * gstRate) / 100) };
+
+  const lineBase = round2(unitBase * qty);
+  const lineTax = round2(unitTax * qty);
+  const lineTotal = round2(unitPrice * qty);
+
+  // Try to split CGST/SGST/IGST (best effort)
+let sellerState = null;
+
+// CASE 1: Marketplace vendor product
+if (Vendor && sellerId && prod.seller_id) {
+  const vdoc = await Vendor.findById(sellerId)
+    .select("state stateCode")
+    .lean();
+
+  sellerState = vdoc?.state || vdoc?.stateCode || null;
+}
+
+// CASE 2: Global / Platform-owned product
+if (!sellerState && prod.is_global) {
+  sellerState = "Tamil Nadu"; // 🔴 Set your actual platform state
+}
+  const split = splitGST(lineTax, sellerState, buyerState);
+
+  // Attach snapshot fields (this is the Amazon-style core)
+  line.hsnCode = hsnCode;
+  line.gstRate = gstRate;
+  line.isTaxInclusive = isTaxInclusive;
+
+  line.unitBase = unitBase;
+  line.unitTax = unitTax;
+
+  line.lineBase = lineBase;
+  line.lineTax = lineTax;
+  line.lineTotal = lineTotal;
+
+  line.cgst = split.cgst;
+  line.sgst = split.sgst;
+  line.igst = split.igst;
+  line.supplyType = split.supplyType;
+  
+
+  line.seller_id = sellerId; // keeps seller on each order item
+}
     // vendor check
     // vendor check (guarded by env flags)
  if (!allowMixedVendors) {
@@ -221,18 +388,35 @@ exports.createOrder = async (req, res) => {
       return res.status(201).json(orderPayload(saved));
     }
 
-    if (paymentMethod === "COD") {
-      saved.payment_details.payment_status = "completed";
-      saved.payment_details.amount_paid = Number(totalAmount || 0);
-      await saved.save();
+if (paymentMethod === "COD") {
+  saved.payment_details.payment_status = "completed";
+  saved.payment_details.amount_paid = Number(totalAmount || 0);
 
-      require("../events/transactionEmitter").emitTxnUpsert(saved).catch(() => {});
+  // ✅ Generate invoice snapshot
+  const totals = computeTotals(saved.orderItems);
 
-      await reduceStock(saved);
+  saved.invoice = {
+    invoiceNumber: generateInvoiceNumber(),
+    invoiceDate: new Date(),
+    isGenerated: true,
+  };
 
-      const freshCOD = await Order.findById(saved._id);
-      return res.status(201).json(orderPayload(freshCOD || saved));
-    }
+  saved.totals = {
+    ...totals,
+    shippingTotal: 0,
+    discountTotal: 0,
+    grandTotal: saved.total_price,
+    amountInWords: numberToWords(saved.total_price),
+  };
+
+  await saved.save();
+
+  require("../events/transactionEmitter").emitTxnUpsert(saved).catch(() => {});
+  await reduceStock(saved);
+
+  const freshCOD = await Order.findById(saved._id);
+  return res.status(201).json(orderPayload(freshCOD || saved));
+}
 
     const fresh = await Order.findById(saved._id);
     return res.status(201).json(orderPayload(fresh || saved));
@@ -566,6 +750,22 @@ exports.markPaidTest = async (req, res) => {
 
     order.payment_details.payment_status = "completed";
     order.payment_details.amount_paid = order.total_price;
+    // ✅ Generate invoice snapshot after successful payment
+const totals = computeTotals(order.orderItems);
+
+order.invoice = {
+  invoiceNumber: generateInvoiceNumber(),
+  invoiceDate: new Date(),
+  isGenerated: true,
+};
+
+order.totals = {
+  ...totals,
+  shippingTotal: 0,
+  discountTotal: 0,
+  grandTotal: order.total_price,
+  amountInWords: numberToWords(order.total_price),
+};
     await order.save();
 
     await reduceStock(order);
@@ -579,5 +779,50 @@ exports.markPaidTest = async (req, res) => {
     return res
       .status(500)
       .json({ success: false, message: "Test mark-paid failed" });
+  }
+};
+// ✅ Get Invoice Data
+exports.getInvoiceByOrderId = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate("user_id", "name email phone")
+      .populate("orderItems.product", "name SKU");
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    if (!order.invoice?.isGenerated) {
+      return res.status(400).json({
+        success: false,
+        message: "Invoice not generated yet",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      invoice: {
+        invoiceNumber: order.invoice.invoiceNumber,
+        invoiceDate: order.invoice.invoiceDate,
+        orderId: order.order_id,
+        paymentId: order.payment_details?.payment_id,
+        buyer: {
+          name: order.user_id?.name,
+          email: order.user_id?.email,
+          phone: order.user_id?.phone,
+          address: order.shipping_address,
+        },
+        items: order.orderItems,
+        totals: order.totals,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };

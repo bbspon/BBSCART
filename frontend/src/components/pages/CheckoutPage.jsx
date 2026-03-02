@@ -50,7 +50,7 @@ function CheckoutPage() {
   const user = useSelector((state) => state.auth.user);
   const auth = useSelector((state) => state.auth);
   const reduxCartItems = useSelector((state) => state.cart.items || []);
-  
+
   console.log("CHECKOUT USER →", user);
   console.log("AUTH STATE →", auth);
   console.log("CHECKOUT LOCATION STATE →", location.state);
@@ -84,11 +84,11 @@ function CheckoutPage() {
         name: productObj?.name || item.name || productObj?.title || "Product",
         price: Number(item.quantityPrice || item.price || productObj?.price || productObj?.mrp || 0),
         qty: Number(item.quantity || item.qty || 0),
-image: productObj?.product_img_url
-  || productObj?.product_img
-  || (Array.isArray(productObj?.gallery_img_urls) && productObj.gallery_img_urls[0])
-  || item.image
-  || ""
+        image: productObj?.product_img_url
+          || productObj?.product_img
+          || (Array.isArray(productObj?.gallery_img_urls) && productObj.gallery_img_urls[0])
+          || item.image
+          || ""
 
       };
     });
@@ -195,7 +195,7 @@ image: productObj?.product_img_url
           const arr = raw ? JSON.parse(raw) : [];
           if (!arr.includes(createdOrder.order_id)) arr.unshift(createdOrder.order_id);
           localStorage.setItem(key, JSON.stringify(arr.slice(0, 20)));
-        } catch (_) {}
+        } catch (_) { }
       }
 
       // === Razorpay path ===
@@ -241,7 +241,7 @@ image: productObj?.product_img_url
                     ? "Payment successful, order placed! Assigned order has been sent to the delivery app."
                     : "Payment successful, order placed!"
                 );
-                navigate("/orders/success", { state: deliverySuccessState });
+                navigate(`/invoice/${createdOrder._id}`);
               } else {
                 toast.error(verifyRes.message || "Payment verification failed");
               }
@@ -292,7 +292,7 @@ image: productObj?.product_img_url
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
-   const [deliverySlot, setDeliverySlot] = useState(null);
+  const [deliverySlot, setDeliverySlot] = useState(null);
   const deliveryPincode = orderData?.shippingAddress?.postalCode || "";
   useEffect(() => {
     const fetchCountries = async () => {
@@ -441,11 +441,11 @@ image: productObj?.product_img_url
                           className="pro-items p-[15px] bg-[#f8f8fb] border border-[#eee] rounded-[20px] flex mb-[24px] max-[420px]:flex-col"
                         >
                           <div className="image mr-[15px] max-[420px]:mr-[0] max-[420px]:mb-[15px]">
-                        <img
-  src={pickMainImage(item)}
-  alt={item.name || "Product"}
-  className="max-w-max w-[100px] h-[100px] border-[1px] border-solid border-[#eee] rounded-[20px]"
-/>
+                            <img
+                              src={pickMainImage(item)}
+                              alt={item.name || "Product"}
+                              className="max-w-max w-[100px] h-[100px] border-[1px] border-solid border-[#eee] rounded-[20px]"
+                            />
 
                           </div>
                           <div className="items-contact">

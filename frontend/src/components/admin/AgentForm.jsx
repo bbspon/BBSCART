@@ -53,8 +53,8 @@ export default function AgentHeadForm() {
     firstName: "",
     lastName: "",
     dob: "",
-     email: "",
-     businessPartnerCode: "",
+    email: "",
+    businessPartnerCode: "",
     panNumber: "",
     aadharNumber: "",
     gender: "",
@@ -123,32 +123,32 @@ export default function AgentHeadForm() {
       setLoadingPan(false);
     }
   };
-const validateStep1 = () => {
-  if (!formData.firstName.trim()) return toast.error("Enter First Name"), false;
-  if (!formData.lastName.trim()) return toast.error("Enter Last Name"), false;
+  const validateStep1 = () => {
+    if (!formData.firstName.trim()) return toast.error("Enter First Name"), false;
+    if (!formData.lastName.trim()) return toast.error("Enter Last Name"), false;
     if (!formData.email.trim())
-    return toast.error("Enter Email Address"), false;
+      return toast.error("Enter Email Address"), false;
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(formData.email))
-    return toast.error("Enter Valid Email Address"), false;
-  if (!dobValue) return toast.error("Select Date of Birth"), false;
-  if (!formData.panNumber.trim()) return toast.error("Enter PAN Number"), false;
-  if (!formData.pan_pic && !agentHeadId)
-    return toast.error("Upload PAN Card"), false;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email))
+      return toast.error("Enter Valid Email Address"), false;
+    if (!dobValue) return toast.error("Select Date of Birth"), false;
+    if (!formData.panNumber.trim()) return toast.error("Enter PAN Number"), false;
+    if (!formData.pan_pic && !agentHeadId)
+      return toast.error("Upload PAN Card"), false;
 
-  return true;
-};
+    return true;
+  };
 
   const saveStep1AndNext = async () => {
-      if (!validateStep1()) return;
+    if (!validateStep1()) return;
     try {
       const payload = {
         agentHeadId,
-          email: formData.email.trim().toLowerCase(),   // ✅ ADD THIS
+        email: formData.email.trim().toLowerCase(),   // ✅ ADD THIS
 
         pan_number: (formData.panNumber || "").toUpperCase(),
-          businessPartnerCode: formData.businessPartnerCode || undefined,
+        businessPartnerCode: formData.businessPartnerCode || undefined,
         vendor_fname: formData.firstName || "",
         vendor_lname: formData.lastName || "",
         dob: formData.dob || "",
@@ -164,11 +164,11 @@ const validateStep1 = () => {
         localStorage.setItem("agentHeadId", id);
       }
       if (resp?.data?.data?.businessPartnerCode) {
-  setFormData((prev) => ({
-    ...prev,
-    businessPartnerCode: resp.data.data.businessPartnerCode,
-  }));
-}
+        setFormData((prev) => ({
+          ...prev,
+          businessPartnerCode: resp.data.data.businessPartnerCode,
+        }));
+      }
       setStep(2);
       toast.success("✅ PAN uploaded successfully!", {
         duration: 4500, // disappears after 2.5s
@@ -180,7 +180,7 @@ const validateStep1 = () => {
   };
 
   // Step 2: Aadhaar
-  
+
   const onAadhaarFront = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -226,25 +226,25 @@ const validateStep1 = () => {
       setLoadingABack(false);
     }
   };
-const validateStep2 = () => {
-  if (!formData.aadharNumber.trim())
-    return toast.error("Enter Aadhaar Number"), false;
+  const validateStep2 = () => {
+    if (!formData.aadharNumber.trim())
+      return toast.error("Enter Aadhaar Number"), false;
 
-  if (!formData.register_street.trim())
-    return toast.error("Enter Street"), false;
+    if (!formData.register_street.trim())
+      return toast.error("Enter Street"), false;
 
-  if (!formData.register_city.trim()) return toast.error("Enter City"), false;
+    if (!formData.register_city.trim()) return toast.error("Enter City"), false;
 
-  if (!formData.register_state.trim()) return toast.error("Enter State"), false;
+    if (!formData.register_state.trim()) return toast.error("Enter State"), false;
 
-  if (!formData.register_postalCode.trim())
-    return toast.error("Enter PIN Code"), false;
+    if (!formData.register_postalCode.trim())
+      return toast.error("Enter PIN Code"), false;
 
-  return true;
-};
+    return true;
+  };
 
   const saveStep2AndNext = async () => {
-      if (!validateStep2()) return;
+    if (!validateStep2()) return;
 
     try {
       const aNumRaw = (formData.aadharNumber || "").replace(/\D/g, "");
@@ -285,35 +285,35 @@ const validateStep2 = () => {
   // Step 3: GST
   const [gstFile, setGstFile] = useState(null);
   const onGstFileSelect = (e) => setGstFile(e.target.files?.[0] || null);
-const validateStep3 = () => {
-  if (!gstFile) return toast.error("Upload GST Certificate"), false;
-  if (!formData.gstNumber.trim()) return toast.error("Enter GST Number"), false;
-  if (!formData.gstLegalName.trim())
-    return toast.error("Enter GST Legal Name"), false;
-  if (!formData.constitution_of_business.trim())
-    return toast.error("Select Constitution of Business"), false;
+  const validateStep3 = () => {
+    if (!gstFile) return toast.error("Upload GST Certificate"), false;
+    if (!formData.gstNumber.trim()) return toast.error("Enter GST Number"), false;
+    if (!formData.gstLegalName.trim())
+      return toast.error("Enter GST Legal Name"), false;
+    if (!formData.constitution_of_business.trim())
+      return toast.error("Select Constitution of Business"), false;
 
-  if (!formData.gst_floorNo.trim())
-    return toast.error("Enter Floor No."), false;
+    if (!formData.gst_floorNo.trim())
+      return toast.error("Enter Floor No."), false;
 
-  if (!formData.gst_buildingNo.trim())
-    return toast.error("Enter Building No."), false;
+    if (!formData.gst_buildingNo.trim())
+      return toast.error("Enter Building No."), false;
 
-  if (!formData.gst_street.trim()) return toast.error("Enter Street"), false;
+    if (!formData.gst_street.trim()) return toast.error("Enter Street"), false;
 
-  if (!formData.gst_locality.trim())
-    return toast.error("Enter Locality"), false;
+    if (!formData.gst_locality.trim())
+      return toast.error("Enter Locality"), false;
 
-  if (!formData.gst_district.trim())
-    return toast.error("Enter District"), false;
+    if (!formData.gst_district.trim())
+      return toast.error("Enter District"), false;
 
-  if (!formData.gst_state.trim()) return toast.error("Enter GST State"), false;
+    if (!formData.gst_state.trim()) return toast.error("Enter GST State"), false;
 
-  return true;
-};
+    return true;
+  };
 
   const saveGstAndNext = async () => {
-     if (!validateStep3()) return;
+    if (!validateStep3()) return;
     try {
       if (!agentHeadId) {
         alert("Missing agentHeadId. Complete Step 1 first.");
@@ -362,28 +362,28 @@ const validateStep3 = () => {
   });
 
   const onBankFileChange = (e) => setBankFile(e.target.files?.[0] || null);
-const validateStep4 = () => {
-  if (!bankData.account_holder_name.trim())
-    return toast.error("Enter Account Holder Name"), false;
+  const validateStep4 = () => {
+    if (!bankData.account_holder_name.trim())
+      return toast.error("Enter Account Holder Name"), false;
 
-  if (!bankData.account_no.trim())
-    return toast.error("Enter Account Number"), false;
+    if (!bankData.account_no.trim())
+      return toast.error("Enter Account Number"), false;
 
-  if (!bankData.ifcs_code.trim()) return toast.error("Enter IFSC Code"), false;
+    if (!bankData.ifcs_code.trim()) return toast.error("Enter IFSC Code"), false;
 
-  if (!bankData.bank_name.trim()) return toast.error("Enter Bank Name"), false;
+    if (!bankData.bank_name.trim()) return toast.error("Enter Bank Name"), false;
 
-  if (!bankData.branch_name.trim())
-    return toast.error("Enter Branch Name"), false;
+    if (!bankData.branch_name.trim())
+      return toast.error("Enter Branch Name"), false;
 
-  if (!bankData.bank_address.trim())
-    return toast.error("Enter Bank Address"), false;
+    if (!bankData.bank_address.trim())
+      return toast.error("Enter Bank Address"), false;
 
-  return true;
-};
+    return true;
+  };
 
   const saveBankDetails = async () => {
-      if (!validateStep4()) return;
+    if (!validateStep4()) return;
     const aid = agentHeadId || localStorage.getItem("agentHeadId");
     if (!aid) {
       alert("Agent Head ID is required. Complete earlier steps first.");
@@ -471,38 +471,38 @@ const validateStep4 = () => {
     );
     if (!r?.data?.ok) throw new Error(r?.data?.message || "Submit failed");
   };
-const validateStep5 = () => {
-  if (!outlet.outlet_name.trim())
-    return toast.error("Enter Outlet Name"), false;
+  const validateStep5 = () => {
+    if (!outlet.outlet_name.trim())
+      return toast.error("Enter Outlet Name"), false;
 
-  if (!outlet.manager_name.trim())
-    return toast.error("Enter Manager Name"), false;
+    if (!outlet.manager_name.trim())
+      return toast.error("Enter Manager Name"), false;
 
-  if (!outlet.manager_mobile.trim())
-    return toast.error("Enter Manager Mobile"), false;
+    if (!outlet.manager_mobile.trim())
+      return toast.error("Enter Manager Mobile"), false;
 
-  if (!outlet.outlet_phone.trim())
-    return toast.error("Enter Outlet Phone"), false;
+    if (!outlet.outlet_phone.trim())
+      return toast.error("Enter Outlet Phone"), false;
 
-  if (!outlet.street.trim()) return toast.error("Enter Outlet Street"), false;
+    if (!outlet.street.trim()) return toast.error("Enter Outlet Street"), false;
 
-  if (!outlet.city.trim()) return toast.error("Enter Outlet City"), false;
+    if (!outlet.city.trim()) return toast.error("Enter Outlet City"), false;
 
-  if (!outlet.district.trim()) return toast.error("Enter District"), false;
+    if (!outlet.district.trim()) return toast.error("Enter District"), false;
 
-  if (!outlet.state.trim()) return toast.error("Enter State"), false;
+    if (!outlet.state.trim()) return toast.error("Enter State"), false;
 
-  if (!outlet.postalCode.trim()) return toast.error("Enter PIN Code"), false;
+    if (!outlet.postalCode.trim()) return toast.error("Enter PIN Code"), false;
 
-  if (!outlet.lat || !outlet.lng)
-    return (
-      toast.error("Location required. Click 'Use current location'"), false
-    );
+    if (!outlet.lat || !outlet.lng)
+      return (
+        toast.error("Location required. Click 'Use current location'"), false
+      );
 
-  if (!outletImage) return toast.error("Upload Outlet Nameboard Image"), false;
+    if (!outletImage) return toast.error("Upload Outlet Nameboard Image"), false;
 
-  return true;
-};
+    return true;
+  };
 
   const saveOutletAndFinish = async () => {
     if (!validateStep5()) return;
@@ -579,7 +579,6 @@ const validateStep5 = () => {
           </a>
 
           <h5 className="mb-3 text-center">Step 1: PAN Card Details</h5>
-
           <Row>
             <Col md={6} className="mb-3">
               <Form.Label>First Name</Form.Label>
@@ -610,46 +609,46 @@ const validateStep5 = () => {
               />
             </Col>
           </Row>
-<Row>
-  <Col md={12} className="mb-3">
-    <Form.Label>Email Address</Form.Label>
-    <Form.Control
-      type="email"
-      value={formData.email}
-      onChange={(e) =>
-        setFormData((p) => ({
-          ...p,
-          email: e.target.value,
-        }))
-      }
-      className="border border-dark rounded-lg my-3"
-      style={{
-        border: "0.1px solid #333",
-        boxShadow: "none",
-      }}
-    />
-  </Col>
-</Row>
+          <Row>
+            <Col md={12} className="mb-3">
+              <Form.Label>Email Address</Form.Label>
+              <Form.Control
+                type="email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData((p) => ({
+                    ...p,
+                    email: e.target.value,
+                  }))
+                }
+                className="border border-dark rounded-lg my-3"
+                style={{
+                  border: "0.1px solid #333",
+                  boxShadow: "none",
+                }}
+              />
+            </Col>
+          </Row>
 
           <Row>
             <Row>
-  <Col md={12} className="mb-3">
-    <Form.Label>Business Partner Code</Form.Label>
-    <Form.Control
-      type="text"
-      value={formData.businessPartnerCode || ""}
-      readOnly
-      placeholder="Auto generated after first save"
-      className="border border-dark rounded-lg my-3"
-      style={{
-        border: "0.1px solid #333",
-        backgroundColor: "#f8f9fa",
-        fontWeight: "600",
-        letterSpacing: "1px",
-      }}
-    />
-  </Col>
-</Row>
+              <Col md={12} className="mb-3">
+                <Form.Label>Business Partner Code</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={formData.businessPartnerCode || ""}
+                  readOnly
+                  placeholder="Auto generated after first save"
+                  className="border border-dark rounded-lg my-3"
+                  style={{
+                    border: "0.1px solid #333",
+                    backgroundColor: "#f8f9fa",
+                    fontWeight: "600",
+                    letterSpacing: "1px",
+                  }}
+                />
+              </Col>
+            </Row>
             <Col md={6} className="mb-3 flex flex-col">
               <Form.Label>Date of Birth</Form.Label>
 
@@ -1257,9 +1256,9 @@ const validateStep5 = () => {
               />
             </Col>
           </Row>
-  <div className="flex justify-end mb-2">
+          <div className="flex justify-end mb-2">
             <Button variant="secondary" size="sm" onClick={fetchLocation}
-               className="border border-green-500 bg-green-500 rounded-full hover:bg-green-600 
+              className="border border-green-500 bg-green-500 rounded-full hover:bg-green-600 
                focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-50 
                px-5 py-1 text-black">
               Use current location

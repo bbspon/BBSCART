@@ -18,6 +18,9 @@ const CategorySchema = new mongoose.Schema({
   slug: { type: String, sparse: true },
   icon: { type: String },
   imageUrl: { type: String },
+  gstRate: { type: Number, default: 0 },
+hsnCode: { type: String, default: "" },
+isTaxInclusive: { type: Boolean, default: false },
   // Make seller_id optional so Admin can create global categories
   seller_id: { type: ObjectId, ref: "User", required: false, default: null },
   subcategories: [{ type: mongoose.Schema.Types.ObjectId, ref: "Subcategory" }],
