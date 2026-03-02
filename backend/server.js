@@ -70,7 +70,7 @@ const vendorIdentityRoutes = require("./routes/vendorIdentityRoutes");
 const territoryIdentityRoutes = require("./routes/territoryIdentityRoutes");
 const transactionRoutes  = require("./routes/transactionRoutes");
 const contactRoutes = require("./routes/contactRoutes");
-
+const categoryGstRoutes = require("./routes/categoryGstRoutes");
 const app = express();
 
 // ===== DEV-FIRST CORS (simple & safe) =====
@@ -331,7 +331,7 @@ app.use("/api/groceries", require("./routes/groceryRoutes"));
 app.use("/api/fruits", require("./routes/FruitsRoutes"));
 app.use("/api/categories", require("./routes/categoryRoutes"));
 app.use("/api/subcategories", require("./routes/subcategoryRoutes"));
-
+app.use("/api/category-gst", categoryGstRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/users", userRoutes);
