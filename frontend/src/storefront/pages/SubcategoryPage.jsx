@@ -516,7 +516,7 @@ export default function SubcategoryPage() {
     const query = buildQuery();
     console.log("[REQ] /facets", query);
     instance
-      .get("/facets", { params: query })
+      .get("/products/facets", { params: query })
       .then(({ data }) => {
         const f = data?.facets || data || {};
         console.log("[RES] /facets", f);
