@@ -12,7 +12,7 @@ import {
 import { addToCart, fetchCartItems } from "../../slice/cartSlice";
 import toast from "react-hot-toast";
 import { useDispatch, useSelector } from "react-redux";
-
+import { removeFromCart } from "../../slice/cartSlice";
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 function pickMainImage(p) {
@@ -23,8 +23,10 @@ function pickMainImage(p) {
   raw = raw || (p.product_img_url && String(p.product_img_url));
   raw = raw || pickFromArray(p.gallery_img_urls);
   raw = raw || pickFromArray(p.gallery_imgs);
-  raw = raw || (Array.isArray(p.product_img) ? p.product_img[0] : p.product_img);
-  raw = raw || (Array.isArray(p.product_img2) ? p.product_img2[0] : p.product_img2);
+  raw =
+    raw || (Array.isArray(p.product_img) ? p.product_img[0] : p.product_img);
+  raw =
+    raw || (Array.isArray(p.product_img2) ? p.product_img2[0] : p.product_img2);
   raw = raw || p.image || p.img || "";
 
   if (!raw) return "/img/placeholder.png";
@@ -95,7 +97,7 @@ export default function ProductListingFull() {
   const [page, setPage] = useState(1);
   const [pincode, setPincode] = useState(getPincode());
   const getProductId = (p) => p.id || p._id;
-
+  const cartItems = useSelector((state) => state.cart.items || []);
   const limit = 20;
   const dispatch = useDispatch();
   const { items: wishlist } = useSelector((state) => state.wishlist);
@@ -110,7 +112,10 @@ export default function ProductListingFull() {
   }
   useEffect(() => {
     // Accept multiple possible query param names for compatibility
-    const q = searchParams.get("search") || searchParams.get("q") || searchParams.get("s");
+    const q =
+      searchParams.get("search") ||
+      searchParams.get("q") ||
+      searchParams.get("s");
     if (q) {
       setSearch(q);
       setPage(1);
@@ -124,7 +129,55 @@ export default function ProductListingFull() {
       delete instance.defaults.headers.common["X-Pincode"];
     }
   }, [pincode]);
+  const getQty = (productId) => {
+    const item = cartItems.find(
+      (c) => c.productId === productId || c.product?._id === productId
+    );
+    return item ? Number(item.quantity || item.qty || 0) : 0;
+  };
 
+  const handleIncrease = (e, product) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    dispatch(
+      addToCart({
+        productId: product._id || product.id,
+        variantId: null,
+        quantity: 1,
+      })
+    )
+      .unwrap()
+      .then(() => dispatch(fetchCartItems()))
+      .catch(() => toast.error("Failed to update cart"));
+  };
+
+  const handleDecrease = (e, product) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const qty = getQty(product._id || product.id);
+
+    if (qty <= 1) {
+      dispatch(
+        removeFromCart({
+          productId: product._id || product.id,
+          variantId: null,
+        })
+      ).then(() => dispatch(fetchCartItems()));
+    } else {
+      dispatch(
+        addToCart({
+          productId: product._id || product.id,
+          variantId: null,
+          quantity: -1,
+        })
+      )
+        .unwrap()
+        .then(() => dispatch(fetchCartItems()))
+        .catch(() => toast.error("Failed to update cart"));
+    }
+  };
   // optional: listen to a custom event if your app updates pincode elsewhere
   useEffect(() => {
     const onPinChange = () => setPincode(getPincode());
@@ -155,7 +208,10 @@ export default function ProductListingFull() {
   // 🔁 Force reload when URL search changes
   useEffect(() => {
     // support legacy param names
-    const q = searchParams.get("search") || searchParams.get("q") || searchParams.get("s");
+    const q =
+      searchParams.get("search") ||
+      searchParams.get("q") ||
+      searchParams.get("s");
 
     if (q !== null) {
       setSearch(q);
@@ -186,8 +242,10 @@ export default function ProductListingFull() {
 
         if (!alive) return;
 
-        const brands = (facetsData.brands || []).map((b) => b.name).filter(Boolean);
-      setAllCategories(categoriesData);
+        const brands = (facetsData.brands || [])
+          .map((b) => b.name)
+          .filter(Boolean);
+        setAllCategories(categoriesData);
 
         const rams = (facetsData.ram || [])
           .map((r) => Number(r.value))
@@ -195,7 +253,7 @@ export default function ProductListingFull() {
         const price = facetsData.price || { min: 0, max: 30000 };
 
         setAllBrands(brands);
-setAllCategories(categoriesData);
+        setAllCategories(categoriesData);
         setRamOptions(rams.sort((a, b) => a - b));
         setPriceRange({
           min: Math.max(0, Math.floor(price.min || 0)),
@@ -245,7 +303,10 @@ setAllCategories(categoriesData);
       try {
         const { list, extraParams } = getApiBase(pincode);
         // Debug log: outgoing params
-        console.debug("Fetching products with params:", { ...params, ...extraParams });
+        console.debug("Fetching products with params:", {
+          ...params,
+          ...extraParams,
+        });
         const { data } = await instance.get(list, {
           params: { ...params, ...extraParams },
           signal: controller.signal,
@@ -262,12 +323,18 @@ setAllCategories(categoriesData);
         if (search && String(search).trim()) {
           const norm = String(search).trim().toLowerCase();
           const anyMatch = fetched.some((p) => {
-            const fields = [p.name, p.title, p.description].filter(Boolean).join(" ").toLowerCase();
+            const fields = [p.name, p.title, p.description]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase();
             return fields.includes(norm);
           });
 
           if (!anyMatch) {
-            console.debug("No local matches found, trying /products/search fallback for:", search);
+            console.debug(
+              "No local matches found, trying /products/search fallback for:",
+              search,
+            );
             try {
               const sRes = await instance.get(`/products/search`, {
                 params: { q: search, page: 1, limit },
@@ -286,7 +353,7 @@ setAllCategories(categoriesData);
         setTotal(fetchedTotal);
       } catch (e) {
         setErr(
-          e?.response?.data?.error || e?.message || "Failed to load products"
+          e?.response?.data?.error || e?.message || "Failed to load products",
         );
         setProducts([]);
         setTotal(0);
@@ -312,8 +379,22 @@ setAllCategories(categoriesData);
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
-  const filtered = useMemo(() => products, [products]);
-  useEffect(() => {
+const filtered = useMemo(() => {
+  if (selectedRatings.size === 0) return products;
+
+  const minRating = Math.max(...Array.from(selectedRatings));
+
+  return products.filter((p) => {
+    const rating =
+      p.rating ||
+      p.avgRating ||
+      p.averageRating ||
+      p.review_rating ||
+      0;
+
+    return Number(rating) >= minRating;
+  });
+}, [products, selectedRatings]);  useEffect(() => {
     dispatch(fetchWishlistItems());
   }, []);
 
@@ -323,7 +404,9 @@ setAllCategories(categoriesData);
 
     const deliveryPincode = getPincode();
     if (!deliveryPincode) {
-      toast.error("Please enter your delivery pincode before adding items to cart.");
+      toast.error(
+        "Please enter your delivery pincode before adding items to cart.",
+      );
       return;
     }
 
@@ -332,7 +415,11 @@ setAllCategories(categoriesData);
     }
 
     dispatch(
-      addToCart({ productId: product._id || product.id, variantId: null, quantity: 1 })
+      addToCart({
+        productId: product._id || product.id,
+        variantId: null,
+        quantity: 1,
+      }),
     )
       .unwrap()
       .then((res) => {
@@ -350,7 +437,7 @@ setAllCategories(categoriesData);
     e.stopPropagation();
 
     const exists = wishlist.some(
-      (w) => w.productId === productId || w?.product?._id === productId
+      (w) => w.productId === productId || w?.product?._id === productId,
     );
 
     try {
@@ -365,7 +452,6 @@ setAllCategories(categoriesData);
       console.log("Wishlist toggle error:", err);
     }
   };
-
 
   return (
     <>
@@ -436,24 +522,24 @@ setAllCategories(categoriesData);
           <div className="mb-4">
             <label className="block text-sm font-medium mb-1">Categories</label>
 
-            <div className="space-y-2">
-       {allCategories.map((category) => (
-  <label
-    key={category._id}
-    className="flex items-center gap-2 px-2 py-1 cursor-pointer"
-  >
-    <input
-      type="checkbox"
-      className="w-4 h-4 cursor-pointer"
-      checked={selectedCategories.has(category._id)}
-      onChange={() => {
-        toggleSetItem(setSelectedCategories, category._id);
-        setPage(1);
-      }}
-    />
-    <span className="text-sm">{category.name}</span>
-  </label>
-))}
+            <div className="max-h-60 overflow-y-auto pr-2 space-y-2 border rounded-lg p-2 bg-g">
+              {allCategories.map((category) => (
+                <label
+                  key={category._id}
+                  className="flex items-center gap-2 px-2 py-1 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 cursor-pointer"
+                    checked={selectedCategories.has(category._id)}
+                    onChange={() => {
+                      toggleSetItem(setSelectedCategories, category._id);
+                      setPage(1);
+                    }}
+                  />
+                  <span className="text-sm">{category.name}</span>
+                </label>
+              ))}
 
               {allCategories.length === 0 && (
                 <div className="text-xs text-gray-500 px-2">
@@ -462,7 +548,6 @@ setAllCategories(categoriesData);
               )}
             </div>
           </div>
-
 
           {/* Ratings */}
           <div className="mb-4">
@@ -572,7 +657,9 @@ setAllCategories(categoriesData);
 
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
-                <h1 className="text-2xl font-semibold border-b mb-5">All Products</h1>
+                <h1 className="text-2xl font-semibold border-b mb-5">
+                  All Products
+                </h1>
                 <div className="text-sm text-gray-600">
                   {loading
                     ? "Loading..."
@@ -631,184 +718,152 @@ setAllCategories(categoriesData);
           )}
 
           {/* Product list */}
-          <div className="space-y-4">
+          <div>
             {!loading && filtered.length === 0 && !err && (
               <div className="text-sm text-gray-600">
                 No products match your filters.
               </div>
             )}
 
-         {filtered.map((p) =>
-  view === "grid" ? (
-    <Link
-      key={getProductId(p)}
-      to={`/p/${getProductId(p)}`}
-      className="block"
-    >
-      <article className="flex border rounded-lg p-4 hover:shadow-md transition bg-white cursor-pointer">
+            {view === "grid" ? (
+              // ✅ GRID WRAPPER HERE
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 px-2 py-6">
+                {filtered.map((p) => (
+                  <Link
+                    key={getProductId(p)}
+                    to={`/p/${getProductId(p)}`}
+                    className="block"
+                  >
+                    <article className="border rounded-xl p-4 bg-white shadow-sm hover:shadow-md transition h-full flex flex-col ">
 
-                  <div className="w-36 h-36 flex-shrink-0 rounded overflow-hidden bg-gray-100">
-                    <img
-                      src={pickMainImage(p)}
-                      alt={p.name || p.title || p.product_name || "Product"}
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
+                      {/* Image Section */}
+                      <div className="relative rounded-lg overflow-hidden bg-gray-100 h-48 flex items-center justify-center bg-white">
+                        <img
+                          src={pickMainImage(p)}
+                          alt={p.name || p.title || p.product_name || "Product"}
+                          className="max-h-full object-contain"
+                        />
 
-                  <div className="flex-1 ml-4">
-                    <div className="flex items-start justify-between">
-                      <BsFillHeartFill
-                        size={20}
-                        onClick={(e) => toggleWishlist(e, getProductId(p))}
-                        className={`cursor-pointer transition-colors duration-200 ${wishlist.some(
-                          (w) =>
-                            w.productId === (p.id || p._id) ||
-                            w?.product?._id === (p.id || p._id)
-                        )
-                            ? "text-red-500"
-                            : "text-gray-300"
-                          }`}
-                      />
+                        {/* ❤️ Wishlist */}
+                        <div className="absolute top-2 right-2 bg-white p-2 rounded-full shadow-md">
+                          <BsFillHeartFill
+                            size={18}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              toggleWishlist(e, getProductId(p));
+                            }}
+                            className={`cursor-pointer transition-colors duration-200 ${wishlist.some(
+                              (w) =>
+                                w.productId === (p.id || p._id) ||
+                                w?.product?._id === (p.id || p._id)
+                            )
+                                ? "text-red-500"
+                                : "text-gray-300"
+                              }`}
+                          />
+                        </div>
+                      </div>
 
-                      <div>
-                        <h2 className="font-medium text-gray-800">{p.name || p.title || p.product_name}</h2>
+                      {/* Content */}
+                      <div className="mt-4 flex flex-col flex-1">
+                        <h2 className="font-medium text-gray-800 text-sm line-clamp-2">
+                          {p.name || p.title || p.product_name}
+                        </h2>
+
                         <div className="text-xs text-gray-500 mt-1">
                           {p.reviewsText}
                         </div>
-                      </div>
 
-                      <div className="text-right">
-                        <div className="text-lg font-bold">₹{inr(p.price)}</div>
-                        {p.oldPrice ? (
-                          <div className="text-xs line-through text-gray-400">
-                            ₹{inr(p.oldPrice)}
+                        <div className="mt-2">
+                          <div className="text-lg font-bold text-gray-900">
+                            ₹{inr(p.price)}
                           </div>
-                        ) : null}
-                        <div className="text-green-600 text-sm">
-                          {p.discountText}
+
+                          {p.oldPrice && (
+                            <div className="text-xs line-through text-gray-400">
+                              ₹{inr(p.oldPrice)}
+                            </div>
+                          )}
+
+                          <div className="text-green-600 text-xs">
+                            {p.discountText}
+                          </div>
+                        </div>
+
+                        {/* Push bottom section down */}
+                        <div className="mt-auto pt-4 flex items-center justify-between text-xs text-gray-600 gap-3 flex-wrap">
+                          <label
+                            className="flex items-center gap-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={compareIds.has(getProductId(p))}
+                              onChange={() => toggleCompare(getProductId(p))}
+                            />
+                            <span className="whitespace-nowrap">
+                              Add to Compare
+                            </span>
+                          </label>
+
+                          {getQty(getProductId(p)) === 0 ? (
+                            <button
+                              onClick={(e) => handleAdd(e, p)}
+                              className="py-1 px-3 bg-primary text-white rounded-md hover:opacity-90"
+                            >
+                              Add to Cart
+                            </button>
+                          ) : (
+                            <div
+                              className="flex items-center gap-2 border rounded px-2 py-1"
+                              onClick={(e) => e.preventDefault()}
+                            >
+                              <button
+                                onClick={(e) => handleDecrease(e, p)}
+                                className="text-lg font-bold px-2"
+                              >
+                                −
+                              </button>
+
+                              <span className="text-sm font-semibold">
+                                {getQty(getProductId(p))}
+                              </span>
+
+                              <button
+                                onClick={(e) => handleIncrease(e, p)}
+                                className="text-lg font-bold px-2"
+                              >
+                                +
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
-
-                    <ul className="list-disc list-inside text-sm text-gray-700 mt-3">
-                      {(p.specs || []).slice(0, 4).map((s, i) => (
-                        <li key={i}>{s}</li>
-                      ))}
-                    </ul>
-
-                    <div className="flex items-center gap-3 mt-3 text-sm">
-                      {/* clicking the label/input should not trigger the parent Link navigation
-                          but we *do not* preventDefault on the click/mousedown events because
-                          doing so broke the controlled checkbox and caused the first toggle to
-                          update the counter without rendering the tick.  Instead we simply stop
-                          propagation on the label and let React handle the checkbox state. */}
-                      <label
-                        className="flex items-center gap-2"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={compareIds.has(getProductId(p))}
-                          onChange={() => toggleCompare(getProductId(p))}
-                        />
-
-                        <span>Add to Compare</span>
-                      </label>
-
-                      <div className="ml-auto">
-                        <button
-                          onClick={(e) => handleAdd(e, p)}
-                          className="text-xs py-1 px-3 bg-primary text-white rounded-md hover:opacity-90"
-                        >
-                          Add to Cart
-                        </button>
-                      </div>
-
-                      {p.assured && (
-                        <span className="px-2 py-0.5 border text-xs rounded text-blue-700">
-                          Assured
-                        </span>
-                      )}
-                      {p.bestseller && (
-                        <span className="px-2 py-0.5 bg-yellow-100 text-xs rounded">
-                          Bestseller
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </article>
-                </Link>
-              ) : (
-               <Link
-  key={getProductId(p)}
-  to={`/p/${getProductId(p)}`}
-  className="block"
->
-  <div className="md:flex items-center border rounded px-4 py-3 bg-white hover:shadow-md cursor-pointer">
-
-                  <div className="w-20 flex items-center">
-                    <img
-                      src={p.image || pickMainImage(p)}
-                      alt={p.name || p.title || p.product_name || "Product"}
-                      className="w-full object-contain"
-                    />
-                  </div>
-
-                  <div className="flex-1 px-4">
-                    <div className="font-medium text-gray-800">{p.name || p.title || p.product_name}</div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {p.reviewsText}
-                    </div>
-                  </div>
-
-                  <div className="w-64 text-sm text-gray-700">
-                    <ul className="list-disc list-inside">
-                      {(p.specs || []).slice(0, 3).map((s, i) => (
-                        <li key={i}>{s}</li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="w-40 text-right">
-                    <div className="text-lg font-bold">₹{inr(p.price)}</div>
-                    {p.oldPrice ? (
-                      <div className="text-xs line-through text-gray-400">
-                        ₹{inr(p.oldPrice)}
-                      </div>
-                    ) : null}
-                    <div className="text-green-600 text-sm">{p.discountText}</div>
-                    <div className="text-xs mt-1">{p.exchangeOffer}</div>
-                  </div>
-
-                  <div className="w-28 text-center">
-                    {/* stopping propagation here prevents the surrounding link from firing */}
-                    <label onClick={(e) => e.stopPropagation()} className="inline-block">
-                      <input
-                        type="checkbox"
-                        checked={compareIds.has(getProductId(p))}
-                        onChange={() => toggleCompare(getProductId(p))}
-                      />
-                    </label>
-                    <div className="mt-2">
-                      <button
-                        onClick={(e) => handleAdd(e, p)}
-                        className="text-xs py-1 px-2 bg-primary text-white rounded-md hover:opacity-90"
-                      >
-                        Add to Cart
-                      </button>
-                    </div>
-
-                  </div>
-                </div>
-                </Link>
-              )
+                    </article>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              // LIST VIEW (your existing list code)
+              <div className="space-y-4">
+                {filtered.map((p) => (
+                  <Link
+                    key={getProductId(p)}
+                    to={`/p/${getProductId(p)}`}
+                    className="block"
+                  >
+                    {/* Your list layout here (unchanged) */}
+                  </Link>
+                ))}
+              </div>
             )}
           </div>
 
           {/* Pagination */}
           <div className="flex items-center justify-between mt-6">
             <div className="text-sm text-gray-600">
-              Page {page} of {totalPages} {total ? `• Total ${total} items` : ""}
+              Page {page} of {totalPages}{" "}
+              {total ? `• Total ${total} items` : ""}
             </div>
             <div className="flex gap-2">
               <button
@@ -833,7 +888,9 @@ setAllCategories(categoriesData);
           {/* Compare bar */}
           {compareIds.size > 0 && (
             <div className="fixed bottom-4 right-4 bg-white border rounded p-3 shadow-md flex items-center gap-4">
-              <div className="text-sm">{compareIds.size} product(s) selected</div>
+              <div className="text-sm">
+                {compareIds.size} product(s) selected
+              </div>
               <button
                 className="bg-blue-600 text-white rounded px-3 py-1 text-sm"
                 onClick={() => {

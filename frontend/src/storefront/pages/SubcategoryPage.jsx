@@ -115,9 +115,12 @@ export default function SubcategoryPage() {
   }, []);
   const cartItems = useSelector((state) => state.cart.items);
 
-  const getQty = (id) => {
-    const found = cartItems.find((c) => c.productId === id);
-    return found ? found.quantity : 0;
+  const getQty = (productId) => {
+    const item = cartItems.find(
+      (c) => c.productId === productId || c.product?._id === productId
+    );
+
+    return item ? Number(item.quantity || item.qty || 0) : 0;
   };
 
   const handleAdd = (e, product) => {
@@ -167,33 +170,44 @@ export default function SubcategoryPage() {
   };
   const handleIncrease = (e, product) => {
     e.preventDefault();
-    const qty = getQty(product._id);
+    e.stopPropagation();
 
     dispatch(
-      updateQuantity({
+      addToCart({
         productId: product._id,
         variantId: null,
-        quantity: qty + 1,
-      }),
-    ).then(() => dispatch(fetchCartItems()));
+        quantity: 1,
+      })
+    )
+      .unwrap()
+      .then(() => dispatch(fetchCartItems()))
+      .catch(() => toast.error("Failed to update cart"));
   };
 
   const handleDecrease = (e, product) => {
     e.preventDefault();
+    e.stopPropagation();
+
     const qty = getQty(product._id);
 
     if (qty <= 1) {
       dispatch(
-        removeFromCart({ productId: product._id, variantId: null }),
+        removeFromCart({
+          productId: product._id,
+          variantId: null,
+        })
       ).then(() => dispatch(fetchCartItems()));
     } else {
       dispatch(
-        updateQuantity({
+        addToCart({
           productId: product._id,
           variantId: null,
-          quantity: qty - 1,
-        }),
-      ).then(() => dispatch(fetchCartItems()));
+          quantity: -1,
+        })
+      )
+        .unwrap()
+        .then(() => dispatch(fetchCartItems()))
+        .catch(() => toast.error("Failed to update cart"));
     }
   };
 
@@ -782,9 +796,9 @@ export default function SubcategoryPage() {
       const t = String(val).trim();
       return t.includes("|")
         ? t
-            .split("|")
-            .map((s) => s.trim())
-            .filter(Boolean)[0]
+          .split("|")
+          .map((s) => s.trim())
+          .filter(Boolean)[0]
         : t;
     };
 
@@ -949,7 +963,7 @@ export default function SubcategoryPage() {
                   type="text"
                   placeholder="Search here"
                   className="mt-2 mb-2 w-full border rounded-md px-2 py-1 text-sm"
-                  onChange={() => {}}
+                  onChange={() => { }}
                 />
                 <div className="divide-y divide-gray-100">
                   {lists.brands.map((b) => {
@@ -1320,21 +1334,20 @@ export default function SubcategoryPage() {
                       <BsFillHeartFill
                         size={20}
                         onClick={(e) => toggleWishlist(e, p._id)}
-                        className={`text-xl cursor-pointer transition-colors duration-200 ${
-                          wishlist.some(
-                            (w) =>
-                              w.productId === p._id ||
-                              w?.product?._id === p._id,
-                          )
+                        className={`text-xl cursor-pointer transition-colors duration-200 ${wishlist.some(
+                          (w) =>
+                            w.productId === p._id ||
+                            w?.product?._id === p._id,
+                        )
                             ? "text-red-500"
                             : "text-gray-300"
-                        }`}
+                          }`}
                       />
                     </div>
                   </div>
 
                   {/* ADD / BUY Section */}
-                   <div className="flex gap-2 items-center justify-center sm:justify-start py-2 flex-wrap">
+                  <div className="flex gap-2 items-center justify-center sm:justify-start py-2 flex-wrap">
                     {getQty(p._id) === 0 ? (
                       <button
                         onClick={(e) => handleAdd(e, p)}
@@ -1374,29 +1387,38 @@ export default function SubcategoryPage() {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+
                         const deliveryPincode = getPincode();
+
                         if (!deliveryPincode) {
-                          alert(
-                            "Please enter your delivery pincode before buying.",
-                          );
+                          toast.error("Please enter your delivery pincode before buying.");
                           return;
                         }
-                        // Add to cart and navigate to cart page
+
                         dispatch(
                           addToCart({
                             productId: p._id,
                             variantId: null,
                             quantity: 1,
-                            deliveryPincode,
-                          }),
-                        ).then(() => {
-                          dispatch(fetchCartItems(deliveryPincode));
-                          // Navigate to cart page
-                          navigate("/cart");
-                        });
+                          })
+                        )
+                          .unwrap()
+                          .then(() => {
+                            dispatch(fetchCartItems());
+
+                            navigate("/checkout", {
+                              state: {
+                                buyNow: true,
+                                product: p
+                              }
+                            });
+                          })
+                          .catch(() => {
+                            toast.error("Failed to process Buy Now");
+                          });
                       }}
                       className="flex flex-row items-center gap-1 border rounded-2xl p-2 px-1 text-xs text-nowrap
-                     text-white bg-green-600 shadow-sm"
+  text-white bg-green-600 shadow-sm"
                     >
                       <BsCurrencyRupee size={18} />
                       BUY NOW
@@ -1412,11 +1434,10 @@ export default function SubcategoryPage() {
           <button
             onClick={handlePrev}
             disabled={page === 1}
-            className={`p-1 rounded-md ${
-              page === 1
+            className={`p-1 rounded-md ${page === 1
                 ? "text-gray-300 cursor-not-allowed"
                 : "text-gray-700 hover:text-black"
-            }`}
+              }`}
           >
             <TbArrowBadgeLeft size={24} />
           </button>
@@ -1432,11 +1453,10 @@ export default function SubcategoryPage() {
           <button
             onClick={handleNext}
             disabled={page === totalPages}
-            className={`p-1 rounded-md ${
-              page === totalPages
+            className={`p-1 rounded-md ${page === totalPages
                 ? "text-gray-300 cursor-not-allowed"
                 : "text-gray-700 hover:text-black"
-            }`}
+              }`}
           >
             <TbArrowBadgeRight size={24} />
           </button>

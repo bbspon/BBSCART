@@ -62,7 +62,7 @@ function CheckoutPage() {
 
   // Normalize Redux cart items to a consistent format
   const cartItems = useMemo(() => {
-    // If direct purchase, use the product passed via route state
+
     if (isDirectPurchase && directProduct) {
       return [{
         productId: directProduct.productId,
@@ -71,27 +71,84 @@ function CheckoutPage() {
         price: Number(directProduct.price || 0),
         qty: Number(directProduct.quantity || 1),
         image: directProduct.image || "",
+        gstRate: Number(directProduct.gstRate || 0),
+        gstAmount: Number(directProduct.gstAmount || 0),
+        finalPrice: Number(directProduct.finalPrice || directProduct.price || 0)
       }];
     }
 
-    // Otherwise, use Redux cart items
-    const itemsArray = Array.isArray(reduxCartItems) ? reduxCartItems : Object.values(reduxCartItems || {});
-    return itemsArray.map((item) => {
-      const productObj = item.product && typeof item.product === "object" ? item.product : null;
-      return {
-        productId: productObj?._id || item.productId || item.product || item._id,
-        variantId: item.variant?._id || item.variantId || item.variant || null,
-        name: productObj?.name || item.name || productObj?.title || "Product",
-        price: Number(item.quantityPrice || item.price || productObj?.price || productObj?.mrp || 0),
-        qty: Number(item.quantity || item.qty || 0),
-        image: productObj?.product_img_url
-          || productObj?.product_img
-          || (Array.isArray(productObj?.gallery_img_urls) && productObj.gallery_img_urls[0])
-          || item.image
-          || ""
+    const itemsArray = Array.isArray(reduxCartItems)
+      ? reduxCartItems
+      : Object.values(reduxCartItems || {});
 
-      };
+    return itemsArray.map((item) => {
+
+      const productObj =
+        item.product && typeof item.product === "object"
+          ? item.product
+          : null;
+
+      const price =
+        Number(item.quantityPrice) ||
+        Number(item.price) ||
+        Number(productObj?.price) ||
+        Number(productObj?.mrp) ||
+        0;
+
+      const gstRate =
+        Number(item.gstRate) ||
+        Number(productObj?.gstRate) ||
+        0;
+
+      const qty = Number(item.quantity || item.qty || 1);
+
+// ✅ INCLUSIVE GST CALCULATION
+let basePrice = price;
+let gstAmount = 0;
+let finalPrice = price;
+
+if (gstRate > 0) {
+  basePrice = (price * 100) / (100 + gstRate);
+  gstAmount = price - basePrice;
+  finalPrice = price; // already includes GST
+}
+      return {
+  productId:
+    productObj?._id ||
+    item.productId ||
+    item.product ||
+    item._id,
+
+  variantId:
+    item.variant?._id ||
+    item.variantId ||
+    item.variant ||
+    null,
+
+  name:
+    productObj?.name ||
+    item.name ||
+    productObj?.title ||
+    "Product",
+
+  price: price,
+  qty: qty,
+
+  gstRate: gstRate,
+  gstAmount: gstAmount,     // ✅ extracted GST
+  finalPrice: finalPrice,   // ✅ do NOT add GST again
+
+  image:
+    productObj?.product_img_url ||
+    productObj?.product_img ||
+    (Array.isArray(productObj?.gallery_img_urls) &&
+      productObj.gallery_img_urls[0]) ||
+    item.image ||
+    ""
+};
+
     });
+
   }, [reduxCartItems, isDirectPurchase, directProduct]);
 
   const cartTotal = useMemo(() => {
@@ -101,7 +158,22 @@ function CheckoutPage() {
       0
     );
   }, [cartItems]);
-
+  const gstTotal = useMemo(() => {
+    return cartItems.reduce((sum, item) => {
+      const gst = Number(item.gstAmount || 0);
+      const qty = Number(item.qty || 1);
+      return sum + gst * qty;
+    }, 0);
+  }, [cartItems]);
+  const cgstTotal = gstTotal / 2;
+  const sgstTotal = gstTotal / 2;
+  const payableTotal = useMemo(() => {
+    return cartItems.reduce((sum, item) => {
+      const price = Number(item.finalPrice || item.price || 0);
+      const qty = Number(item.qty || 1);
+      return sum + price * qty;
+    }, 0);
+  }, [cartItems]);
   const [orderData, setOrderData] = useState({
     user_id: user?._id || "",
     orderItems: cartItems.map((item) => ({
@@ -372,8 +444,8 @@ function CheckoutPage() {
     <>
       <section className="section-checkout bbscontainer pt-[50px] max-[1199px]:pt-[35px]">
         <div className="flex flex-wrap justify-between relative items-center">
-          <div className="flex flex-wrap w-full mb-[-24px]">
-            <div className="min-[992px]:w-[33.33%] w-full px-[12px] mb-[24px]">
+          <div className="grid lg:grid-cols-3 gap-6 w-full">
+            <div className="lg:col-span-1 order-1">
               <div className="bb-checkout-sidebar mb-[-24px]">
                 <div className="checkout-items border-[1px] border-solid border-[#eee] p-[20px] rounded-[20px] mb-[24px] aos-init aos-animate">
                   <div className="sub-title mb-[12px]">
@@ -438,7 +510,7 @@ function CheckoutPage() {
                       cartItems.map((item, idx) => (
                         <div
                           key={item.productId + "-" + idx}
-                          className="pro-items p-[15px] bg-[#f8f8fb] border border-[#eee] rounded-[20px] flex mb-[24px] max-[420px]:flex-col"
+                          className="flex gap-4 p-4 bg-white border border-gray-200 rounded-xl shadow-sm"
                         >
                           <div className="image mr-[15px] max-[420px]:mr-[0] max-[420px]:mb-[15px]">
                             <img
@@ -605,7 +677,7 @@ function CheckoutPage() {
                 </div> */}
               </div>
             </div>
-            <div className="min-[992px]:w-[66.66%] w-full px-[12px] mb-[24px]">
+            <div className="lg:col-span-1 order-3">
               <div
                 className="bb-checkout-contact border-[1px] border-solid border-[#eee] p-[20px] rounded-[20px] aos-init aos-animate"
                 data-aos="fade-up"
@@ -636,6 +708,7 @@ function CheckoutPage() {
                         Billing Details
                       </h4>
                     </div>
+
                     <div className="checkout-radio flex mb-[10px] max-[480px]:flex-col">
                       <div className="radio-itens mr-[20px]">
                         <input
@@ -815,13 +888,14 @@ function CheckoutPage() {
                               <label className="block text-[14px] font-medium text-secondary mb-[8px]">
                                 Delivery time slot *
                               </label>
-                              <div className="p-[10px] border border-[#eee] rounded-[10px]">
+                              <div className="max-h-[220px] overflow-y-auto pr-2">
                                 <SlotPicker
                                   pincode={deliveryPincode}
                                   value={deliverySlot}
                                   onChange={setDeliverySlot}
                                 />
                               </div>
+
                               {deliverySlot && (
                                 <div className="mt-[6px] text-[12px] text-secondary">
                                   Selected: {deliverySlot.label} (
@@ -832,21 +906,102 @@ function CheckoutPage() {
                             </div>
                           </div>
                           {/* Place Order Button */}
-                          <div className="w-full px-[12px]">
-                            <div className="input-button">
-                              <button
-                                type="submit"
-                                className="bb-btn-2 inline-block py-[10px] px-[25px] text-[14px] font-medium text-white bg-[#6c7fd8] rounded-[10px] hover:bg-transparent hover:border-[#3d4750] hover:text-secondary border"
-                              >
-                                Place Order
-                              </button>
-                            </div>
-                          </div>
+
                         </div>
                       </form>
                     </div>
                   </>
                 )}
+              </div>
+            </div>
+            <div className="lg:col-span-1 order-3">
+              <div className="sticky top-24 space-y-6">
+
+                <div className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm">
+                  <h4 className="text-lg font-semibold mb-4">Payment Method</h4>
+
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="Razorpay"
+                        checked={orderData.paymentMethod === "Razorpay"}
+                        onChange={(e) => setOrderData({ ...orderData, paymentMethod: e.target.value })}
+                      />
+                      Razorpay
+                    </label>
+
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="COD"
+                        checked={orderData.paymentMethod === "COD"}
+                        onChange={(e) => setOrderData({ ...orderData, paymentMethod: e.target.value })}
+                      />
+                      Cash on Delivery
+                    </label>
+                  </div>
+                </div>
+
+
+                <div className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm">
+
+                  <h4 className="text-lg font-semibold mb-4">Order Summary</h4>
+
+                  <div className="space-y-2 text-sm">
+
+                    <div className="flex justify-between">
+                      <span>Items</span>
+                      <span>{cartItems.length}</span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span>GST (incl.)</span>
+                      <span>₹{gstTotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>CGST</span>
+                      <span>₹{cgstTotal.toFixed(2)}</span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span>SGST</span>
+                      <span>₹{sgstTotal.toFixed(2)}</span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span>Delivery</span>
+                      <span>₹0</span>
+                    </div>
+
+                    <div className="flex justify-between text-green-600">
+                      <span>Coupon</span>
+                      <span>-₹0</span>
+                    </div>
+
+                    <hr />
+
+                    <div className="flex justify-between font-semibold text-lg">
+                      <span>Total Payable</span>
+                      <span>₹{payableTotal.toFixed(2)}</span>                    </div>
+
+                  </div>
+
+                  <button
+                    onClick={handleSubmit}
+                    className="mt-5 w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition"
+                  >
+                    Proceed to Pay →
+                  </button>
+
+                  <div className="text-xs text-gray-500 text-center mt-3">
+                    🔒 100% Secure Checkout
+                  </div>
+
+                </div>
+
               </div>
             </div>
           </div>

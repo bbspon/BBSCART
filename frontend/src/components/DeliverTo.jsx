@@ -83,20 +83,22 @@ export default function DeliverTo({ onAssigned }) {
 
   if (!isOpen) return null;
 
+
+  
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 bg-dark bg-opacity-40">
       <div
         className="bg-white rounded-2xl shadow-lg p-6 px-8 w-full max-w-md relative"
         style={{ backgroundColor: "rgb(255, 174, 95)" }}
       >
-        <button
+        {/* <button
           onClick={() => {
             setIsOpen(false);   // ✅ Just close, save NOTHING
           }}
           className="absolute top-4 right-8 text-gray-800 hover:text-black"
         >
           ✕
-        </button>
+        </button> */}
 
         <h2 className="text-lg font-semibold m-4 text-center">
           Deliver To

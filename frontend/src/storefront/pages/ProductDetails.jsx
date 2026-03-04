@@ -25,18 +25,18 @@ import { addToCart, fetchCartItems } from "../../slice/cartSlice";
 import toast from "react-hot-toast";
 
 const API_BASE = import.meta.env.VITE_API_URL;
- const STATIC_PREFIX = "/uploads";
- const norm = (u) => {
-   if (!u) return "";
+const STATIC_PREFIX = "/uploads";
+const norm = (u) => {
+  if (!u) return "";
   const s = String(u).trim();
   // already absolute URL
- if (/^https?:\/\//i.test(s)) return s;
-   // already a static path
-   if (s.startsWith("/uploads/") || s.startsWith("/uploads/"))
-   return `${API_BASE}${s}`;
+  if (/^https?:\/\//i.test(s)) return s;
+  // already a static path
+  if (s.startsWith("/uploads/") || s.startsWith("/uploads/"))
+    return `${API_BASE}${s}`;
   // bare filename from DB → build full URL
-   return `${API_BASE}${STATIC_PREFIX}/${encodeURIComponent(s)}`;
- };
+  return `${API_BASE}${STATIC_PREFIX}/${encodeURIComponent(s)}`;
+};
 
 export default function ProductDetails() {
   const { id } = useParams();
@@ -48,7 +48,7 @@ export default function ProductDetails() {
   const [loading, setLoading] = useState(true);
   const [img, setImg] = useState("");
   const [quantity, setQuantity] = useState(1);
-
+  const [testimonials, setTestimonials] = useState([]);
   const getPincode = () => {
     return localStorage.getItem("deliveryPincode") || "";
   };
@@ -57,8 +57,29 @@ export default function ProductDetails() {
   const [showOffers, setShowOffers] = useState(false);
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
-const { items: wishlist } = useSelector((state) => state.wishlist);
+  const { items: wishlist } = useSelector((state) => state.wishlist);
+  const cartItems = useSelector((state) => state.cart?.items || []);
+  const ratingData = useMemo(() => {
+    if (!testimonials.length) {
+      return { avg: 0, total: 0 };
+    }
 
+    const total = testimonials.length;
+
+    const sum = testimonials.reduce((acc, t) => {
+      return acc + Number(t.rating || 0);
+    }, 0);
+
+    const avg = sum / total;
+
+    return { avg, total };
+  }, [testimonials]);
+  const getQty = (productId) => {
+    const item = cartItems.find(
+      (c) => c.productId === productId || c.product?._id === productId
+    );
+    return item ? Number(item.quantity || item.qty || 0) : 0;
+  };
   const [deliveryLocation, setDeliveryLocation] =
     useState("Puducherry, 605008");
   useEffect(() => {
@@ -66,7 +87,7 @@ const { items: wishlist } = useSelector((state) => state.wishlist);
       try {
         setLoading(true);
         setP(null);
-        
+
         console.log("[ProductDetails] Fetching product:", id);
         const { data } = await instance.get(`/products/public/${id}`);
         console.log("[ProductDetails] Product fetched:", data?._id, data?.name);
@@ -101,44 +122,91 @@ const { items: wishlist } = useSelector((state) => state.wishlist);
       }
     })();
   }, [id]);
-useEffect(() => {
-  dispatch(fetchWishlistItems());
-}, []);
+  useEffect(() => {
+    dispatch(fetchWishlistItems());
+  }, []);
+  const handleIncrement = () => {
+    dispatch(
+      addToCart({
+        productId: p._id,
+        variantId: null,
+        quantity: 1,
+      })
+    )
+      .unwrap()
+      .then(() => dispatch(fetchCartItems()))
+      .catch(() => toast.error("Failed to update cart"));
+  };
+  useEffect(() => {
+    if (!id) return;
 
-// --- Thumbs order: gallery first (main set), then sub images (product_img, product_img2) ---
-const thumbs = useMemo(() => {
-  const g = p?._norm?.galleryMain || [];
-  const s = p?._norm?.subs || [];
-  const all = [...g, ...s];
-  return all.length ? all : ["/img/placeholder.png"];
-}, [p]);
+    const loadTestimonials = async () => {
+      try {
+        const { data } = await instance.get(
+          `/testimonials?productId=${id}`
+        );
+
+        setTestimonials(data?.testimonials || []);
+      } catch (err) {
+        console.error("Failed to load testimonials", err);
+      }
+    };
+
+    loadTestimonials();
+  }, [id]);
+  const handleDecrement = () => {
+    const qty = getQty(p._id);
+
+    if (qty <= 1) {
+      dispatch(removeFromCart({ productId: p._id, variantId: null }))
+        .then(() => dispatch(fetchCartItems()));
+    } else {
+      dispatch(
+        addToCart({
+          productId: p._id,
+          variantId: null,
+          quantity: -1,
+        })
+      )
+        .unwrap()
+        .then(() => dispatch(fetchCartItems()))
+        .catch(() => toast.error("Failed to update cart"));
+    }
+  };
+  // --- Thumbs order: gallery first (main set), then sub images (product_img, product_img2) ---
+  const thumbs = useMemo(() => {
+    const g = p?._norm?.galleryMain || [];
+    const s = p?._norm?.subs || [];
+    const all = [...g, ...s];
+    return all.length ? all : ["/img/placeholder.png"];
+  }, [p]);
   const price = p?.priceInfo?.sale ?? p?.price ?? 0;
   const mrp = p?.priceInfo?.mrp ?? p?.price ?? 0;
   // ===== GST FROM CATEGORY =====
-// ===== GST FROM CATEGORY =====
-const category = p?.category_id || {};
-const gstRate = p?.gstRate ?? p?.category_id?.gstRate ?? 0;
-const hsnCode = p?.hsnCode ?? p?.category_id?.hsnCode ?? "";
-const isTaxInclusive = Boolean(category?.isTaxInclusive);
+  // ===== GST FROM CATEGORY =====
+  const category = p?.category_id || {};
+  const gstRate = p?.gstRate ?? p?.category_id?.gstRate ?? 0;
+  const hsnCode = p?.hsnCode ?? p?.category_id?.hsnCode ?? "";
+  const isTaxInclusive = Boolean(category?.isTaxInclusive);
 
-const productPrice = Number(p?.price || 0);
+  const productPrice = Number(p?.price || 0);
 
-let basePrice = productPrice;
-let gstAmount = 0;
-let finalPrice = productPrice;
+  let basePrice = productPrice;
+  let gstAmount = 0;
+  let finalPrice = productPrice;
 
-if (gstRate > 0) {
-  if (isTaxInclusive) {
-    // Price already includes GST
-    gstAmount = (productPrice * gstRate) / (100 + gstRate);
-    basePrice = productPrice - gstAmount;
-    finalPrice = productPrice;
-  } else {
-    // GST should be added
-    gstAmount = (productPrice * gstRate) / 100;
-    finalPrice = productPrice + gstAmount;
+  if (gstRate > 0) {
+    if (isTaxInclusive) {
+      // Price already includes GST
+      gstAmount = (productPrice * gstRate) / (100 + gstRate);
+      basePrice = productPrice - gstAmount;
+      finalPrice = productPrice;
+    } else {
+      // GST should be added
+      gstAmount = (productPrice * gstRate) / 100;
+      finalPrice = productPrice + gstAmount;
+    }
   }
-}
   const discountText =
     p?.priceInfo?.discountText ||
     (mrp > price ? `${Math.round(100 - (price / mrp) * 100)}% off` : "");
@@ -165,13 +233,24 @@ if (gstRate > 0) {
   const highlights = Array.isArray(ui.highlights) ? ui.highlights : [];
   const colorOptions = Array.isArray(ui.colorOptions) ? ui.colorOptions : [];
   const sizes = Array.isArray(ui.sizes) ? ui.sizes : [];
-  const reviews = Array.isArray(ui.reviews) ? ui.reviews : [];
-  const ratingSummary = ui.ratingSummary || {
-    counts: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
-    total: p?.rating_count || 0,
-    avg: p?.rating_avg || 0,
-  };
+  const reviews = testimonials || [];
+  const ratingSummary = useMemo(() => {
+    const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
 
+    testimonials.forEach((t) => {
+      const r = Number(t.rating || 0);
+      if (counts[r] !== undefined) counts[r]++;
+    });
+
+    const total = testimonials.length;
+
+    const avg =
+      total === 0
+        ? 0
+        : testimonials.reduce((a, t) => a + Number(t.rating || 0), 0) / total;
+
+    return { counts, total, avg };
+  }, [testimonials]);
   if (loading) return <div className="container py-4">Loading…</div>;
   if (!p) {
     return (
@@ -212,40 +291,40 @@ if (gstRate > 0) {
 
     // Keep the existing cart context update for immediate UI
     try {
-cart.addItem(
-  {
-    productId: p._id,
-    name: p.name,
-    image: img,
-    price: finalPrice,
-    basePrice,
-    gstRate,
-    gstAmount,
-    hsnCode,
-    isTaxInclusive,
-    qty: quantity,
-    variantId: null,
-  },
-  vendorId
-);
+      cart.addItem(
+        {
+          productId: p._id,
+          name: p.name,
+          image: img,
+          price: finalPrice,
+          basePrice,
+          gstRate,
+          gstAmount,
+          hsnCode,
+          isTaxInclusive,
+          qty: quantity,
+          variantId: null,
+        },
+        vendorId
+      );
     } catch (err) {
       // ignore if context not available
     }
 
     // Dispatch the redux thunk to persist server-side cart
-  dispatch(
-  addToCart({
-    productId: p._id,
-    variantId: null,
-    quantity,
-    price: basePrice,
-    gstRate,
-    gstAmount,
-    hsnCode,
-    isTaxInclusive,
-    finalPrice
-  })
-)
+    dispatch(
+      addToCart({
+        productId: p._id,
+        variantId: null,
+        quantity,
+        price: basePrice,
+        gstRate,
+        gstAmount,
+        hsnCode,
+        isTaxInclusive,
+        finalPrice
+      })
+    )
       .unwrap()
       .then(() => {
         dispatch(fetchCartItems());
@@ -302,13 +381,12 @@ cart.addItem(
                     );
                   }
                 }}
-                className={`absolute bottom-4 right-4 p-2 rounded-full shadow transition ${
-                  wishlist.some(
-                    (w) => w.productId === p._id || w?.product?._id === p._id
-                  )
-                    ? "bg-red-600 text-white"
-                    : "bg-orange-100 text-red-500"
-                }`}
+                className={`absolute bottom-4 right-4 p-2 rounded-full shadow transition ${wishlist.some(
+                  (w) => w.productId === p._id || w?.product?._id === p._id
+                )
+                  ? "bg-red-600 text-white"
+                  : "bg-orange-100 text-red-500"
+                  }`}
                 title="Wishlist"
               >
                 <Heart size={18} />
@@ -321,9 +399,8 @@ cart.addItem(
                   <button
                     key={i}
                     onClick={() => setImg(g)}
-                    className={`w-20 h-20 rounded-lg overflow-hidden border-2 ${
-                      img === g ? "border-blue-500" : "border-transparent"
-                    }`}
+                    className={`w-20 h-20 rounded-lg overflow-hidden border-2 ${img === g ? "border-blue-500" : "border-transparent"
+                      }`}
                     title="Preview"
                   >
                     <img
@@ -359,23 +436,25 @@ cart.addItem(
           {/* ratings + seller header (PricingPage pattern) */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm">
-              <div className="flex text-yellow-500">
-                {Array(5)
-                  .fill()
-                  .map((_, i) => (
+              <div className="flex items-center text-yellow-500">
+                {Array.from({ length: 5 }).map((_, i) => {
+                  const filled = i < Math.round(ratingData.avg);
+
+                  return (
                     <Star
                       key={i}
                       size={18}
-                      className={`${
-                        i < Math.floor(seller.rating || 0)
-                          ? "fill-yellow-500"
-                          : ""
-                      }`}
+                      className={filled ? "fill-yellow-500 text-yellow-500" : "text-gray-300"}
                     />
-                  ))}
+                  );
+                })}
               </div>
               <span className="font-semibold">
-                {(seller.rating || p?.rating_avg || 0).toFixed(1)}
+                {ratingData.avg.toFixed(1)}
+              </span>
+
+              <span className="text-gray-600">
+                ({ratingData.total} ratings)
               </span>
               <span className="text-gray-600">
                 ({seller.reviewsCount || p?.rating_count || 0} ratings)
@@ -388,28 +467,28 @@ cart.addItem(
 
           {/* price with mrp/discount */}
           <div>
-<div className="text-3xl font-bold text-green-600">
-₹{finalPrice.toFixed(2)}
-</div>
+            <div className="text-3xl font-bold text-green-600">
+              ₹{finalPrice.toFixed(2)}
+            </div>
 
-{gstRate > 0 && (
-  <div className="text-xs text-gray-600 mt-1">
-    <div>GST: {gstRate}%</div>
-    <div>HSN: {hsnCode || "-"}</div>
+            {gstRate > 0 && (
+              <div className="text-xs text-gray-600 mt-1">
+                <div>GST: {gstRate}%</div>
+                <div>HSN: {hsnCode || "-"}</div>
 
-    {isTaxInclusive ? (
-      <>
-        <div>Price includes GST</div>
-        <div>Included GST: ₹{gstAmount.toFixed(2)}</div>
-      </>
-    ) : (
-      <>
-        <div>Base Price: ₹{basePrice.toFixed(2)}</div>
-        <div>GST Amount: ₹{gstAmount.toFixed(2)}</div>
-      </>
-    )}
-  </div>
-)}          {mrp > price && (
+                {isTaxInclusive ? (
+                  <>
+                    <div>Price includes GST</div>
+                    <div>Included GST: ₹{gstAmount.toFixed(2)}</div>
+                  </>
+                ) : (
+                  <>
+                    <div>Base Price: ₹{basePrice.toFixed(2)}</div>
+                    <div>GST Amount: ₹{gstAmount.toFixed(2)}</div>
+                  </>
+                )}
+              </div>
+            )}          {mrp > price && (
               <>
                 <div className="text-sm text-gray-500 line-through">₹{mrp}</div>
                 <div className="text-sm text-red-600">{discountText}</div>
@@ -473,11 +552,10 @@ cart.addItem(
                       const i = colorOptions.findIndex((c) => c.name === name);
                       if (gallery[i]) setImg(gallery[i]);
                     }}
-                    className={`p-1 rounded border-2 ${
-                      selectedColor === name
-                        ? "border-blue-500"
-                        : "border-gray-300"
-                    }`}
+                    className={`p-1 rounded border-2 ${selectedColor === name
+                      ? "border-blue-500"
+                      : "border-gray-300"
+                      }`}
                     title={name}
                   >
                     <img src={cimg} alt={name} className="w-10 h-10 rounded" />
@@ -496,11 +574,10 @@ cart.addItem(
                   <button
                     key={s}
                     onClick={() => setSelectedSize(s)}
-                    className={`px-4 py-2 rounded-full border ${
-                      selectedSize === s
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-300"
-                    }`}
+                    className={`px-4 py-2 rounded-full border ${selectedSize === s
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-300"
+                      }`}
                   >
                     {s}
                   </button>
@@ -527,18 +604,43 @@ cart.addItem(
 
           {/* CTAs */}
           <div className="flex gap-4">
-            <button
-              onClick={onAddToCart}
-              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2"
-            >
-              <ShoppingCart size={20} /> Add to Cart
-            </button>
+
+            {getQty(p._id) === 0 ? (
+              <button
+                onClick={onAddToCart}
+                className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2"
+              >
+                <ShoppingCart size={20} /> Add to Cart
+              </button>
+            ) : (
+              <div className="flex-1 flex items-center justify-center gap-4 border rounded-lg py-3 bg-gray-100">
+                <button
+                  onClick={handleDecrement}
+                  className="text-xl font-bold px-3"
+                >
+                  -
+                </button>
+
+                <span className="text-lg font-semibold">
+                  {getQty(p._id)}
+                </span>
+
+                <button
+                  onClick={handleIncrement}
+                  className="text-xl font-bold px-3"
+                >
+                  +
+                </button>
+              </div>
+            )}
+
             <button
               onClick={onBuyNow}
               className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2"
             >
               <PackageCheck size={20} /> Buy Now
             </button>
+
           </div>
 
           {/* service badges */}
@@ -571,9 +673,8 @@ cart.addItem(
             <div className="text-sm text-gray-500">Dimensions</div>
             <div className="font-medium">
               {dims.length || dims.width || dims.height
-                ? `${dims.length ?? 0} × ${dims.width ?? 0} × ${
-                    dims.height ?? 0
-                  }`
+                ? `${dims.length ?? 0} × ${dims.width ?? 0} × ${dims.height ?? 0
+                }`
                 : "-"}
             </div>
 
@@ -632,8 +733,8 @@ cart.addItem(
                   star >= 4
                     ? "bg-green-600"
                     : star === 3
-                    ? "bg-yellow-500"
-                    : "bg-orange-500";
+                      ? "bg-yellow-500"
+                      : "bg-orange-500";
                 return (
                   <div key={star} className="flex items-center gap-2">
                     <span className="w-6 text-sm">{star}★</span>
@@ -652,20 +753,37 @@ cart.addItem(
             <div className="space-y-6">
               {reviews.map((r, i) => (
                 <div
-                  key={i}
+                  key={r._id || i}
                   className="border p-4 rounded-lg bg-white shadow-sm"
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <div className="bg-green-600 text-white px-2 rounded text-xs font-semibold flex items-center gap-1">
                       {r.rating}★
                     </div>
-                    <div className="font-semibold">{r.title}</div>
+
+                    <div className="font-semibold">
+                      {r.title || "Customer Review"}
+                    </div>
                   </div>
-                  <p className="text-gray-700 mb-2">{r.comment}</p>
+
+                  <p className="text-gray-700 mb-2">
+                    {r.message}
+                  </p>
+
                   <div className="text-xs text-gray-500 flex items-center gap-2">
-                    <span>{r.reviewer}</span>
-                    {r.location && <span>• {r.location}</span>}
-                    {r.date && <span>• {r.date}</span>}
+                    <span>{r.name}</span>
+
+                    {r.verified && (
+                      <span className="text-green-600 font-medium">
+                        Verified Purchase
+                      </span>
+                    )}
+
+                    {r.createdAt && (
+                      <span>
+                        • {new Date(r.createdAt).toLocaleDateString()}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}

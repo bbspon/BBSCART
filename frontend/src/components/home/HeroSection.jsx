@@ -1,12 +1,15 @@
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Pagination, Navigation } from "swiper/modules";
-
+import thia from "../../assets/Thia-Logo.png";
+import health from "../../assets/healthacess.png";
+import { useNavigate } from "react-router-dom";
 import "swiper/css";
 import "swiper/css/autoplay";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 
 const HeroSection = () => {
+  const navigate = useNavigate();
  const slides = [
    { id: 1, image: "/img/hero/bbscart shopping.png" },
    { id: 2, image: "/img/hero/bbscart.png" },
@@ -17,7 +20,42 @@ const HeroSection = () => {
 
   return (
     <>
-      <section className="w-full mt-12 pt-10">
+  <div className="flex gap-6 justify-center items-center py-6">
+
+  {/* THIA */}
+<div
+  onClick={() => window.location.href = "https://thiaworld.bbscart.com/"}
+  className="cursor-pointer transition transform hover:scale-105"
+>
+  <img
+    src={thia}
+    alt="Thia"
+    className="w-40 h-20 object-contain rounded-xl shadow-md border border-gray-200 hover:shadow-lg"
+  />
+</div>
+
+  {/* HEALTH */}
+<div
+  onClick={() =>
+    window.open(
+      "https://healthcare.bbscart.com/",
+      "_blank",
+      "noopener,noreferrer"
+    )
+  }
+  className="cursor-pointer transition transform hover:scale-105"
+>
+  <img
+    src={health}
+    alt="Health"
+    className="w-40 h-20 object-contain rounded-xl shadow-md border border-gray-200 hover:shadow-lg"
+  />
+</div>
+
+</div>
+
+
+      <section className="w-full">
         <Swiper
           loop
           centeredSlides={true}

@@ -29,6 +29,7 @@ const MENU_LINKS = {
   "Account Settings": "/user-setting",
   Orders: "/orders",
   Wishlist: "/wishlist",
+  "My Cart": "/cart",
 
   "Toys & Stationery": "/subcategory/6974c2f8087410f5634717fe",
   "Fruits & Vegetables": "/fresh",
@@ -78,7 +79,7 @@ const MegaMenu = () => {
   const allProductsData = [
     {
       title: isAuthenticated && displayName ? displayName : "User",
-      items: ["Account Settings", "Orders", "Wishlist"],
+      items: ["Account Settings", "Orders", "Wishlist", "My Cart"],
     },
     {
       title: "Shop by Category",

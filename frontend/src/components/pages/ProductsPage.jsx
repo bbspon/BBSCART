@@ -84,10 +84,43 @@ const ProductsPage = () => {
   }, [activeCategoryId]);
 
   const getQty = (productId) => {
-    const item = cartItems.find((c) => c.productId === productId);
-    return item ? item.quantity : 0;
+  const item = cartItems.find(
+    (c) => c.productId === productId || c.product?._id === productId
+  );
+
+  return item ? Number(item.quantity || item.qty || 0) : 0;
+};
+  const handleIncrement = (e, product) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    dispatch(
+      addToCart({
+        productId: product._id,
+        variantId: null,
+        quantity: 1,
+      })
+    )
+      .unwrap()
+      .then(() => dispatch(fetchCartItems()))
+      .catch(() => toast.error("Failed to update cart"));
   };
 
+  const handleDecrement = (e, product) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    dispatch(
+      addToCart({
+        productId: product._id,
+        variantId: null,
+        quantity: -1,
+      })
+    )
+      .unwrap()
+      .then(() => dispatch(fetchCartItems()))
+      .catch(() => toast.error("Failed to update cart"));
+  };
   const handleAddToCart = (e, product) => {
     e.preventDefault();
     e.stopPropagation();
@@ -165,8 +198,10 @@ const ProductsPage = () => {
           ))
         ) : (
           products.map((p) => {
-            const price = p?.priceInfo?.sale ?? p?.price ?? 0;
-            const qty = getQty(p._id);
+            const price =
+              Number(p?.priceInfo?.sale) > 0
+                ? Number(p.priceInfo.sale)
+                : Number(p?.price) || 0; const qty = getQty(p._id);
             return (
               <div
                 key={p._id}
@@ -193,14 +228,33 @@ const ProductsPage = () => {
                 <p className="text-lg font-bold mt-2 text-green-700">
                   ₹{Number(price).toFixed(2)}
                 </p>
+                {qty > 0 ? (
+                  <div className="mt-3 flex items-center justify-center gap-3 bg-gray-100 rounded-lg px-3 py-2">
+                    <button
+                      onClick={(e) => handleDecrement(e, p)}
+                      className="w-8 h-8 flex items-center justify-center rounded bg-white shadow hover:bg-gray-200"
+                    >
+                      -
+                    </button>
 
-                <button
-                  className="mt-3 w-full border border-green-700 text-green-700 font-semibold rounded-full py-2
-                    hover:bg-green-700 hover:text-white transition shadow-sm"
-                  onClick={(e) => handleAddToCart(e, p)}
-                >
-                  {qty ? `Added (${qty})` : "Add to Cart"}
-                </button>
+                    <span className="font-semibold text-lg">{qty}</span>
+
+                    <button
+                      onClick={(e) => handleIncrement(e, p)}
+                      className="w-8 h-8 flex items-center justify-center rounded bg-white shadow hover:bg-gray-200"
+                    >
+                      +
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    className="mt-3 w-full bg-green-600 text-white font-semibold rounded-full py-2
+    hover:bg-green-700 transition shadow-sm"
+                    onClick={(e) => handleAddToCart(e, p)}
+                  >
+                    Add to Cart
+                  </button>
+                )}
               </div>
             );
           })
